@@ -1,0 +1,23 @@
+# ==============================================
+# EvoTech Solution - Root .gitignore
+# ==============================================
+
+# Environment files (NEVER commit secrets!)
+.env
+.env.local
+.env.production
+.env.*.local
+
+# PM2 Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

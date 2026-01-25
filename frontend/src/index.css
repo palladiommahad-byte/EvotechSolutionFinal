@@ -1,0 +1,381 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Core backgrounds - Clean white theme */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    
+    /* Card and sections */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    
+    /* Light gray sections */
+    --section: 210 40% 98%;
+    --section-foreground: 222 47% 11%;
+    
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    
+    /* Primary - Navy Blue */
+    --primary: 222 47% 17%;
+    --primary-foreground: 210 40% 98%;
+    
+    /* Secondary - Light Navy */
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 17%;
+    
+    /* Muted */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    
+    /* Accent */
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 17%;
+    
+    /* Destructive - Error Red */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Success */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    
+    /* Warning */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    
+    /* Info */
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+    
+    /* Borders and inputs */
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 222 47% 17%;
+    
+    --radius: 0.5rem;
+    
+    /* Sidebar - Light theme */
+    --sidebar-background: 210 40% 98%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 222 47% 17%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 210 40% 94%;
+    --sidebar-accent-foreground: 222 47% 17%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 222 47% 17%;
+    
+    /* Custom design tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(222 47% 17%) 0%, hsl(222 47% 25%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 40% 98%) 100%);
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Roboto', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-feature-settings: 'kern' 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.5;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Roboto', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    @apply font-semibold;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+  
+  h1 {
+    @apply text-3xl lg:text-4xl;
+    line-height: 1.1;
+  }
+  
+  h2 {
+    @apply text-2xl lg:text-3xl;
+    line-height: 1.15;
+  }
+  
+  h3 {
+    @apply text-xl lg:text-2xl;
+    line-height: 1.2;
+  }
+  
+  h4 {
+    @apply text-lg lg:text-xl;
+  }
+  
+  h5 {
+    @apply text-base lg:text-lg;
+  }
+  
+  h6 {
+    @apply text-sm lg:text-base;
+  }
+  
+  p {
+    line-height: 1.6;
+  }
+  
+  small {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+}
+
+@layer components {
+  .card-elevated {
+    @apply bg-card border border-border rounded-lg;
+    box-shadow: var(--shadow-card);
+    overflow: visible;
+    min-width: 0;
+  }
+  
+  .card-elevated:hover {
+    box-shadow: var(--shadow-md);
+  }
+  
+  /* Ensure numbers in all cards are visible */
+  .card-elevated > * {
+    overflow: visible;
+  }
+  
+  .section-gray {
+    @apply bg-section;
+  }
+  
+  .kpi-card {
+    @apply bg-card border border-border rounded-xl p-6;
+    box-shadow: var(--shadow-card);
+    transition: all 0.2s ease;
+    overflow: visible;
+    min-width: 0;
+    width: 100%;
+  }
+  
+  .kpi-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+  
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200;
+    @apply text-muted-foreground hover:text-foreground hover:bg-sidebar-accent;
+  }
+  
+  .sidebar-item-active {
+    @apply bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground;
+  }
+  
+  .data-table-header {
+    @apply bg-section text-foreground font-semibold text-xs uppercase tracking-wider;
+  }
+  
+  .status-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .status-success {
+    background-color: hsl(142 76% 36% / 0.15);
+    color: hsl(142 76% 36%);
+    border: 1px solid hsl(142 76% 36% / 0.25);
+    @apply font-medium;
+  }
+  
+  .status-warning {
+    background-color: hsl(38 92% 50% / 0.15);
+    color: hsl(38 92% 50%);
+    border: 1px solid hsl(38 92% 50% / 0.25);
+    @apply font-medium;
+  }
+  
+  .status-danger {
+    background-color: hsl(0 84% 60% / 0.15);
+    color: hsl(0 84% 60%);
+    border: 1px solid hsl(0 84% 60% / 0.25);
+    @apply font-medium;
+  }
+  
+  .status-info {
+    background-color: hsl(199 89% 48% / 0.15);
+    color: hsl(199 89% 48%);
+    border: 1px solid hsl(199 89% 48% / 0.25);
+    @apply font-medium;
+  }
+
+  .status-default {
+    background-color: hsl(215 16% 47% / 0.15);
+    color: hsl(215 16% 47%);
+    border: 1px solid hsl(215 16% 47% / 0.25);
+    @apply font-medium;
+  }
+  
+  .input-moroccan {
+    @apply border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary;
+  }
+  
+  .btn-primary-gradient {
+    background: var(--gradient-primary);
+    @apply text-primary-foreground font-medium shadow-sm hover:opacity-90 transition-opacity;
+  }
+  
+  /* Optimize form elements for Roboto */
+  input, textarea, select {
+    font-family: 'Roboto', system-ui, sans-serif;
+    font-feature-settings: 'kern' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  button {
+    font-family: 'Roboto', system-ui, sans-serif;
+    font-feature-settings: 'kern' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: 0.01em;
+  }
+  
+  /* Improve table text readability */
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+  
+  /* Better code/monospace handling if used */
+  code, pre {
+    font-family: 'Roboto Mono', 'Courier New', monospace;
+  }
+  
+  /* Prevent number overflow in tables and cards */
+  td, th {
+    max-width: 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  /* Number cells should not break unnecessarily */
+  td.text-right, td.text-center,
+  th.text-right, th.text-center {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  /* Long numbers should truncate with ellipsis */
+  .number-cell {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  
+  /* KPI card values should be fully visible */
+  .kpi-card {
+    overflow: visible;
+    min-width: 0;
+  }
+  
+  .kpi-card .text-xl,
+  .kpi-card .text-2xl {
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    hyphens: auto;
+    line-height: 1.2;
+    min-width: 0;
+    overflow: visible;
+    white-space: normal;
+  }
+  
+  /* Summary panels and calculations - allow numbers to be fully visible */
+  .card-elevated .flex.justify-between > span:last-child {
+    overflow: visible;
+    white-space: normal;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+  
+  /* Format MAD currency properly */
+  .font-medium,
+  .font-bold {
+    white-space: nowrap;
+  }
+  
+  /* Ensure tables have proper width constraints */
+  table.table-fixed {
+    table-layout: fixed;
+    width: 100%;
+  }
+  
+  /* Chart container numbers - allow wrapping for visibility */
+  .text-2xl.font-bold {
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    overflow: visible;
+  }
+  
+  /* Ensure numbers in cards are fully visible */
+  .card-elevated .text-2xl,
+  .card-elevated .text-xl {
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    overflow: visible;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  .animate-slide-in-right {
+    animation: slideInRight 0.3s ease-out;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+}
