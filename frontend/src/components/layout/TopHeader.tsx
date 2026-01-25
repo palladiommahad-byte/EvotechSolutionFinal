@@ -66,7 +66,7 @@ export const TopHeader = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="text-muted-foreground hover:text-foreground relative"
+              className="text-muted-foreground hover:text-foreground relative rounded-full data-[state=open]:bg-primary data-[state=open]:text-primary-foreground"
             >
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
@@ -81,7 +81,7 @@ export const TopHeader = () => {
           </NotificationDropdown>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground relative">
+              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground relative rounded-full data-[state=open]:bg-primary data-[state=open]:text-primary-foreground">
                 <Avatar className="w-8 h-8 border-2 border-border hover:border-primary/50 transition-colors">
                   <AvatarImage src={undefined} alt={displayName} />
                   <AvatarFallback className="bg-primary/10 text-primary">

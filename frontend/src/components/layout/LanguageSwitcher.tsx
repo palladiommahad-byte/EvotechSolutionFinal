@@ -19,7 +19,7 @@ export const LanguageSwitcher = () => {
 
   const handleLanguageChange = async (language: string) => {
     i18n.changeLanguage(language);
-    
+
     // Save to database if user is logged in
     if (user?.id) {
       try {
@@ -32,7 +32,7 @@ export const LanguageSwitcher = () => {
       }
     }
   };
-  
+
   // Sync language from database when user preferences load
   React.useEffect(() => {
     if (userPreferences?.language && userPreferences.language !== i18n.language) {
@@ -42,9 +42,9 @@ export const LanguageSwitcher = () => {
 
   return (
     <Select value={i18n.language} onValueChange={handleLanguageChange}>
-      <SelectTrigger className="w-[130px] h-9 border-border bg-section hover:bg-section/80">
+      <SelectTrigger className="w-[130px] h-9 border-border bg-section hover:bg-section/80 group data-[state=open]:bg-primary data-[state=open]:text-primary-foreground data-[state=open]:border-primary transition-colors">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Globe className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          <Globe className="w-4 h-4 text-muted-foreground flex-shrink-0 group-data-[state=open]:text-primary-foreground transition-colors" />
           <SelectValue>
             {i18n.language === 'fr' ? t('common.french') : t('common.english')}
           </SelectValue>

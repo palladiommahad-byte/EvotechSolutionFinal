@@ -633,5 +633,32 @@
     "accountName": "Nom du compte",
     "accountNumber": "Numéro de compte",
     "initialBalance": "Solde initial"
+  },
+  "notificationAlerts": {
+    "stock": {
+      "lowTitle": "Stock Faible : {{product}}",
+      "lowMessage": "Le produit {{product}} est faible ({{current}}/{{min}}).",
+      "outTitle": "Rupture de Stock : {{product}}",
+      "outMessage": "Le produit {{product}} est en rupture de stock (0 disponible)."
+    },
+    "billing": {
+      "overdueTitle": "Facture en Retard : {{id}}",
+      "overdueMessage": "La facture pour {{client}} ({{amount}} MAD) est en retard de {{days}} jours."
+    },
+    "sales": {
+      "pendingTitle": "Alerte Commandes en Attente",
+      "pendingMessage": "Vous avez {{count}} bons de livraison en attente nécessitant votre attention."
+    },
+    "treasury": {
+      "lowCashTitle": "Alerte Trésorerie",
+      "lowCashMessage": "Attention : Le solde de trésorerie est faible ({{amount}} MAD).",
+      "criticalCashMessage": "Critique : Votre solde de trésorerie en temps réel est négatif ({{amount}} MAD)."
+    },
+    "actions": {
+      "viewInventory": "Voir l'Inventaire",
+      "viewInvoice": "Voir la Facture",
+      "viewOrders": "Voir les Commandes",
+      "viewTreasury": "Voir la Trésorerie"
+    }
   }
 }

@@ -775,31 +775,31 @@ export const Settings = () => {
 
       <Tabs defaultValue="company" className="space-y-6">
         <TabsList className="bg-muted p-1 rounded-lg">
-          <TabsTrigger value="company" className="gap-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
+          <TabsTrigger value="company" className="gap-2 rounded-md">
             <Building2 className="w-4 h-4" />
             {t('settings.company')}
           </TabsTrigger>
-          <TabsTrigger value="branding" className="gap-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
+          <TabsTrigger value="branding" className="gap-2 rounded-md">
             <Upload className="w-4 h-4" />
             {t('settings.branding')}
           </TabsTrigger>
-          <TabsTrigger value="appearance" className="gap-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
+          <TabsTrigger value="appearance" className="gap-2 rounded-md">
             <Palette className="w-4 h-4" />
             {t('settings.appearance')}
           </TabsTrigger>
-          <TabsTrigger value="users" className="gap-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
+          <TabsTrigger value="users" className="gap-2 rounded-md">
             <Users className="w-4 h-4" />
             {t('settings.usersAndRoles')}
           </TabsTrigger>
-          <TabsTrigger value="warehouses" className="gap-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
+          <TabsTrigger value="warehouses" className="gap-2 rounded-md">
             <Warehouse className="w-4 h-4" />
             {t('settings.warehouses')}
           </TabsTrigger>
-          <TabsTrigger value="profile" className="gap-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
+          <TabsTrigger value="profile" className="gap-2 rounded-md">
             <User className="w-4 h-4" />
             Profile
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm relative">
+          <TabsTrigger value="notifications" className="gap-2 rounded-md relative">
             <Bell className="w-4 h-4" />
             {t('settings.notifications')}
             {unreadCount > 0 && (

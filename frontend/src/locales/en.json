@@ -664,5 +664,32 @@
     "forAccountantReview": "For accountant review",
     "taxCalendar": "Tax Calendar",
     "upcomingDeadlines": "Upcoming deadlines"
+  },
+  "notificationAlerts": {
+    "stock": {
+      "lowTitle": "Low Stock: {{product}}",
+      "lowMessage": "Product {{product}} is low ({{current}}/{{min}}).",
+      "outTitle": "Out of Stock: {{product}}",
+      "outMessage": "Product {{product}} is out of stock (0 available)."
+    },
+    "billing": {
+      "overdueTitle": "Overdue Invoice: {{id}}",
+      "overdueMessage": "Invoice for {{client}} ({{amount}} MAD) is overdue by {{days}} days."
+    },
+    "sales": {
+      "pendingTitle": "Pending Orders Alert",
+      "pendingMessage": "You have {{count}} pending delivery notes requiring attention."
+    },
+    "treasury": {
+      "lowCashTitle": "Cash Flow Alert",
+      "lowCashMessage": "Warning: Cash balance is low ({{amount}} MAD).",
+      "criticalCashMessage": "Critical: Your real-time cash balance is negative ({{amount}} MAD)."
+    },
+    "actions": {
+      "viewInventory": "View Inventory",
+      "viewInvoice": "View Invoice",
+      "viewOrders": "View Orders",
+      "viewTreasury": "View Treasury"
+    }
   }
 }
