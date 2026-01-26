@@ -35,11 +35,11 @@ export const generateDocumentCSV = (document: {
   type?: string;
 }, documentType: string) => {
   const documentTitle = documentType === 'invoice' ? 'Facture' :
-                        documentType === 'estimate' ? 'Devis' :
-                        documentType === 'purchase_order' ? 'Bon de Commande' :
-                        documentType === 'delivery_note' ? 'Bon de Livraison' :
-                        documentType === 'credit_note' ? 'Avoir' :
-                        'Relevé';
+    documentType === 'estimate' ? 'Devis' :
+      documentType === 'purchase_order' ? 'Bon de Commande' :
+        documentType === 'delivery_note' ? 'Bon de Livraison' :
+          documentType === 'credit_note' ? 'Avoir' :
+            'Relevé';
 
   const rows = [
     [documentTitle, ''],
@@ -48,10 +48,10 @@ export const generateDocumentCSV = (document: {
     [document.client ? 'Client' : 'Fournisseur', document.client || document.supplier || ''],
     ['Nombre d\'articles', document.items.toString()],
     ['Total', formatMADFull(document.total)],
-    ...(document.paymentMethod ? [['Méthode de paiement', 
+    ...(document.paymentMethod ? [['Méthode de paiement',
       document.paymentMethod === 'cash' ? 'Espèces' :
-      document.paymentMethod === 'check' ? 'Chèque' :
-      'Virement bancaire']] : []),
+        document.paymentMethod === 'check' ? 'Chèque' :
+          'Virement bancaire']] : []),
     ...(document.status ? [['Statut', document.status]] : []),
   ];
 
@@ -88,8 +88,8 @@ export const generateBulkDocumentsCSV = (documents: Array<{
     doc.items.toString(),
     doc.total.toString(),
     doc.paymentMethod === 'cash' ? 'Espèces' :
-    doc.paymentMethod === 'check' ? 'Chèque' :
-    doc.paymentMethod === 'bank_transfer' ? 'Virement bancaire' : '',
+      doc.paymentMethod === 'check' ? 'Chèque' :
+        doc.paymentMethod === 'bank_transfer' ? 'Virement bancaire' : '',
     doc.status || ''
   ]);
 
@@ -99,11 +99,11 @@ export const generateBulkDocumentsCSV = (documents: Array<{
   ].join('\n');
 
   const documentTitle = documentType === 'invoice' ? 'Factures' :
-                        documentType === 'estimate' ? 'Devis' :
-                        documentType === 'purchase_order' ? 'Bons_de_Commande' :
-                        documentType === 'delivery_note' ? 'Bons_de_Livraison' :
-                        documentType === 'credit_note' ? 'Avoirs' :
-                        'Relevés';
+    documentType === 'estimate' ? 'Devis' :
+      documentType === 'purchase_order' ? 'Bons_de_Commande' :
+        documentType === 'delivery_note' ? 'Bons_de_Livraison' :
+          documentType === 'credit_note' ? 'Avoirs' :
+            'Relevés';
 
   downloadCSV(csvContent, `${documentTitle}_${new Date().toISOString().split('T')[0]}.csv`);
 };
@@ -119,7 +119,7 @@ export const generateInventoryCSV = (products: Array<{
   status?: string;
 }>) => {
   const headers = ['SKU', 'Nom du Produit', 'Catégorie', 'Stock', 'Stock Minimum', 'Prix Unitaire', 'Valeur Totale', 'Statut'];
-  
+
   const rows = products.map(product => [
     product.sku,
     product.name,
@@ -129,8 +129,8 @@ export const generateInventoryCSV = (products: Array<{
     product.price.toString(),
     (product.stock * product.price).toString(),
     product.status === 'in_stock' ? 'En stock' :
-    product.status === 'low_stock' ? 'Stock faible' :
-    'Rupture de stock'
+      product.status === 'low_stock' ? 'Stock faible' :
+        'Rupture de stock'
   ]);
 
   const csvContent = [
@@ -147,15 +147,35 @@ export const generateTaxReportCSV = (data: {
   expenses: number;
   netProfit: number;
   estimatedIS: number;
+  vatCollected?: number;
+  vatPaid?: number;
+  vatDue?: number;
+  period?: { year: number; quarter: string };
+  salesCount?: number;
+  purchasesCount?: number;
 }) => {
   const rows = [
     ['RAPPORT FISCAL', ''],
     ['', ''],
+    ...(data.period ? [[`Période`, `${data.period.quarter} ${data.period.year}`], ['', '']] : []),
+    ...(data.vatCollected !== undefined ? [
+      ['TVA (Taxe sur la Valeur Ajoutée)', ''],
+      ['TVA Collectée', formatMADFull(data.vatCollected)],
+      ['TVA Déductible', formatMADFull(data.vatPaid || 0)],
+      [(data.vatDue || 0) >= 0 ? 'TVA à Payer' : 'Crédit de TVA', formatMADFull(Math.abs(data.vatDue || 0))],
+      ['', ''],
+    ] : []),
     ['Résumé Financier', ''],
     ['Revenus bruts', formatMADFull(data.grossRevenue)],
     ['Dépenses totales', formatMADFull(data.expenses)],
     ['Bénéfice net', formatMADFull(data.netProfit)],
     ['', ''],
+    ...(data.salesCount !== undefined ? [
+      ['Transactions', ''],
+      ['Nombre de ventes', data.salesCount.toString()],
+      ['Nombre d\'achats', (data.purchasesCount || 0).toString()],
+      ['', ''],
+    ] : []),
     ['Impôt sur les Sociétés (IS)', ''],
     ['IS estimé', formatMADFull(data.estimatedIS)],
     ['', ''],
@@ -163,5 +183,6 @@ export const generateTaxReportCSV = (data: {
   ];
 
   const csvContent = rows.map(row => row.map(escapeCSV).join(',')).join('\n');
-  downloadCSV(csvContent, `tax_report_${new Date().toISOString().split('T')[0]}.csv`);
+  const periodSuffix = data.period ? `_${data.period.year}_${data.period.quarter}` : '';
+  downloadCSV(csvContent, `tax_report${periodSuffix}_${new Date().toISOString().split('T')[0]}.csv`);
 };

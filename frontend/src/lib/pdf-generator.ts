@@ -528,6 +528,12 @@ export const generateTaxReportPDF = (data: {
   expenses: number;
   netProfit: number;
   estimatedIS: number;
+  vatCollected?: number;
+  vatPaid?: number;
+  vatDue?: number;
+  period?: { year: number; quarter: string };
+  salesCount?: number;
+  purchasesCount?: number;
 }) => {
   const doc = new jsPDF();
   let yPos = 20;
@@ -535,26 +541,67 @@ export const generateTaxReportPDF = (data: {
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
   doc.text('RAPPORT FISCAL', 105, yPos, { align: 'center' });
-  yPos += 15;
-
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Résumé Financier', 20, yPos);
   yPos += 10;
 
+  // Period info
+  if (data.period) {
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Période: ${data.period.quarter} ${data.period.year}`, 105, yPos, { align: 'center' });
+    yPos += 10;
+  }
+  yPos += 5;
+
+  // VAT Section (if data available)
+  if (data.vatCollected !== undefined) {
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TVA (Taxe sur la Valeur Ajoutée)', 20, yPos);
+    yPos += 8;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`TVA Collectée: ${formatMADFull(data.vatCollected)}`, 20, yPos);
+    yPos += 6;
+    doc.text(`TVA Déductible: ${formatMADFull(data.vatPaid || 0)}`, 20, yPos);
+    yPos += 6;
+    doc.setFont('helvetica', 'bold');
+    const vatDueLabel = (data.vatDue || 0) >= 0 ? 'TVA à Payer' : 'Crédit de TVA';
+    doc.text(`${vatDueLabel}: ${formatMADFull(Math.abs(data.vatDue || 0))}`, 20, yPos);
+    yPos += 15;
+  }
+
+  // Financial Summary
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Résumé Financier', 20, yPos);
+  yPos += 8;
+
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text(`Revenus bruts: ${formatMADFull(data.grossRevenue)}`, 20, yPos);
-  yPos += 7;
+  yPos += 6;
   doc.text(`Dépenses totales: ${formatMADFull(data.expenses)}`, 20, yPos);
-  yPos += 7;
+  yPos += 6;
   doc.setFont('helvetica', 'bold');
   doc.text(`Bénéfice net: ${formatMADFull(data.netProfit)}`, 20, yPos);
   yPos += 15;
 
+  // Transaction counts
+  if (data.salesCount !== undefined || data.purchasesCount !== undefined) {
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Nombre de transactions ventes: ${data.salesCount || 0}`, 20, yPos);
+    yPos += 6;
+    doc.text(`Nombre de transactions achats: ${data.purchasesCount || 0}`, 20, yPos);
+    yPos += 15;
+  }
+
+  // IS Section
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.text('Impôt sur les Sociétés (IS)', 20, yPos);
-  yPos += 10;
+  yPos += 8;
   doc.setFontSize(14);
   doc.text(`IS estimé: ${formatMADFull(data.estimatedIS)}`, 20, yPos);
 
@@ -563,7 +610,123 @@ export const generateTaxReportPDF = (data: {
   doc.setFont('helvetica', 'italic');
   doc.text(`Généré le ${new Date().toLocaleDateString('fr-MA')}`, 105, yPos, { align: 'center' });
 
-  doc.save(`tax_report_${new Date().toISOString().split('T')[0]}.pdf`);
+  const periodSuffix = data.period ? `_${data.period.year}_${data.period.quarter}` : '';
+  doc.save(`tax_report${periodSuffix}_${new Date().toISOString().split('T')[0]}.pdf`);
+};
+
+// Generate detailed VAT Report PDF
+export const generateVATReportPDF = (data: {
+  vatCollected: number;
+  vatPaid: number;
+  vatDue: number;
+  period: { year: number; quarter: string };
+  salesInvoices: Array<{ id: string; client: string; date: string; total: number; vat: number }>;
+  purchaseInvoices: Array<{ id: string; supplier: string; date: string; total: number; vat: number }>;
+}) => {
+  const doc = new jsPDF();
+  let yPos = 20;
+
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DÉCLARATION DE TVA', 105, yPos, { align: 'center' });
+  yPos += 10;
+
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Période: ${data.period.quarter} ${data.period.year}`, 105, yPos, { align: 'center' });
+  yPos += 15;
+
+  // VAT Summary
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Résumé TVA', 20, yPos);
+  yPos += 10;
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`TVA Collectée (sur ventes): ${formatMADFull(data.vatCollected)}`, 25, yPos);
+  yPos += 7;
+  doc.text(`TVA Déductible (sur achats): ${formatMADFull(data.vatPaid)}`, 25, yPos);
+  yPos += 7;
+  doc.setFont('helvetica', 'bold');
+  const vatDueLabel = data.vatDue >= 0 ? 'TVA Nette à Payer' : 'Crédit de TVA';
+  doc.text(`${vatDueLabel}: ${formatMADFull(Math.abs(data.vatDue))}`, 25, yPos);
+  yPos += 15;
+
+  // Sales invoices section
+  if (data.salesInvoices.length > 0) {
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Factures de Vente', 20, yPos);
+    yPos += 8;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('N°', 20, yPos);
+    doc.text('Client', 45, yPos);
+    doc.text('Date', 100, yPos);
+    doc.text('Total HT', 130, yPos);
+    doc.text('TVA', 165, yPos);
+    yPos += 5;
+    doc.line(20, yPos, 190, yPos);
+    yPos += 5;
+
+    doc.setFont('helvetica', 'normal');
+    data.salesInvoices.slice(0, 10).forEach((inv) => {
+      if (yPos > 250) return;
+      doc.text(inv.id.substring(0, 12), 20, yPos);
+      doc.text(inv.client.substring(0, 25), 45, yPos);
+      doc.text(inv.date, 100, yPos);
+      doc.text(formatMADFull(inv.total), 130, yPos);
+      doc.text(formatMADFull(inv.vat), 165, yPos);
+      yPos += 6;
+    });
+    if (data.salesInvoices.length > 10) {
+      doc.text(`... et ${data.salesInvoices.length - 10} autres factures`, 20, yPos);
+      yPos += 6;
+    }
+    yPos += 10;
+  }
+
+  // Purchase invoices section
+  if (data.purchaseInvoices.length > 0 && yPos < 230) {
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Factures d\'Achat', 20, yPos);
+    yPos += 8;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('N°', 20, yPos);
+    doc.text('Fournisseur', 45, yPos);
+    doc.text('Date', 100, yPos);
+    doc.text('Total HT', 130, yPos);
+    doc.text('TVA', 165, yPos);
+    yPos += 5;
+    doc.line(20, yPos, 190, yPos);
+    yPos += 5;
+
+    doc.setFont('helvetica', 'normal');
+    data.purchaseInvoices.slice(0, 8).forEach((inv) => {
+      if (yPos > 260) return;
+      doc.text(inv.id.substring(0, 12), 20, yPos);
+      doc.text(inv.supplier.substring(0, 25), 45, yPos);
+      doc.text(inv.date, 100, yPos);
+      doc.text(formatMADFull(inv.total), 130, yPos);
+      doc.text(formatMADFull(inv.vat), 165, yPos);
+      yPos += 6;
+    });
+    if (data.purchaseInvoices.length > 8) {
+      doc.text(`... et ${data.purchaseInvoices.length - 8} autres factures`, 20, yPos);
+    }
+  }
+
+  yPos = 280;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'italic');
+  doc.text(`Généré le ${new Date().toLocaleDateString('fr-MA')}`, 105, yPos, { align: 'center' });
+
+  doc.save(`vat_report_${data.period.year}_${data.period.quarter}_${new Date().toISOString().split('T')[0]}.pdf`);
 };
 
 // Generate Purchase Invoice PDF using new template

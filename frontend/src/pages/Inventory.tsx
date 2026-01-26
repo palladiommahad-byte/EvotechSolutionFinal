@@ -63,6 +63,7 @@ import { generateInventoryPDF } from '@/lib/pdf-generator';
 import { generateInventoryExcel } from '@/lib/excel-generator';
 import { generateInventoryCSV } from '@/lib/csv-generator';
 import { useToast } from '@/hooks/use-toast';
+import { apiClient } from '@/lib/api-client';
 
 const productUnits = ['Piece', 'kg', 'Liter', 'Box', 'Pack', 'Meter', 'Square Meter', 'Cubic Meter', 'Ton', 'Gram'] as const;
 
@@ -405,6 +406,39 @@ export const Inventory = () => {
               <DropdownMenuItem onClick={() => generateInventoryCSV(products)}>
                 <FileSpreadsheet className="w-4 h-4 mr-2" />
                 {t('documents.exportAsCSV')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={async () => {
+                try {
+                  const token = localStorage.getItem('auth_token');
+                  if (!token) {
+                    toast({ title: 'Error', description: 'Authentication required', variant: 'destructive' });
+                    return;
+                  }
+
+                  const res = await fetch('http://localhost:3000/api/reports/export', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  });
+
+                  if (!res.ok) throw new Error('Export failed');
+
+                  const blob = await res.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `Inventory_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  window.URL.revokeObjectURL(url);
+
+                  toast({ title: 'Success', description: 'Report downloaded successfully', variant: 'success' });
+                } catch (e) {
+                  console.error(e);
+                  toast({ title: 'Error', description: 'Failed to download report', variant: 'destructive' });
+                }
+              }}>
+                <FileSpreadsheet className="w-4 h-4 mr-2 text-primary" />
+                Styled Export (Beta)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

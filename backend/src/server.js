@@ -15,6 +15,8 @@ const purchaseInvoicesRoutes = require('./routes/purchase-invoices.routes');
 const treasuryRoutes = require('./routes/treasury.routes');
 const settingsRoutes = require('./routes/settings.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
+const taxReportsRoutes = require('./routes/tax-reports.routes');
+const reportsRoutes = require('./routes/reports.routes');
 
 // Import middleware
 const { errorHandler } = require('./middleware/error.middleware');
@@ -45,6 +47,7 @@ app.get('/api/health', (req, res) => {
         message: 'EvoTech Backend API is running',
         timestamp: new Date().toISOString(),
         version: '1.0.0',
+
     });
 });
 
@@ -61,6 +64,8 @@ app.use('/api/purchase-invoices', purchaseInvoicesRoutes);
 app.use('/api/treasury', treasuryRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/tax-reports', taxReportsRoutes);
+app.use('/api/reports', reportsRoutes);
 
 // Error handling middleware (should be last)
 app.use(errorHandler);

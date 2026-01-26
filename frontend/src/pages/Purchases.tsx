@@ -1041,7 +1041,57 @@ export const Purchases = () => {
           <h1 className="text-2xl font-heading font-bold text-foreground">{t('purchases.title')}</h1>
           <p className="text-muted-foreground">{t('purchases.description')}</p>
         </div>
+        <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download className="w-4 h-4" />
+                {t('common.export')}
+                <ChevronDown className="w-3 h-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={async () => {
+                try {
+                  const token = localStorage.getItem('auth_token');
+                  if (!token) {
+                    toast({ title: 'Error', description: 'Authentication required', variant: 'destructive' });
+                    return;
+                  }
 
+                  // Map activeTab to report type
+                  let docType = activeTab === 'invoice' ? 'purchases-invoice' :
+                    activeTab === 'purchase_order' ? 'purchases-purchase_order' :
+                      activeTab === 'delivery_note' ? 'purchases-delivery_note' : 'purchases-purchase_order';
+
+                  const res = await fetch(`http://localhost:3000/api/reports/export?type=${docType}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  });
+
+                  if (!res.ok) throw new Error('Export failed');
+
+                  const blob = await res.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${docType}_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  window.URL.revokeObjectURL(url);
+
+                  toast({ title: 'Success', description: 'Report downloaded successfully', variant: 'success' });
+                } catch (e) {
+                  console.error(e);
+                  toast({ title: 'Error', description: 'Failed to download report', variant: 'destructive' });
+                }
+              }}>
+                <FileSpreadsheet className="w-4 h-4 mr-2 text-primary" />
+                Styled Export (Beta)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* KPIs */}
