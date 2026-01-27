@@ -264,6 +264,7 @@
     "creditNote": "Avoir",
     "statement": "Relevé",
     "divers": "Divers",
+    "inventorySource": "Source d'inventaire",
     "createInvoice": "Créer une facture",
     "createEstimate": "Créer un devis",
     "createDeliveryNote": "Créer un bon de livraison",
@@ -620,6 +621,7 @@
   },
   "treasury": {
     "title": "Trésorerie",
+    "subtitle": "Actifs liquides et suivi des paiements",
     "liquiditySnapshot": "Aperçu de la liquidité",
     "totalBank": "Total banque",
     "totalWarehouseCash": "Total espèces entrepôt",
@@ -633,7 +635,97 @@
     "bankName": "Nom de la banque",
     "accountName": "Nom du compte",
     "accountNumber": "Numéro de compte",
-    "initialBalance": "Solde initial"
+    "initialBalance": "Solde initial",
+    "dateRange": "Plage de dates",
+    "filter": {
+      "allTime": "Tout le temps",
+      "today": "Aujourd'hui",
+      "last7days": "7 derniers jours",
+      "last30days": "30 derniers jours",
+      "last90days": "90 derniers jours",
+      "thisMonth": "Ce mois-ci",
+      "lastMonth": "Le mois dernier",
+      "thisYear": "Cette année",
+      "lastYear": "L'année dernière"
+    },
+    "export": "Exporter",
+    "exportToExcel": "Exporter vers Excel",
+    "exportToPDF": "Exporter vers PDF",
+    "exportSuccess": "Rapport de trésorerie exporté avec succès",
+    "exportError": "Échec de l'exportation du rapport de trésorerie",
+    "tracker": {
+      "salesTitle": "Suivi des paiements des ventes",
+      "purchasesTitle": "Suivi des paiements des achats",
+      "searchPlaceholder": "Rechercher par facture, client ou chèque..."
+    },
+    "table": {
+      "invoice": "Facture",
+      "client": "Client",
+      "method": "Méthode",
+      "bank": "Banque",
+      "maturity": "Échéance",
+      "amount": "Montant",
+      "status": "Statut",
+      "actions": "Actions",
+      "noPayments": "Aucun paiement trouvé"
+    },
+    "agingReceivables": {
+      "title": "Créances clients",
+      "unpaidAmount": "Montant impayé (MAD)"
+    },
+    "bankStatement": {
+      "title": "Relevé bancaire",
+      "currentBalance": "Solde actuel",
+      "noTransactions": "Aucune transaction bancaire trouvée",
+      "credit": "Crédit",
+      "debit": "Débit",
+      "showingLatest": "Affichage des 10 dernières transactions sur {{total}} au total",
+      "table": {
+        "date": "Date",
+        "description": "Description",
+        "type": "Type",
+        "amount": "Montant",
+        "balance": "Solde"
+      }
+    },
+    "tax": {
+      "netTvaDue": "TVA Nette Due",
+      "formula": "TVA collectée - TVA récupérable",
+      "collected": "TVA collectée (Ventes)",
+      "recoverable": "TVA récupérable (Achats)",
+      "credit": "Crédit",
+      "payToDgi": "Montant à payer à la DGI (Direction Générale des Impôts)",
+      "creditFromDgi": "Crédit disponible auprès de la DGI",
+      "insightsTitle": "Aperçu des factures et suivi fiscal",
+      "insightsSubtitle": "Factures récentes avec détail de la TVA",
+      "purchaseInsightsTitle": "Aperçu des achats et suivi fiscal",
+      "purchaseInsightsSubtitle": "Bons de commande et factures d'achat récents avec détail de la TVA",
+      "purchaseInvoicesWithTax": "Factures d'achat (avec TVA)",
+      "purchaseOrdersNoTax": "Bons de commande (sans TVA)",
+      "totalPurchaseInvoices": "Total factures d'achat",
+      "totalRecoverableVat": "Total TVA récupérable",
+      "totalPurchaseOrders": "Total bons de commande",
+      "totalPurchaseValue": "Valeur totale des achats",
+      "table": {
+        "invoiceNumber": "N° Facture",
+        "orderNumber": "N° Commande",
+        "subtotal": "Sous-total",
+        "amount": "Montant",
+        "vat": "TVA (20%)",
+        "total": "Total",
+        "noInvoices": "Aucune facture trouvée. Créez des factures sur la page Ventes pour les voir ici.",
+        "noPurchaseInvoices": "Aucune facture d'achat trouvée.",
+        "noPurchaseOrders": "Aucun bon de commande trouvé.",
+        "unknownClient": "Client inconnu",
+        "unknownSupplier": "Fournisseur inconnu",
+        "notTracked": "Non suivi"
+      }
+    },
+    "actions": {
+      "deposit": "Déposer",
+      "clear": "Encaisser",
+      "viewDetails": "Voir les détails"
+    }
   },
   "notificationAlerts": {
     "stock": {
@@ -660,6 +752,71 @@
       "viewInvoice": "Voir la Facture",
       "viewOrders": "Voir les Commandes",
       "viewTreasury": "Voir la Trésorerie"
+    },
+    "purchases": {
+      "title": "Achats",
+      "description": "Gérer les bons de commande et les factures fournisseurs",
+      "totalInvoiceAmount": "Montant Total des Factures",
+      "outstandingAmount": "Montant Restant",
+      "paymentRate": "Taux de Paiement",
+      "invoiceBreakdownBySupplier": "Répartition des Factures par Fournisseur",
+      "summaryInvoicesPerSupplier": "Résumé des factures par fournisseur avec montants payés/impayés",
+      "detailedViewPurchaseInvoices": "Vue détaillée de toutes les factures avec statut de paiement",
+      "noSupplierDataAvailable": "Aucune donnée fournisseur disponible",
+      "invoiceStatistics": "Statistiques des Factures",
+      "deliveryInformation": "Informations de Livraison",
+      "invoiceInformation": "Informations de Facture",
+      "searchByOrderOrSupplier": "Rechercher par n° de commande ou fournisseur...",
+      "searchByNoteOrSupplier": "Rechercher par n° de bon ou fournisseur...",
+      "searchByInvoiceOrSupplier": "Rechercher par n° de facture ou fournisseur...",
+      "referenceDocuments": "Documents de Référence",
+      "receivedItems": "Articles Reçus",
+      "linkToPOOrDN": "Lier au Bon de Commande ou Bon de Livraison",
+      "createAndRecordInvoice": "Créer et Enregistrer la Facture",
+      "invoiceBreakdownByStatus": "Répartition des Factures par Statut",
+      "form": {
+        "supplierInformation": "Informations Fournisseur",
+        "selectSupplier": "Sélectionner Fournisseur",
+        "inventoryDestination": "Destination d'Inventaire",
+        "productOptional": "Produit (Optionnel)",
+        "description": "Description",
+        "quantity": "Quantité",
+        "unitPrice": "Prix Unitaire (MAD)",
+        "totalMAD": "Total (MAD)",
+        "noteOptional": "Note (Optionnel)",
+        "date": "Date",
+        "calculateTax": "Calculer la TVA"
+      },
+      "table": {
+        "documentNumber": "Document #",
+        "supplier": "Fournisseur",
+        "date": "Date",
+        "items": "Articles",
+        "totalMAD": "Total (MAD)",
+        "status": "Statut",
+        "actions": "Actions",
+        "statementNumber": "Relevé #",
+        "amountTTC": "Montant (TTC)"
+      },
+      "status": {
+        "allStatus": "Tous les statuts",
+        "pending": "En attente",
+        "received": "Reçu",
+        "draft": "Brouillon",
+        "sent": "Envoyé",
+        "cancelled": "Annulé",
+        "shipped": "Expédié",
+        "overdue": "En retard",
+        "paid": "Payé"
+      },
+      "summary": {
+        "subtotalHT": "Sous-total (HT)",
+        "totalTTC": "Total (TTC)",
+        "total": "Total",
+        "noDocumentsFound": "Aucun document trouvé",
+        "purchaseOrderStats": "Statistiques Bons de Commande",
+        "purchaseInvoiceStats": "Statistiques Factures Fournisseurs"
+      }
     }
   }
 }

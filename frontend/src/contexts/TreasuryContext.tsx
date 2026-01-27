@@ -43,11 +43,11 @@ interface TreasuryContextType {
   addBankAccount: (account: Omit<BankAccount, 'id'>) => Promise<void>;
   updateBankAccount: (id: string, account: Partial<BankAccount>) => Promise<void>;
   deleteBankAccount: (id: string) => Promise<void>;
-  
+
   // Warehouse Cash
   warehouseCash: WarehouseCash;
   updateWarehouseCash: (warehouse: keyof WarehouseCash, amount: number) => Promise<void>;
-  
+
   // Payments
   salesPayments: Payment[];
   purchasePayments: Payment[];
@@ -55,7 +55,7 @@ interface TreasuryContextType {
   updatePayment: (id: string, payment: Partial<Payment>, type: 'sales' | 'purchase') => Promise<void>;
   deletePayment: (id: string, type: 'sales' | 'purchase') => Promise<void>;
   updatePaymentStatus: (id: string, status: Payment['status'], type: 'sales' | 'purchase') => Promise<void>;
-  
+
   // Calculations
   totalBank: number;
   totalWarehouseCash: number;
@@ -106,14 +106,14 @@ const toUIPayment = (payment: TreasuryPayment): Payment => ({
 // Helper to convert warehouse cash array to object format
 const warehouseCashArrayToObject = (cashArray: Array<{ warehouse_id: string; amount: number }>): WarehouseCash => {
   const defaultCash: WarehouseCash = { marrakech: 0, agadir: 0, ouarzazate: 0 };
-  
+
   cashArray.forEach((cash) => {
     const warehouseId = cash.warehouse_id;
     if (warehouseId === 'marrakech' || warehouseId === 'agadir' || warehouseId === 'ouarzazate') {
       defaultCash[warehouseId] = cash.amount || 0;
     }
   });
-  
+
   return defaultCash;
 };
 
@@ -253,7 +253,7 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
       if (payment.warehouse !== undefined) updateData.warehouse_id = payment.warehouse;
       if (payment.notes !== undefined) updateData.notes = payment.notes;
       updateData.payment_type = type;
-      
+
       return treasuryService.updatePayment(id, updateData);
     },
     onSuccess: () => {
@@ -316,30 +316,30 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
   }, [queryClient]);
 
   // Calculations
-  const totalBank = useMemo(() => bankAccounts.reduce((sum, acc) => sum + acc.balance, 0), [bankAccounts]);
+  const totalBank = useMemo(() => bankAccounts.reduce((sum, acc) => sum + (Number(acc.balance) || 0), 0), [bankAccounts]);
   const totalWarehouseCashValue = useMemo(
-    () => Object.values(warehouseCash).reduce((sum, cash) => sum + cash, 0),
+    () => Object.values(warehouseCash).reduce((sum, cash) => sum + (Number(cash) || 0), 0),
     [warehouseCash]
   );
-  
+
   const clearedSalesPayments = useMemo(
     () => salesPayments.filter(p => p.status === 'cleared'),
     [salesPayments]
   );
   const totalCashedSales = useMemo(
-    () => clearedSalesPayments.reduce((sum, p) => sum + p.amount, 0),
+    () => clearedSalesPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0),
     [clearedSalesPayments]
   );
-  
+
   const clearedPurchasePayments = useMemo(
     () => purchasePayments.filter(p => p.status === 'cleared'),
     [purchasePayments]
   );
   const totalSupplierBillsPaid = useMemo(
-    () => clearedPurchasePayments.reduce((sum, p) => sum + p.amount, 0),
+    () => clearedPurchasePayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0),
     [clearedPurchasePayments]
   );
-  
+
   const realTimeBalance = useMemo(
     () => (totalBank + totalCashedSales) - totalSupplierBillsPaid,
     [totalBank, totalCashedSales, totalSupplierBillsPaid]
@@ -355,7 +355,7 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
     () => new Set(clearedSalesPayments.map(p => p.invoiceNumber)),
     [clearedSalesPayments]
   );
-  
+
   const clearedPurchaseInvoiceNumbers = useMemo(
     () => new Set(clearedPurchasePayments.map(p => p.invoiceNumber)),
     [clearedPurchasePayments]
@@ -389,7 +389,7 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
     () => expectedInflowPayments.reduce((sum, p) => sum + p.amount, 0),
     [expectedInflowPayments]
   );
-  
+
   const upcomingPayments = useMemo(
     () => purchasePayments.filter(p => p.status === 'in-hand' || p.status === 'pending_bank'),
     [purchasePayments]

@@ -260,6 +260,7 @@
     "creditNote": "Credit Note",
     "statement": "Statement",
     "divers": "Divers",
+    "inventorySource": "Inventory Source",
     "createInvoice": "Create Invoice",
     "createEstimate": "Create Estimate",
     "createDeliveryNote": "Create Delivery Note",
@@ -548,7 +549,98 @@
     "bankName": "Bank Name",
     "accountName": "Account Name",
     "accountNumber": "Account Number",
-    "initialBalance": "Initial Balance"
+    "initialBalance": "Initial Balance",
+    "subtitle": "Liquid assets and payment tracking",
+    "dateRange": "Date Range",
+    "filter": {
+      "allTime": "All Time",
+      "today": "Today",
+      "last7days": "Last 7 Days",
+      "last30days": "Last 30 Days",
+      "last90days": "Last 90 Days",
+      "thisMonth": "This Month",
+      "lastMonth": "Last Month",
+      "thisYear": "This Year",
+      "lastYear": "Last Year"
+    },
+    "export": "Export",
+    "exportToExcel": "Export to Excel",
+    "exportToPDF": "Export to PDF",
+    "exportSuccess": "Treasury report exported successfully",
+    "exportError": "Failed to export treasury report",
+    "tracker": {
+      "salesTitle": "Sales Payments Tracker",
+      "purchasesTitle": "Purchase Payments Tracker",
+      "searchPlaceholder": "Search by invoice, client, or check number..."
+    },
+    "table": {
+      "invoice": "Invoice",
+      "client": "Client",
+      "method": "Method",
+      "bank": "Bank",
+      "maturity": "Maturity",
+      "amount": "Amount",
+      "status": "Status",
+      "actions": "Actions",
+      "noPayments": "No payments found"
+    },
+    "agingReceivables": {
+      "title": "Aging Receivables",
+      "unpaidAmount": "Unpaid Amount (MAD)"
+    },
+    "bankStatement": {
+      "title": "Bank Statement",
+      "currentBalance": "Current Balance",
+      "noTransactions": "No bank transactions found",
+      "credit": "Credit",
+      "debit": "Debit",
+      "showingLatest": "Showing latest 10 transactions of {{total}} total",
+      "table": {
+        "date": "Date",
+        "description": "Description",
+        "type": "Type",
+        "amount": "Amount",
+        "balance": "Balance"
+      }
+    },
+    "tax": {
+      "netTvaDue": "Net TVA Due",
+      "formula": "Collected TVA - Recoverable TVA",
+      "collected": "Collected TVA (Sales)",
+      "recoverable": "Recoverable TVA (Purchases)",
+      "credit": "Credit",
+      "payToDgi": "Amount to pay to DGI (Direction Générale des Impôts)",
+      "creditFromDgi": "Credit available from DGI",
+      "insightsTitle": "Invoice Insights & Tax Tracking",
+      "insightsSubtitle": "Recent invoices with detailed tax breakdown",
+      "purchaseInsightsTitle": "Purchase Insights & Tax Tracking",
+      "purchaseInsightsSubtitle": "Recent purchase orders and invoices with detailed tax breakdown",
+      "purchaseInvoicesWithTax": "Purchase Invoices (with Tax)",
+      "purchaseOrdersNoTax": "Purchase Orders (No Tax)",
+      "totalPurchaseInvoices": "Total Purchase Invoices",
+      "totalRecoverableVat": "Total Recoverable VAT",
+      "totalPurchaseOrders": "Total Purchase Orders",
+      "totalPurchaseValue": "Total Purchase Value",
+      "table": {
+        "invoiceNumber": "Invoice #",
+        "orderNumber": "Order #",
+        "subtotal": "Subtotal",
+        "amount": "Amount",
+        "vat": "VAT (20%)",
+        "total": "Total",
+        "noInvoices": "No invoices found. Create invoices on the Sales page to see them tracked here.",
+        "noPurchaseInvoices": "No purchase invoices found.",
+        "noPurchaseOrders": "No purchase orders found.",
+        "unknownClient": "Unknown Client",
+        "unknownSupplier": "Unknown Supplier",
+        "notTracked": "Not tracked"
+      }
+    },
+    "actions": {
+      "deposit": "Deposit",
+      "clear": "Clear",
+      "viewDetails": "View details"
+    }
   },
   "crm": {
     "title": "CRM",
@@ -691,6 +783,71 @@
       "viewInvoice": "View Invoice",
       "viewOrders": "View Orders",
       "viewTreasury": "View Treasury"
+    },
+    "purchases": {
+      "title": "Purchases",
+      "description": "Manage purchase orders and supplier invoices",
+      "totalInvoiceAmount": "Total Invoice Amount",
+      "outstandingAmount": "Outstanding Amount",
+      "paymentRate": "Payment Rate",
+      "invoiceBreakdownBySupplier": "Invoice Breakdown by Supplier",
+      "summaryInvoicesPerSupplier": "Summary of invoices per supplier with paid/unpaid amounts",
+      "detailedViewPurchaseInvoices": "Detailed view of all invoices with payment status",
+      "noSupplierDataAvailable": "No supplier data available",
+      "invoiceStatistics": "Invoice Statistics",
+      "deliveryInformation": "Delivery Information",
+      "invoiceInformation": "Invoice Information",
+      "searchByOrderOrSupplier": "Search by order # or supplier...",
+      "searchByNoteOrSupplier": "Search by note # or supplier...",
+      "searchByInvoiceOrSupplier": "Search by invoice # or supplier...",
+      "referenceDocuments": "Reference Documents",
+      "receivedItems": "Received Items",
+      "linkToPOOrDN": "Link to Purchase Order or Delivery Note",
+      "createAndRecordInvoice": "Create & Record Invoice",
+      "invoiceBreakdownByStatus": "Invoice Breakdown by Status",
+      "form": {
+        "supplierInformation": "Supplier Information",
+        "selectSupplier": "Select Supplier",
+        "inventoryDestination": "Inventory Destination",
+        "productOptional": "Product (Optional)",
+        "description": "Description",
+        "quantity": "Quantity",
+        "unitPrice": "Unit Price (MAD)",
+        "totalMAD": "Total (MAD)",
+        "noteOptional": "Note (Optional)",
+        "date": "Date",
+        "calculateTax": "Calculate Tax"
+      },
+      "table": {
+        "documentNumber": "Document #",
+        "supplier": "Supplier",
+        "date": "Date",
+        "items": "Items",
+        "totalMAD": "Total (MAD)",
+        "status": "Status",
+        "actions": "Actions",
+        "statementNumber": "Statement #",
+        "amountTTC": "Amount (TTC)"
+      },
+      "status": {
+        "allStatus": "All Status",
+        "pending": "Pending",
+        "received": "Received",
+        "draft": "Draft",
+        "sent": "Sent",
+        "cancelled": "Cancelled",
+        "shipped": "Shipped",
+        "overdue": "Overdue",
+        "paid": "Paid"
+      },
+      "summary": {
+        "subtotalHT": "Subtotal (HT)",
+        "totalTTC": "Total (TTC)",
+        "total": "Total",
+        "noDocumentsFound": "No documents found",
+        "purchaseOrderStats": "Purchase Order Statistics",
+        "purchaseInvoiceStats": "Purchase Invoice Statistics"
+      }
     }
   }
 }

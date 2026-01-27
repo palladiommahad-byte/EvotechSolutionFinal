@@ -137,6 +137,31 @@ const REPORT_CONFIGS = {
             { header: 'Created At', key: 'created_at', width: 20 }
         ]
     },
+    'treasury': {
+        title: 'Treasury Report',
+        sql: `
+            SELECT 
+                ba.bank,
+                ba.account_number,
+                ba.balance,
+                'bank' as account_type
+            FROM bank_accounts ba
+            UNION ALL
+            SELECT 
+                wc.name as bank,
+                'Warehouse Cash' as account_number,
+                wc.balance,
+                'warehouse' as account_type
+            FROM warehouse_cash wc
+            ORDER BY account_type DESC, bank ASC
+        `,
+        columns: [
+            { header: 'Account Type', key: 'account_type', width: 18 },
+            { header: 'Bank/Warehouse', key: 'bank', width: 30 },
+            { header: 'Account Number', key: 'account_number', width: 25 },
+            { header: 'Balance', key: 'balance', width: 18 }
+        ]
+    },
 };
 
 /**
@@ -241,7 +266,7 @@ const generateStyledReport = async (type = 'inventory') => {
             }
 
             // Currency formatting
-            if (colKey === 'total' || colKey === 'price' || colKey === 'total_value') {
+            if (colKey === 'total' || colKey === 'price' || colKey === 'total_value' || colKey === 'balance') {
                 cell.numFmt = '#,##0.00 "MAD"';
                 cell.alignment = { horizontal: 'right' };
             }

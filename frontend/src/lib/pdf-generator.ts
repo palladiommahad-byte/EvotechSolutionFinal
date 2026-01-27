@@ -428,41 +428,166 @@ export const generateStatementPDF = (document: {
   id: string;
   client?: string;
   supplier?: string;
+  clientData?: any;
+  supplierData?: any;
   date: string;
   items: number;
   total: number;
   status?: string;
+  transactions?: Array<{
+    date: string;
+    ref: string;
+    type: string;
+    amount: number; // Total amount of invoice
+    paid: number;   // Amount paid
+    balance: number; // Running balance
+  }>;
+  period?: { start: string; end: string };
+  companyInfo?: CompanyInfo;
 }) => {
   const doc = new jsPDF();
   let yPos = 20;
 
+  // Header Title
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text('RELEVÉ', 105, yPos, { align: 'center' });
+  doc.text('RELEVÉ DE COMPTE', 105, yPos, { align: 'center' });
   yPos += 10;
+
+  // Company Info (Left)
+  if (document.companyInfo) {
+    const ci = document.companyInfo;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text((ci.name || '').toUpperCase(), 20, yPos);
+    yPos += 5;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    if (ci.address) {
+      yPos = addWrappedText(doc, ci.address, 20, yPos, 80, 4);
+    }
+    if (ci.phone) {
+      doc.text(`Tél: ${ci.phone}`, 20, yPos);
+      yPos += 4;
+    }
+    if (ci.email) {
+      doc.text(`Email: ${ci.email}`, 20, yPos);
+      yPos += 4;
+    }
+  }
+
+  // Client/Supplier Info (Right)
+  // Reset Y if company info was long, or just use fixed position
+  let rightColX = 120;
+  let rightColY = 30;
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('ADRESSÉ À:', rightColX, rightColY);
+  rightColY += 5;
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  yPos = addWrappedText(doc, `Relevé N°: ${document.id}`, 20, yPos, 90, 5);
-  yPos = addWrappedText(doc, `Date: ${document.date}`, 20, yPos, 90, 5);
-  if (document.client) {
-    yPos = addWrappedText(doc, `Client: ${document.client}`, 20, yPos, 90, 5);
-  }
-  if (document.supplier) {
-    yPos = addWrappedText(doc, `Fournisseur: ${document.supplier}`, 20, yPos, 90, 5);
+  const entityName = document.client || document.supplier || '-';
+  const entityData = document.clientData || document.supplierData;
+
+  doc.text(entityName, rightColX, rightColY);
+  rightColY += 5;
+
+  if (entityData) {
+    doc.setFontSize(9);
+    if (entityData.address) {
+      rightColY = addWrappedText(doc, entityData.address, rightColX, rightColY, 70, 4);
+    }
+    if (entityData.ice) {
+      doc.text(`ICE: ${entityData.ice}`, rightColX, rightColY);
+      rightColY += 4;
+    }
   }
 
-  yPos += 10;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Résumé', 20, yPos);
-  yPos += 5;
+  // Align Y pos to max of both columns
+  yPos = Math.max(yPos, rightColY) + 10;
+
+  // Statement Details
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Solde: ${formatMADFull(document.total)}`, 20, yPos);
+  doc.text(`Relevé N°: ${document.id}`, 20, yPos);
 
-  yPos = 270;
+  // Date / Period
+  const dateText = document.period
+    ? `Période: Du ${document.period.start} au ${document.period.end}`
+    : `Date: ${document.date}`;
+  doc.text(dateText, 120, yPos);
+
+  yPos += 15;
+
+  // Transaction Table Header
+  if (document.transactions && document.transactions.length > 0) {
+    doc.setFillColor(59, 130, 246); // Blue header
+    doc.rect(20, yPos - 5, 170, 8, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(255, 255, 255);
+
+    doc.text('Date', 22, yPos);
+    doc.text('Référence', 50, yPos);
+    doc.text('Débit (TTC)', 100, yPos); // Invoiced
+    doc.text('Crédit (Payé)', 135, yPos); // Paid
+    doc.text('Solde', 170, yPos); // Balance
+
+    doc.setTextColor(0, 0, 0); // Reset text color
+    yPos += 5;
+
+    // Table Content
+    doc.setFont('helvetica', 'normal');
+
+    document.transactions.forEach((tx, index) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+        // Draw header again on new page? (Optional, skip for brevity)
+      }
+
+      yPos += 6;
+
+      // Striping
+      if (index % 2 === 1) {
+        doc.setFillColor(241, 245, 249); // Light gray
+        doc.rect(20, yPos - 4, 170, 6, 'F');
+      }
+
+      doc.text(tx.date, 22, yPos);
+      doc.text(tx.ref, 50, yPos);
+
+      // Align numbers right (approximate approach by adjusting X)
+      // Helper to right align:
+      // doc.text(str, x, y, { align: 'right' }); // jsPDF supports align: 'right'
+
+      doc.text(formatMADFull(tx.amount), 115, yPos, { align: 'right' });
+      doc.text(formatMADFull(tx.paid), 150, yPos, { align: 'right' });
+      doc.text(formatMADFull(tx.balance), 185, yPos, { align: 'right' });
+    });
+
+    yPos += 10;
+  }
+
+  // Summary at bottom
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+
+  const totalLabel = 'Solde à Payer:';
+  doc.text(totalLabel, 130, yPos);
+  doc.setFontSize(12);
+  doc.text(formatMADFull(document.total), 185, yPos, { align: 'right' });
+
+  // Footer
+  yPos = 280;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'italic');
-  doc.text('Relevé de compte', 105, yPos, { align: 'center' });
+  doc.setTextColor(100, 100, 100);
+  doc.text('Relevé généré le ' + new Date().toLocaleDateString('fr-MA'), 105, yPos, { align: 'center' });
 
   doc.save(`${document.id}.pdf`);
 };

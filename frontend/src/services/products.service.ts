@@ -43,6 +43,8 @@ export interface StockMovement {
   reference_id?: string;
   description?: string;
   created_at: string;
+  product_name?: string;
+  product_sku?: string;
 }
 
 export const productsService = {

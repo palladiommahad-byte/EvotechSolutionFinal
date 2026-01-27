@@ -15,7 +15,7 @@ interface CurrencyDisplayProps {
 export const CurrencyDisplay = ({ amount, className }: CurrencyDisplayProps) => {
   const abbreviated = formatMAD(amount);
   const full = formatMADFull(amount);
-  
+
   // Only show tooltip if the number is abbreviated (different from full)
   const needsTooltip = abbreviated !== full;
 
@@ -36,5 +36,5 @@ export const CurrencyDisplay = ({ amount, className }: CurrencyDisplayProps) => 
     );
   }
 
-  return <span className={className}>{abbreviated}</span>;
+  return <span className={className} title={full}>{abbreviated}</span>;
 };

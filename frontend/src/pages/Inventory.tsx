@@ -500,10 +500,10 @@ export const Inventory = () => {
                         <span className={cn(
                           "font-semibold text-sm leading-tight truncate",
                           isAllWarehouses ? "text-primary" : "text-foreground"
-                        )}>
+                        )} title={t('common.allWarehouses')}>
                           {t('common.allWarehouses')}
                         </span>
-                        <span className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
+                        <span className="text-xs text-muted-foreground truncate leading-tight mt-0.5" title={t('common.viewAllLocations')}>
                           {t('common.viewAllLocations')}
                         </span>
                       </div>
@@ -542,10 +542,10 @@ export const Inventory = () => {
                             <span className={cn(
                               "font-semibold text-sm leading-tight truncate",
                               isActive ? "text-primary" : "text-foreground"
-                            )}>
+                            )} title={warehouse.city}>
                               {warehouse.city}
                             </span>
-                            <span className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
+                            <span className="text-xs text-muted-foreground truncate leading-tight mt-0.5" title={warehouse.name}>
                               {warehouse.name}
                             </span>
                           </div>
@@ -691,9 +691,9 @@ export const Inventory = () => {
                       <TableBody>
                         {products.map((product) => (
                           <TableRow key={product.id}>
-                            <TableCell className="font-mono text-sm max-w-[100px] truncate">{product.sku}</TableCell>
-                            <TableCell className="font-medium max-w-[200px] truncate">{product.name}</TableCell>
-                            <TableCell className="text-muted-foreground max-w-[120px] truncate">{product.category}</TableCell>
+                            <TableCell className="font-mono text-sm max-w-[100px] truncate" title={product.sku}>{product.sku}</TableCell>
+                            <TableCell className="font-medium max-w-[200px] truncate" title={product.name}>{product.name}</TableCell>
+                            <TableCell className="text-muted-foreground max-w-[120px] truncate" title={product.category}>{product.category}</TableCell>
                             <TableCell className="text-center font-medium number-cell">
                               {getProductStock(product.id)} {t(`unit.${(product.unit || 'Piece').toLowerCase()}`)}
                             </TableCell>

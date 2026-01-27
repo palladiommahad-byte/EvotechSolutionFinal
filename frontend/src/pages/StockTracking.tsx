@@ -156,10 +156,10 @@ export const StockTracking = () => {
                       <span className={cn(
                         "font-semibold text-sm leading-tight truncate",
                         isAllWarehouses ? "text-primary" : "text-foreground"
-                      )}>
+                      )} title="All Warehouses">
                         All Warehouses
                       </span>
-                      <span className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
+                      <span className="text-xs text-muted-foreground truncate leading-tight mt-0.5" title="View all locations">
                         View all locations
                       </span>
                     </div>
@@ -198,10 +198,10 @@ export const StockTracking = () => {
                           <span className={cn(
                             "font-semibold text-sm leading-tight truncate",
                             isActive ? "text-primary" : "text-foreground"
-                          )}>
+                          )} title={warehouse.city}>
                             {warehouse.city}
                           </span>
-                          <span className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
+                          <span className="text-xs text-muted-foreground truncate leading-tight mt-0.5" title={warehouse.name}>
                             {warehouse.name}
                           </span>
                         </div>
@@ -497,10 +497,10 @@ export const StockTracking = () => {
                       </TableCell>
                       <TableCell>
                         <span className="font-medium text-foreground">
-                          {(movement as any).product?.name || t('stockTracking.table.unknownProduct')}
+                          {movement.product_name || t('stockTracking.table.unknownProduct')}
                         </span>
                         <span className="text-xs text-muted-foreground block">
-                          {(movement as any).product?.sku}
+                          {movement.product_sku}
                         </span>
                       </TableCell>
                       <TableCell>

@@ -8,16 +8,17 @@ import {
   TrendingDown,
   Calendar,
   CreditCard,
-  FileText,
   CheckCircle2,
   Clock,
   AlertCircle,
   RefreshCw,
-  Download,
   Search,
   Filter,
-  Eye
+  Eye,
+  Trash2,
+  FileSpreadsheet
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { cn, formatDate } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -45,6 +46,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { formatMAD, VAT_RATE } from '@/lib/moroccan-utils';
 import { useContacts } from '@/contexts/ContactsContext';
@@ -96,6 +107,7 @@ interface PurchaseOrder {
 // Mock data removed - using TreasuryContext and invoicesService instead
 
 export const Treasury = () => {
+  const { t } = useTranslation();
   const { clients, suppliers } = useContacts();
   const { toast } = useToast();
   const {
@@ -121,9 +133,9 @@ export const Treasury = () => {
     addBankAccount,
     addPayment,
     updatePaymentStatus,
+    deleteBankAccount,
     isLoading,
   } = useTreasury();
-  const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [salesSearchQuery, setSalesSearchQuery] = useState('');
   const [purchaseSearchQuery, setPurchaseSearchQuery] = useState('');
@@ -173,6 +185,7 @@ export const Treasury = () => {
   const [formMaturityDate, setFormMaturityDate] = useState('');
   const [formWarehouse, setFormWarehouse] = useState('');
   const [formNotes, setFormNotes] = useState('');
+  const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
 
   // Form state for Add Bank Account dialog
   const [formBankName, setFormBankName] = useState('');
@@ -180,6 +193,37 @@ export const Treasury = () => {
   const [formBankAccountName, setFormBankAccountName] = useState('');
   const [formAccountNumber, setFormAccountNumber] = useState('');
   const [formInitialBalance, setFormInitialBalance] = useState('');
+
+  // Delete confirmation state
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const [accountToDelete, setAccountToDelete] = useState<string | null>(null);
+
+  const handleDeleteBankAccount = (id: string) => {
+    setAccountToDelete(id);
+    setDeleteConfirmationOpen(true);
+  };
+
+  const confirmDeleteBankAccount = async () => {
+    if (!accountToDelete) return;
+
+    try {
+      await deleteBankAccount(accountToDelete);
+      toast({
+        title: t('common.success', { defaultValue: 'Success' }),
+        description: t('treasury.bankAccountDeleted', { defaultValue: 'Bank account deleted successfully' }),
+        variant: 'default', // success
+      });
+    } catch (error) {
+      toast({
+        title: t('common.error', { defaultValue: 'Error' }),
+        description: t('treasury.errorDeletingBankAccount', { defaultValue: 'Failed to delete bank account' }),
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleteConfirmationOpen(false);
+      setAccountToDelete(null);
+    }
+  };
 
   // Calculate totals - now using values from context
   // These are calculated in TreasuryContext and passed down
@@ -586,41 +630,98 @@ export const Treasury = () => {
     }
   };
 
+  // Get human-readable date range label
+  const getDateRangeLabel = (): string => {
+    const labels: Record<string, string> = {
+      'all': t('treasury.filter.allTime', { defaultValue: 'All Time' }),
+      'today': t('treasury.filter.today', { defaultValue: 'Today' }),
+      'last7days': t('treasury.filter.last7days', { defaultValue: 'Last 7 Days' }),
+      'last30days': t('treasury.filter.last30days', { defaultValue: 'Last 30 Days' }),
+      'last90days': t('treasury.filter.last90days', { defaultValue: 'Last 90 Days' }),
+      'thisMonth': t('treasury.filter.thisMonth', { defaultValue: 'This Month' }),
+      'lastMonth': t('treasury.filter.lastMonth', { defaultValue: 'Last Month' }),
+      'thisYear': t('treasury.filter.thisYear', { defaultValue: 'This Year' }),
+      'lastYear': t('treasury.filter.lastYear', { defaultValue: 'Last Year' }),
+    };
+    return labels[dateFilterRange] || 'All Time';
+  };
+
+  // Export handlers
+  const handleExportExcel = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        toast({
+          title: t('common.error', { defaultValue: 'Error' }),
+          description: 'Authentication required',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const res = await fetch(`http://localhost:3000/api/reports/export?type=treasury`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!res.ok) throw new Error('Export failed');
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Treasury_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: t('common.success', { defaultValue: 'Success' }),
+        description: t('treasury.exportSuccess', { defaultValue: 'Treasury report exported successfully' }),
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      toast({
+        title: t('common.error', { defaultValue: 'Error' }),
+        description: t('treasury.exportError', { defaultValue: 'Failed to export treasury report' }),
+        variant: 'destructive',
+      });
+    }
+  };
+
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-heading font-bold text-foreground">Trésorerie (Treasury)</h1>
-          <p className="text-muted-foreground">Liquid assets and payment tracking</p>
+          <h1 className="text-2xl font-heading font-bold text-foreground">{t('treasury.title')}</h1>
+          <p className="text-muted-foreground">{t('treasury.subtitle')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={dateFilterRange} onValueChange={setDateFilterRange}>
             <SelectTrigger className="w-[160px] h-9">
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <SelectValue placeholder="Date Range" />
+                <SelectValue placeholder={t('treasury.dateRange')} />
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Time</SelectItem>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="last7days">Last 7 Days</SelectItem>
-              <SelectItem value="last30days">Last 30 Days</SelectItem>
-              <SelectItem value="last90days">Last 90 Days</SelectItem>
-              <SelectItem value="thisMonth">This Month</SelectItem>
-              <SelectItem value="lastMonth">Last Month</SelectItem>
-              <SelectItem value="thisYear">This Year</SelectItem>
-              <SelectItem value="lastYear">Last Year</SelectItem>
+              <SelectItem value="all">{t('treasury.filter.allTime')}</SelectItem>
+              <SelectItem value="today">{t('treasury.filter.today')}</SelectItem>
+              <SelectItem value="last7days">{t('treasury.filter.last7days')}</SelectItem>
+              <SelectItem value="last30days">{t('treasury.filter.last30days')}</SelectItem>
+              <SelectItem value="last90days">{t('treasury.filter.last90days')}</SelectItem>
+              <SelectItem value="thisMonth">{t('treasury.filter.thisMonth')}</SelectItem>
+              <SelectItem value="lastMonth">{t('treasury.filter.lastMonth')}</SelectItem>
+              <SelectItem value="thisYear">{t('treasury.filter.thisYear')}</SelectItem>
+              <SelectItem value="lastYear">{t('treasury.filter.lastYear')}</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={() => setIsAddBankOpen(true)} className="gap-2">
-            <Building2 className="w-4 h-4" />
-            Add Bank Account
-          </Button>
-          <Button onClick={() => setIsAddPaymentOpen(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add Payment
+          <Button variant="outline" onClick={handleExportExcel} className="gap-2">
+            <FileSpreadsheet className="w-4 h-4" />
+            {t('treasury.exportToExcel', { defaultValue: 'Styled Export (Beta)' })}
           </Button>
         </div>
       </div>
@@ -636,13 +737,13 @@ export const Treasury = () => {
               <p className="text-xl sm:text-2xl font-heading font-bold text-foreground">
                 {formatMAD(totalBank)}
               </p>
-              <p className="text-sm text-muted-foreground">Total Bank</p>
+              <p className="text-sm text-muted-foreground">{t('treasury.totalBank')}</p>
             </div>
           </div>
           <div className="mt-4 space-y-1">
             {bankAccounts.map(acc => (
-              <div key={acc.id} className="flex justify-between text-xs text-muted-foreground">
-                <span>{acc.bank}</span>
+              <div key={acc.id} className="flex justify-between items-center text-xs text-muted-foreground group">
+                <span className="font-medium">{acc.bank}</span>
                 <span>{formatMAD(acc.balance)}</span>
               </div>
             ))}
@@ -658,7 +759,7 @@ export const Treasury = () => {
               <p className="text-xl sm:text-2xl font-heading font-bold text-foreground">
                 {formatMAD(totalWarehouseCashValue)}
               </p>
-              <p className="text-sm text-muted-foreground">Total Warehouse Cash</p>
+              <p className="text-sm text-muted-foreground">{t('treasury.totalWarehouseCash')}</p>
             </div>
           </div>
           <div className="mt-4 space-y-1">
@@ -686,12 +787,12 @@ export const Treasury = () => {
               <p className="text-xl sm:text-2xl font-heading font-bold text-primary">
                 {formatMAD(realTimeBalance)}
               </p>
-              <p className="text-sm text-muted-foreground">Real-Time Balance</p>
+              <p className="text-sm text-muted-foreground">{t('treasury.realTimeBalance')}</p>
             </div>
           </div>
           <div className="mt-4 space-y-1 text-xs text-muted-foreground">
             <div className="flex justify-between">
-              <span>Net Liquidity:</span>
+              <span>{t('treasury.netLiquidity')}:</span>
               <span>{formatMAD(netLiquidity)}</span>
             </div>
           </div>
@@ -710,29 +811,29 @@ export const Treasury = () => {
         <div className="card-elevated p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <h2 className="text-lg font-heading font-semibold text-foreground">
-              Sales Payments Tracker
+              {t('treasury.tracker.salesTitle')}
             </h2>
             <div className="flex flex-wrap gap-2">
               <Select value={salesStatusFilter} onValueChange={setSalesStatusFilter}>
                 <SelectTrigger className="w-[130px] h-8 text-xs">
-                  <SelectValue placeholder="Status" />
+                  <SelectValue placeholder={t('common.status')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="in-hand">In-Hand</SelectItem>
-                  <SelectItem value="pending_bank">Pending Bank</SelectItem>
-                  <SelectItem value="cleared">Cleared</SelectItem>
+                  <SelectItem value="all">{t('common.all')}</SelectItem>
+                  <SelectItem value="in-hand">{t('status.inHand')}</SelectItem>
+                  <SelectItem value="pending_bank">{t('status.pendingBank')}</SelectItem>
+                  <SelectItem value="cleared">{t('status.cleared')}</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={salesPaymentMethodFilter} onValueChange={setSalesPaymentMethodFilter}>
                 <SelectTrigger className="w-[130px] h-8 text-xs">
-                  <SelectValue placeholder="Method" />
+                  <SelectValue placeholder={t('treasury.table.method')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Methods</SelectItem>
-                  <SelectItem value="check">Check</SelectItem>
-                  <SelectItem value="bank_transfer">Transfer</SelectItem>
-                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="all">{t('common.all')}</SelectItem>
+                  <SelectItem value="check">{t('paymentMethods.check')}</SelectItem>
+                  <SelectItem value="bank_transfer">{t('paymentMethods.bankTransfer')}</SelectItem>
+                  <SelectItem value="cash">{t('paymentMethods.cash')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -741,7 +842,7 @@ export const Treasury = () => {
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search by invoice, client, or check number..."
+              placeholder={t('treasury.tracker.searchPlaceholder')}
               value={salesSearchQuery}
               onChange={(e) => setSalesSearchQuery(e.target.value)}
               className="pl-8 h-8 text-xs"
@@ -752,21 +853,21 @@ export const Treasury = () => {
             <Table>
               <TableHeader>
                 <TableRow className="data-table-header hover:bg-section">
-                  <TableHead className="min-w-[120px] px-2 py-2 text-xs font-medium">Invoice</TableHead>
-                  <TableHead className="min-w-[140px] px-2 py-2 text-xs font-medium">Client</TableHead>
-                  <TableHead className="min-w-[100px] px-2 py-2 text-xs font-medium">Method</TableHead>
-                  <TableHead className="min-w-[140px] px-2 py-2 text-xs font-medium">Bank</TableHead>
-                  <TableHead className="min-w-[110px] px-2 py-2 text-xs font-medium">Maturity</TableHead>
-                  <TableHead className="min-w-[110px] px-2 py-2 text-xs font-medium text-right">Amount</TableHead>
-                  <TableHead className="min-w-[90px] px-2 py-2 text-xs font-medium">Status</TableHead>
-                  <TableHead className="min-w-[120px] px-2 py-2 text-xs font-medium text-center">Actions</TableHead>
+                  <TableHead className="min-w-[120px] px-2 py-2 text-xs font-medium">{t('treasury.table.invoice')}</TableHead>
+                  <TableHead className="min-w-[140px] px-2 py-2 text-xs font-medium">{t('treasury.table.client')}</TableHead>
+                  <TableHead className="min-w-[100px] px-2 py-2 text-xs font-medium">{t('treasury.table.method')}</TableHead>
+                  <TableHead className="min-w-[140px] px-2 py-2 text-xs font-medium">{t('treasury.table.bank')}</TableHead>
+                  <TableHead className="min-w-[110px] px-2 py-2 text-xs font-medium">{t('treasury.table.maturity')}</TableHead>
+                  <TableHead className="min-w-[110px] px-2 py-2 text-xs font-medium text-right">{t('treasury.table.amount')}</TableHead>
+                  <TableHead className="min-w-[90px] px-2 py-2 text-xs font-medium">{t('treasury.table.status')}</TableHead>
+                  <TableHead className="min-w-[120px] px-2 py-2 text-xs font-medium text-center">{t('treasury.table.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredSalesPayments.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-6 text-xs text-muted-foreground">
-                      No payments found
+                      {t('treasury.table.noPayments')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -852,29 +953,29 @@ export const Treasury = () => {
         <div className="card-elevated p-4 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h2 className="text-base font-heading font-semibold text-foreground">
-              Purchase Payments Tracker
+              {t('treasury.tracker.purchasesTitle')}
             </h2>
             <div className="flex flex-wrap gap-2">
               <Select value={purchaseStatusFilter} onValueChange={setPurchaseStatusFilter}>
                 <SelectTrigger className="w-[130px] h-8 text-xs">
-                  <SelectValue placeholder="Status" />
+                  <SelectValue placeholder={t('common.status')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="in-hand">In-Hand</SelectItem>
-                  <SelectItem value="pending_bank">Pending Bank</SelectItem>
-                  <SelectItem value="cleared">Cleared</SelectItem>
+                  <SelectItem value="all">{t('common.all')}</SelectItem>
+                  <SelectItem value="in-hand">{t('status.inHand')}</SelectItem>
+                  <SelectItem value="pending_bank">{t('status.pendingBank')}</SelectItem>
+                  <SelectItem value="cleared">{t('status.cleared')}</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={purchasePaymentMethodFilter} onValueChange={setPurchasePaymentMethodFilter}>
                 <SelectTrigger className="w-[130px] h-8 text-xs">
-                  <SelectValue placeholder="Method" />
+                  <SelectValue placeholder={t('treasury.table.method')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Methods</SelectItem>
-                  <SelectItem value="check">Check</SelectItem>
-                  <SelectItem value="bank_transfer">Transfer</SelectItem>
-                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="all">{t('common.all')}</SelectItem>
+                  <SelectItem value="check">{t('paymentMethods.check')}</SelectItem>
+                  <SelectItem value="bank_transfer">{t('paymentMethods.bankTransfer')}</SelectItem>
+                  <SelectItem value="cash">{t('paymentMethods.cash')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -883,7 +984,7 @@ export const Treasury = () => {
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search by invoice, supplier, or check number..."
+              placeholder={t('treasury.tracker.searchPlaceholder')}
               value={purchaseSearchQuery}
               onChange={(e) => setPurchaseSearchQuery(e.target.value)}
               className="pl-8 h-8 text-xs"
@@ -894,21 +995,21 @@ export const Treasury = () => {
             <Table>
               <TableHeader>
                 <TableRow className="data-table-header hover:bg-section">
-                  <TableHead className="min-w-[120px] px-2 py-2 text-xs font-medium">Invoice</TableHead>
-                  <TableHead className="min-w-[140px] px-2 py-2 text-xs font-medium">Supplier</TableHead>
-                  <TableHead className="min-w-[100px] px-2 py-2 text-xs font-medium">Method</TableHead>
-                  <TableHead className="min-w-[140px] px-2 py-2 text-xs font-medium">Bank</TableHead>
-                  <TableHead className="min-w-[110px] px-2 py-2 text-xs font-medium">Maturity</TableHead>
-                  <TableHead className="min-w-[110px] px-2 py-2 text-xs font-medium text-right">Amount</TableHead>
-                  <TableHead className="min-w-[90px] px-2 py-2 text-xs font-medium">Status</TableHead>
-                  <TableHead className="min-w-[120px] px-2 py-2 text-xs font-medium text-center">Actions</TableHead>
+                  <TableHead className="min-w-[120px] px-2 py-2 text-xs font-medium">{t('treasury.table.invoice')}</TableHead>
+                  <TableHead className="min-w-[140px] px-2 py-2 text-xs font-medium">{t('documents.supplier')}</TableHead>
+                  <TableHead className="min-w-[100px] px-2 py-2 text-xs font-medium">{t('treasury.table.method')}</TableHead>
+                  <TableHead className="min-w-[140px] px-2 py-2 text-xs font-medium">{t('treasury.table.bank')}</TableHead>
+                  <TableHead className="min-w-[110px] px-2 py-2 text-xs font-medium">{t('treasury.table.maturity')}</TableHead>
+                  <TableHead className="min-w-[110px] px-2 py-2 text-xs font-medium text-right">{t('treasury.table.amount')}</TableHead>
+                  <TableHead className="min-w-[90px] px-2 py-2 text-xs font-medium">{t('treasury.table.status')}</TableHead>
+                  <TableHead className="min-w-[120px] px-2 py-2 text-xs font-medium text-center">{t('treasury.table.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredPurchasePayments.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-6 text-xs text-muted-foreground">
-                      No payments found
+                      {t('treasury.table.noPayments')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -954,7 +1055,7 @@ export const Treasury = () => {
                             size="sm"
                             onClick={() => setViewingPayment(payment)}
                             className="h-7 w-7 p-0"
-                            title="View details"
+                            title={t('treasury.actions.viewDetails')}
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </Button>
@@ -966,7 +1067,7 @@ export const Treasury = () => {
                               className="h-7 text-xs px-2 whitespace-nowrap"
                             >
                               <Download className="w-3 h-3 mr-1" />
-                              Deposit
+                              {t('treasury.actions.deposit')}
                             </Button>
                           )}
                           {payment.paymentMethod === 'check' && payment.status === 'pending_bank' && (
@@ -977,7 +1078,7 @@ export const Treasury = () => {
                               className="h-7 text-xs px-2 whitespace-nowrap"
                             >
                               <CheckCircle2 className="w-3 h-3 mr-1" />
-                              Clear
+                              {t('treasury.actions.clear')}
                             </Button>
                           )}
                         </div>
@@ -995,7 +1096,7 @@ export const Treasury = () => {
         {/* Aging Receivables */}
         <div className="card-elevated p-4">
           <h2 className="text-base font-heading font-semibold text-foreground mb-3">
-            Aging Receivables
+            {t('treasury.agingReceivables.title')}
           </h2>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={agingData}>
@@ -1004,7 +1105,7 @@ export const Treasury = () => {
               <YAxis />
               <Tooltip formatter={(value) => formatMAD(value as number)} />
               <Legend />
-              <Bar dataKey="amount" name="Unpaid Amount (MAD)" fill="#1e293b">
+              <Bar dataKey="amount" name={t('treasury.agingReceivables.unpaidAmount')} fill="#1e293b">
                 {agingData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
@@ -1025,28 +1126,28 @@ export const Treasury = () => {
         <div className="card-elevated p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-heading font-semibold text-foreground">
-              Bank Statement
+              {t('treasury.bankStatement.title')}
             </h2>
             <Badge variant="outline" className="text-xs">
-              Current Balance: {formatMAD(totalBank)}
+              {t('treasury.bankStatement.currentBalance')}: {formatMAD(totalBank)}
             </Badge>
           </div>
           <div className="overflow-x-auto max-h-[250px]">
             <Table>
               <TableHeader className="sticky top-0 bg-section z-10">
                 <TableRow className="data-table-header hover:bg-section">
-                  <TableHead className="min-w-[90px] px-2 py-2 text-xs font-medium">Date</TableHead>
-                  <TableHead className="min-w-[150px] px-2 py-2 text-xs font-medium">Description</TableHead>
-                  <TableHead className="min-w-[80px] px-2 py-2 text-xs font-medium">Type</TableHead>
-                  <TableHead className="min-w-[100px] px-2 py-2 text-xs font-medium text-right">Amount</TableHead>
-                  <TableHead className="min-w-[100px] px-2 py-2 text-xs font-medium text-right">Balance</TableHead>
+                  <TableHead className="min-w-[90px] px-2 py-2 text-xs font-medium">{t('treasury.bankStatement.table.date')}</TableHead>
+                  <TableHead className="min-w-[150px] px-2 py-2 text-xs font-medium">{t('treasury.bankStatement.table.description')}</TableHead>
+                  <TableHead className="min-w-[80px] px-2 py-2 text-xs font-medium">{t('treasury.bankStatement.table.type')}</TableHead>
+                  <TableHead className="min-w-[100px] px-2 py-2 text-xs font-medium text-right">{t('treasury.bankStatement.table.amount')}</TableHead>
+                  <TableHead className="min-w-[100px] px-2 py-2 text-xs font-medium text-right">{t('treasury.bankStatement.table.balance')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredBankStatementData.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-6 text-xs text-muted-foreground">
-                      No bank transactions found
+                      {t('treasury.bankStatement.noTransactions')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -1063,7 +1164,7 @@ export const Treasury = () => {
                           variant="outline"
                           className={`text-xs ${entry.transactionType === 'credit' ? 'bg-success/10 text-success border-success/20' : 'bg-red-50 text-red-600 border-red-200'}`}
                         >
-                          {entry.transactionType === 'credit' ? 'Credit' : 'Debit'}
+                          {entry.transactionType === 'credit' ? t('treasury.bankStatement.credit') : t('treasury.bankStatement.debit')}
                         </Badge>
                       </TableCell>
                       <TableCell className={`px-2 py-2 text-xs text-right font-medium whitespace-nowrap ${entry.transactionType === 'credit' ? 'text-success' : 'text-red-600'}`}>
@@ -1082,7 +1183,7 @@ export const Treasury = () => {
           {filteredBankStatementData.length > 10 && (
             <div className="mt-2 text-center">
               <p className="text-xs text-muted-foreground">
-                Showing latest 10 transactions of {filteredBankStatementData.length} total
+                {t('treasury.bankStatement.showingLatest', { total: filteredBankStatementData.length })}
               </p>
             </div>
           )}
@@ -1098,37 +1199,37 @@ export const Treasury = () => {
             </div>
             <div>
               <h2 className="text-base font-heading font-semibold text-foreground">
-                Net TVA Due
+                {t('treasury.tax.netTvaDue')}
               </h2>
               <p className="text-xs text-muted-foreground">
-                Collected TVA - Recoverable TVA
+                {t('treasury.tax.formula')}
               </p>
             </div>
           </div>
           <div className="space-y-2">
             <div className="flex justify-between py-1.5 border-b border-border">
-              <span className="text-xs text-muted-foreground">Collected TVA (Sales)</span>
+              <span className="text-xs text-muted-foreground">{t('treasury.tax.collected')}</span>
               <span className="text-xs font-medium">
                 <CurrencyDisplay amount={collectedTVA} />
               </span>
             </div>
             <div className="flex justify-between py-1.5 border-b border-border">
-              <span className="text-xs text-muted-foreground">Recoverable TVA (Purchases)</span>
+              <span className="text-xs text-muted-foreground">{t('treasury.tax.recoverable')}</span>
               <span className="text-xs font-medium">
                 <CurrencyDisplay amount={recoverableTVA} />
               </span>
             </div>
             <div className="flex justify-between py-2 text-base">
-              <span className="text-sm font-semibold text-foreground">Net TVA Due</span>
+              <span className="text-sm font-semibold text-foreground">{t('treasury.tax.netTvaDue')}</span>
               <span className={`text-base font-heading font-bold ${netTVADue >= 0 ? 'text-warning' : 'text-success'}`}>
                 <CurrencyDisplay amount={Math.abs(netTVADue)} />
-                {netTVADue < 0 && <span className="text-xs ml-1">(Credit)</span>}
+                {netTVADue < 0 && <span className="text-xs ml-1">({t('treasury.tax.credit')})</span>}
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
               {netTVADue >= 0
-                ? 'Amount to pay to DGI (Direction Générale des Impôts)'
-                : 'Credit available from DGI'}
+                ? t('treasury.tax.payToDgi')
+                : t('treasury.tax.creditFromDgi')}
             </p>
           </div>
         </div>
@@ -1139,14 +1240,14 @@ export const Treasury = () => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-primary/10">
-              <FileText className="w-5 h-5 text-primary" />
+              <CreditCard className="w-5 h-5 text-primary" />
             </div>
             <div>
               <h2 className="text-lg font-heading font-semibold text-foreground">
-                Invoice Insights & Tax Tracking
+                {t('treasury.tax.insightsTitle')}
               </h2>
               <p className="text-xs text-muted-foreground">
-                Recent invoices with detailed tax breakdown
+                {t('treasury.tax.insightsSubtitle')}
               </p>
             </div>
           </div>
@@ -1155,21 +1256,21 @@ export const Treasury = () => {
           <Table>
             <TableHeader>
               <TableRow className="data-table-header hover:bg-section">
-                <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium">Invoice #</TableHead>
-                <TableHead className="min-w-[150px] px-3 py-3 text-xs font-medium">Client</TableHead>
-                <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">Date</TableHead>
-                <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium text-right">Subtotal</TableHead>
-                <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium text-right">VAT (20%)</TableHead>
-                <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium text-right">Total</TableHead>
-                <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">Status</TableHead>
-                <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">Payment</TableHead>
+                <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium">{t('treasury.tax.table.invoiceNumber')}</TableHead>
+                <TableHead className="min-w-[150px] px-3 py-3 text-xs font-medium">{t('treasury.table.client')}</TableHead>
+                <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">{t('treasury.bankStatement.table.date')}</TableHead>
+                <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium text-right">{t('treasury.tax.table.subtotal')}</TableHead>
+                <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium text-right">{t('treasury.tax.table.vat')}</TableHead>
+                <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium text-right">{t('treasury.tax.table.total')}</TableHead>
+                <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">{t('treasury.table.status')}</TableHead>
+                <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">{t('treasury.table.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {allInvoicesData.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8 text-sm text-muted-foreground">
-                    No invoices found. Create invoices on the Sales page to see them tracked here.
+                    {t('treasury.tax.table.noInvoices')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -1178,7 +1279,7 @@ export const Treasury = () => {
                   .slice(0, 10)
                   .map((invoice) => {
                     const client = clients.find(c => c.id === invoice.client_id);
-                    const clientName = client?.company || client?.name || 'Unknown Client';
+                    const clientName = client?.company || client?.name || t('treasury.tax.table.unknownClient');
                     const payment = salesPayments.find(p => p.invoiceNumber === invoice.document_id);
 
                     return (
@@ -1247,19 +1348,19 @@ export const Treasury = () => {
         <div className="mt-4 pt-4 border-t border-border">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-3 bg-section/50 rounded-lg">
-              <div className="text-xs text-muted-foreground mb-1">Total Invoices</div>
+              <div className="text-xs text-muted-foreground mb-1">{t('treasury.tax.totalInvoices', { defaultValue: 'Total Invoices' })}</div>
               <div className="text-lg font-semibold text-foreground">{allInvoicesData.length}</div>
             </div>
             <div className="p-3 bg-section/50 rounded-lg">
-              <div className="text-xs text-muted-foreground mb-1">Total VAT Collected</div>
+              <div className="text-xs text-muted-foreground mb-1">{t('treasury.tax.totalVatCollected', { defaultValue: 'Total VAT Collected' })}</div>
               <div className="text-lg font-semibold text-warning">
-                <CurrencyDisplay amount={allInvoicesData.reduce((sum, inv) => sum + (inv.vat_amount || 0), 0)} />
+                <CurrencyDisplay amount={allInvoicesData.reduce((sum, inv) => sum + (Number(inv.vat_amount) || 0), 0)} />
               </div>
             </div>
             <div className="p-3 bg-section/50 rounded-lg">
-              <div className="text-xs text-muted-foreground mb-1">Total Invoice Value</div>
+              <div className="text-xs text-muted-foreground mb-1">{t('treasury.tax.totalInvoiceValue', { defaultValue: 'Total Invoice Value' })}</div>
               <div className="text-lg font-semibold text-success">
-                <CurrencyDisplay amount={allInvoicesData.reduce((sum, inv) => sum + inv.total, 0)} />
+                <CurrencyDisplay amount={allInvoicesData.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0)} />
               </div>
             </div>
           </div>
@@ -1271,14 +1372,14 @@ export const Treasury = () => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-warning/10">
-              <FileText className="w-5 h-5 text-warning" />
+              <CreditCard className="w-5 h-5 text-warning" />
             </div>
             <div>
               <h2 className="text-lg font-heading font-semibold text-foreground">
-                Purchase Insights & Tax Tracking
+                {t('treasury.tax.purchaseInsightsTitle')}
               </h2>
               <p className="text-xs text-muted-foreground">
-                Recent purchase orders and invoices with detailed tax breakdown
+                {t('treasury.tax.purchaseInsightsSubtitle')}
               </p>
             </div>
           </div>
@@ -1286,26 +1387,26 @@ export const Treasury = () => {
 
         {/* Purchase Invoices Section */}
         <div className="mb-6">
-          <h3 className="text-sm font-semibold text-foreground mb-3">Purchase Invoices (with Tax)</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-3">{t('treasury.tax.purchaseInvoicesWithTax')}</h3>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="data-table-header hover:bg-section">
-                  <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium">Invoice #</TableHead>
-                  <TableHead className="min-w-[150px] px-3 py-3 text-xs font-medium">Supplier</TableHead>
-                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">Date</TableHead>
-                  <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium text-right">Subtotal</TableHead>
-                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium text-right">VAT (20%)</TableHead>
-                  <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium text-right">Total</TableHead>
-                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">Status</TableHead>
-                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">Payment</TableHead>
+                  <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium">{t('treasury.tax.table.invoiceNumber')}</TableHead>
+                  <TableHead className="min-w-[150px] px-3 py-3 text-xs font-medium">{t('documents.supplier')}</TableHead>
+                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">{t('treasury.bankStatement.table.date')}</TableHead>
+                  <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium text-right">{t('treasury.tax.table.subtotal')}</TableHead>
+                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium text-right">{t('treasury.tax.table.vat')}</TableHead>
+                  <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium text-right">{t('treasury.tax.table.total')}</TableHead>
+                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">{t('treasury.table.status')}</TableHead>
+                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">{t('treasury.table.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {purchaseInvoicesData.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-4 text-sm text-muted-foreground">
-                      No purchase invoices found.
+                      {t('treasury.tax.table.noPurchaseInvoices')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -1314,7 +1415,7 @@ export const Treasury = () => {
                     .slice(0, 5)
                     .map((invoice) => {
                       const supplier = suppliers.find(s => s.id === invoice.supplier_id);
-                      const supplierName = supplier?.company || supplier?.name || 'Unknown Supplier';
+                      const supplierName = supplier?.company || supplier?.name || t('treasury.tax.table.unknownSupplier');
                       const payment = purchasePayments.find(p => p.invoiceNumber === invoice.document_id);
 
                       return (
@@ -1348,11 +1449,11 @@ export const Treasury = () => {
                                           'warning'
                                 }
                               >
-                                {invoice.status === 'received' ? 'Received' :
-                                  invoice.status === 'paid' ? 'Paid' :
-                                    invoice.status === 'overdue' ? 'Overdue' :
-                                      invoice.status === 'cancelled' ? 'Cancelled' :
-                                        'Draft'}
+                                {invoice.status === 'received' ? t('status.received') :
+                                  invoice.status === 'paid' ? t('status.paid') :
+                                    invoice.status === 'overdue' ? t('status.overdue') :
+                                      invoice.status === 'cancelled' ? t('status.cancelled') :
+                                        t('status.draft')}
                               </StatusBadge>
                             </div>
                           </TableCell>
@@ -1363,7 +1464,7 @@ export const Treasury = () => {
                                 <span className="capitalize text-xs">{payment.paymentMethod.replace('_', ' ')}</span>
                               </div>
                             ) : (
-                              <span className="text-xs text-muted-foreground">Not tracked</span>
+                              <span className="text-xs text-muted-foreground">{t('treasury.tax.table.notTracked')}</span>
                             )}
                           </TableCell>
                         </TableRow>
@@ -1377,24 +1478,24 @@ export const Treasury = () => {
 
         {/* Purchase Orders Section */}
         <div className="mb-4">
-          <h3 className="text-sm font-semibold text-foreground mb-3">Purchase Orders (No Tax)</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-3">{t('treasury.tax.purchaseOrdersNoTax')}</h3>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="data-table-header hover:bg-section">
-                  <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium">Order #</TableHead>
-                  <TableHead className="min-w-[150px] px-3 py-3 text-xs font-medium">Supplier</TableHead>
-                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">Date</TableHead>
-                  <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium text-right">Amount</TableHead>
-                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">Status</TableHead>
-                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">Payment</TableHead>
+                  <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium">{t('treasury.tax.table.orderNumber')}</TableHead>
+                  <TableHead className="min-w-[150px] px-3 py-3 text-xs font-medium">{t('documents.supplier')}</TableHead>
+                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">{t('treasury.bankStatement.table.date')}</TableHead>
+                  <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium text-right">{t('treasury.tax.table.amount')}</TableHead>
+                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">{t('treasury.table.status')}</TableHead>
+                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">{t('treasury.table.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {purchaseOrdersData.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-4 text-sm text-muted-foreground">
-                      No purchase orders found.
+                      {t('treasury.tax.table.noPurchaseOrders')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -1403,7 +1504,7 @@ export const Treasury = () => {
                     .slice(0, 5)
                     .map((order) => {
                       const supplier = suppliers.find(s => s.id === order.supplier_id);
-                      const supplierName = supplier?.company || supplier?.name || 'Unknown Supplier';
+                      const supplierName = supplier?.company || supplier?.name || t('treasury.tax.table.unknownSupplier');
                       const payment = purchasePayments.find(p => p.invoiceNumber === order.document_id);
 
                       return (
@@ -1430,11 +1531,11 @@ export const Treasury = () => {
                                         'warning'
                                 }
                               >
-                                {order.status === 'confirmed' ? 'Confirmed' :
-                                  order.status === 'received' ? 'Received' :
-                                    order.status === 'cancelled' ? 'Cancelled' :
-                                      order.status === 'sent' ? 'Sent' :
-                                        'Draft'}
+                                {order.status === 'confirmed' ? t('status.confirmed') :
+                                  order.status === 'received' ? t('status.received') :
+                                    order.status === 'cancelled' ? t('status.cancelled') :
+                                      order.status === 'sent' ? t('status.sent') :
+                                        t('status.draft')}
                               </StatusBadge>
                             </div>
                           </TableCell>
@@ -1445,7 +1546,7 @@ export const Treasury = () => {
                                 <span className="capitalize text-xs">{payment.paymentMethod.replace('_', ' ')}</span>
                               </div>
                             ) : (
-                              <span className="text-xs text-muted-foreground">Not tracked</span>
+                              <span className="text-xs text-muted-foreground">{t('treasury.tax.table.notTracked')}</span>
                             )}
                           </TableCell>
                         </TableRow>
@@ -1460,25 +1561,25 @@ export const Treasury = () => {
         <div className="mt-4 pt-4 border-t border-border">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="p-3 bg-section/50 rounded-lg">
-              <div className="text-xs text-muted-foreground mb-1">Total Purchase Invoices</div>
+              <div className="text-xs text-muted-foreground mb-1">{t('treasury.tax.totalPurchaseInvoices')}</div>
               <div className="text-lg font-semibold text-foreground">{purchaseInvoicesData.length}</div>
             </div>
             <div className="p-3 bg-section/50 rounded-lg">
-              <div className="text-xs text-muted-foreground mb-1">Total Recoverable VAT</div>
+              <div className="text-xs text-muted-foreground mb-1">{t('treasury.tax.totalRecoverableVat')}</div>
               <div className="text-lg font-semibold text-warning">
-                <CurrencyDisplay amount={purchaseInvoicesData.reduce((sum, inv) => sum + (inv.vat_amount || 0), 0)} />
+                <CurrencyDisplay amount={purchaseInvoicesData.reduce((sum, inv) => sum + (Number(inv.vat_amount) || 0), 0)} />
               </div>
             </div>
             <div className="p-3 bg-section/50 rounded-lg">
-              <div className="text-xs text-muted-foreground mb-1">Total Purchase Orders</div>
+              <div className="text-xs text-muted-foreground mb-1">{t('treasury.tax.totalPurchaseOrders')}</div>
               <div className="text-lg font-semibold text-foreground">{purchaseOrdersData.length}</div>
             </div>
             <div className="p-3 bg-section/50 rounded-lg">
-              <div className="text-xs text-muted-foreground mb-1">Total Purchase Value</div>
+              <div className="text-xs text-muted-foreground mb-1">{t('treasury.tax.totalPurchaseValue')}</div>
               <div className="text-lg font-semibold text-danger">
                 <CurrencyDisplay amount={
-                  purchaseInvoicesData.reduce((sum, inv) => sum + inv.total, 0) +
-                  purchaseOrdersData.reduce((sum, po) => sum + po.subtotal, 0)
+                  purchaseInvoicesData.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0) +
+                  purchaseOrdersData.reduce((sum, po) => sum + (Number(po.subtotal) || 0), 0)
                 } />
               </div>
             </div>
@@ -1487,57 +1588,8 @@ export const Treasury = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Cash Flow Trend */}
-        <div className="card-elevated p-4">
-          <h2 className="text-base font-heading font-semibold text-foreground mb-3">
-            Cash Flow Trend (Last 6 Months)
-          </h2>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={cashFlowData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis
-                dataKey="month"
-                tick={{ fill: '#64748b', fontSize: 12 }}
-                stroke="#cbd5e1"
-              />
-              <YAxis
-                tick={{ fill: '#64748b', fontSize: 12 }}
-                stroke="#cbd5e1"
-              />
-              <Tooltip
-                formatter={(value) => formatMAD(value as number)}
-                contentStyle={{
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                }}
-              />
-              <Legend
-                wrapperStyle={{ paddingTop: '20px' }}
-                iconType="line"
-              />
-              <Line
-                type="monotone"
-                dataKey="cashIn"
-                name="Cash In"
-                stroke="#10b981"
-                strokeWidth={3}
-                dot={{ fill: '#10b981', r: 5, strokeWidth: 2, stroke: '#ffffff' }}
-                activeDot={{ r: 7, strokeWidth: 2, stroke: '#10b981' }}
-              />
-              <Line
-                type="monotone"
-                dataKey="cashOut"
-                name="Cash Out"
-                stroke="#ef4444"
-                strokeWidth={3}
-                dot={{ fill: '#ef4444', r: 5, strokeWidth: 2, stroke: '#ffffff' }}
-                activeDot={{ r: 7, strokeWidth: 2, stroke: '#ef4444' }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        {/* Bank Reconciliation - Moved to fill the space or change grid if needed */}
+        {/* Cash Flow Trend Removed */}
       </div>
 
       {/* Bank Reconciliation */}
@@ -1564,10 +1616,20 @@ export const Treasury = () => {
             const pendingAmount = salesPendingAmount - purchasePendingAmount; // Sales add, purchases subtract
 
             return (
-              <div key={account.id} className="p-4 border border-border rounded-lg">
+              <div key={account.id} className="p-4 border border-border rounded-lg group relative">
+                <div className="absolute top-2 right-2 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => handleDeleteBankAccount(account.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-medium text-sm">{account.bank}</span>
-                  <span className="text-xs text-muted-foreground">{account.accountNumber}</span>
+                  <span className="text-xs text-muted-foreground mr-8">{account.accountNumber}</span>
                 </div>
                 <div className="space-y-1">
                   <div className="flex justify-between text-sm">
@@ -1943,6 +2005,25 @@ export const Treasury = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+
+      <AlertDialog open={deleteConfirmationOpen} onOpenChange={setDeleteConfirmationOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('common.areYouSure', { defaultValue: 'Are you sure?' })}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('treasury.deleteBankAccountWarning', {
+                defaultValue: 'This action cannot be undone. This will permanently delete the bank account and remove it from your treasury tracking.'
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel', { defaultValue: 'Cancel' })}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteBankAccount} className="bg-destructive hover:bg-destructive/90">
+              {t('common.delete', { defaultValue: 'Delete' })}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div >
   );
 };

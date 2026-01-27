@@ -1,0 +1,25 @@
+﻿{
+  \"sales\": {
+    \"form\": {
+      \"clientInformation\": \"Client Information\",
+      \"selectClient\": \"Select Client\",
+      \"estimateDate\": \"Estimate Date\",
+      \"estimateNumber\": \"Estimate Number\",
+      \"validUntil\": \"Valid Until\",
+      \"invoiceDate\": \"Invoice Date\",
+      \"paymentTerms\": \"Payment Terms\",
+      \"diversNumber\": \"Divers Number\",
+      \"calculateTax\": \"Calculate Tax (TVA 20%)\",
+      \"estimateItems\": \"Estimate Items\"
+    },
+    \"summary\": {
+      \"estimateSummary\": \"Estimate Summary\",
+      \"invoiceSummary\": \"Invoice Summary\"
+    },
+    \"buttons\": {
+      \"createSendEstimate\": \"Create & Send Estimate\",
+      \"createSendInvoice\": \"Create & Send Invoice\",
+      \"downloadPDF\": \"Download PDF\"
+    }
+  }
+}

@@ -294,11 +294,11 @@ export const Purchases = () => {
   // Get supplier display name from document
   const getSupplierDisplayName = (doc: PurchaseDocument): string => {
     if (doc.supplierData) {
-      return doc.supplierData.company || doc.supplierData.name || doc.supplier || 'Unknown Supplier';
+      return doc.supplierData.company || doc.supplierData.name || doc.supplier || t('common.unknownSupplier');
     }
     // Fallback: try to look up from contacts
     const supplier = suppliers.find(s => s.id === doc.supplier);
-    return supplier ? (supplier.company || supplier.name) : doc.supplier || 'Unknown Supplier';
+    return supplier ? (supplier.company || supplier.name) : doc.supplier || t('common.unknownSupplier');
   };
 
   const handleEditDocument = (doc: PurchaseDocument) => {
@@ -1510,9 +1510,9 @@ export const Purchases = () => {
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono font-medium max-w-[120px] truncate">{order.id}</TableCell>
-                            <TableCell className="max-w-[200px] truncate">{order.supplier}</TableCell>
-                            <TableCell className="max-w-[120px] truncate">{formatDate(order.date)}</TableCell>
+                            <TableCell className="font-mono font-medium max-w-[120px] truncate" title={order.id}>{order.id}</TableCell>
+                            <TableCell className="max-w-[200px] truncate" title={order.supplier}>{order.supplier}</TableCell>
+                            <TableCell className="max-w-[120px] truncate" title={formatDate(order.date)}>{formatDate(order.date)}</TableCell>
                             <TableCell className="text-center number-cell">{Array.isArray(order.items) ? order.items.length : 0}</TableCell>
                             <TableCell className="text-right font-medium number-cell">{formatMAD(order.total)}</TableCell>
                             <TableCell className="text-center">
@@ -1912,9 +1912,9 @@ export const Purchases = () => {
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono font-medium max-w-[120px] truncate">{doc.id}</TableCell>
-                            <TableCell className="max-w-[200px] truncate">{doc.supplier}</TableCell>
-                            <TableCell className="max-w-[120px] truncate">{formatDate(doc.date)}</TableCell>
+                            <TableCell className="font-mono font-medium max-w-[120px] truncate" title={doc.id}>{doc.id}</TableCell>
+                            <TableCell className="max-w-[200px] truncate" title={doc.supplier}>{doc.supplier}</TableCell>
+                            <TableCell className="max-w-[120px] truncate" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
                             <TableCell className="text-center number-cell">{Array.isArray(doc.items) ? doc.items.length : 0}</TableCell>
                             <TableCell className="text-right font-medium number-cell">
                               <CurrencyDisplay amount={doc.total} />
@@ -2158,7 +2158,7 @@ export const Purchases = () => {
                               </div>
                             )}
                             <div className="min-w-0 flex-1">
-                              <p className="font-medium truncate text-foreground">{selectedFile.name}</p>
+                              <p className="font-medium truncate text-foreground" title={selectedFile.name}>{selectedFile.name}</p>
                               <p className="text-xs text-muted-foreground">{(selectedFile.size / 1024).toFixed(2)} KB</p>
                             </div>
                           </div>
@@ -2396,9 +2396,9 @@ export const Purchases = () => {
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono font-medium max-w-[120px] truncate">{doc.id}</TableCell>
-                            <TableCell className="max-w-[200px] truncate">{doc.supplier}</TableCell>
-                            <TableCell className="max-w-[120px] truncate">{formatDate(doc.date)}</TableCell>
+                            <TableCell className="font-mono font-medium max-w-[120px] truncate" title={doc.id}>{doc.id}</TableCell>
+                            <TableCell className="max-w-[200px] truncate" title={doc.supplier}>{doc.supplier}</TableCell>
+                            <TableCell className="max-w-[120px] truncate" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
                             <TableCell className="text-center number-cell">{Array.isArray(doc.items) ? doc.items.length : 0}</TableCell>
                             <TableCell className="text-right font-medium number-cell">{formatMAD(doc.total)}</TableCell>
                             <TableCell className="text-center">
@@ -2907,19 +2907,19 @@ export const Purchases = () => {
                             />
                           </div>
                         </TableHead>
-                        <TableHead>Statement #</TableHead>
-                        <TableHead>Supplier</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead className="text-right">Amount (TTC)</TableHead>
-                        <TableHead className="text-center">Status</TableHead>
-                        <TableHead className="text-center">Actions</TableHead>
+                        <TableHead>{t('purchases.table.statementNumber')}</TableHead>
+                        <TableHead>{t('purchases.table.supplier')}</TableHead>
+                        <TableHead>{t('purchases.table.date')}</TableHead>
+                        <TableHead className="text-right">{t('purchases.table.amountTTC')}</TableHead>
+                        <TableHead className="text-center">{t('purchases.table.status')}</TableHead>
+                        <TableHead className="text-center">{t('purchases.table.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredDocuments.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center py-8 text-muted-foreground" align="center">
-                            No documents found
+                            {t('purchases.summary.noDocumentsFound')}
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -2940,9 +2940,9 @@ export const Purchases = () => {
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono font-medium max-w-[120px] truncate">{doc.id}</TableCell>
-                            <TableCell className="max-w-[200px] truncate">{doc.supplier}</TableCell>
-                            <TableCell className="max-w-[120px] truncate">{formatDate(doc.date)}</TableCell>
+                            <TableCell className="font-mono font-medium max-w-[120px] truncate" title={doc.id}>{doc.id}</TableCell>
+                            <TableCell className="max-w-[200px] truncate" title={doc.supplier}>{doc.supplier}</TableCell>
+                            <TableCell className="max-w-[120px] truncate" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
                             <TableCell className="text-right font-medium number-cell">
                               <CurrencyDisplay amount={doc.total} />
                             </TableCell>
@@ -2956,7 +2956,7 @@ export const Purchases = () => {
                                   size="icon"
                                   className="h-8 w-8"
                                   onClick={() => handleViewDocument(doc)}
-                                  title="View"
+                                  title={t('common.view')}
                                 >
                                   <Eye className="w-4 h-4" />
                                 </Button>
@@ -2965,7 +2965,7 @@ export const Purchases = () => {
                                   size="icon"
                                   className="h-8 w-8"
                                   onClick={() => handleEditDocument(doc)}
-                                  title="Edit"
+                                  title={t('common.edit')}
                                 >
                                   <Edit className="w-4 h-4" />
                                 </Button>
@@ -2974,7 +2974,7 @@ export const Purchases = () => {
                                   size="icon"
                                   className="h-8 w-8"
                                   onClick={() => handleDownloadPDF(doc)}
-                                  title="Download PDF"
+                                  title={t('documents.downloadPDF')}
                                 >
                                   <Download className="w-4 h-4" />
                                 </Button>
@@ -2983,7 +2983,7 @@ export const Purchases = () => {
                                   size="icon"
                                   className="h-8 w-8"
                                   onClick={() => handlePrintPDF(doc)}
-                                  title="Print"
+                                  title={t('common.print', { defaultValue: 'Print' })}
                                 >
                                   <Printer className="w-4 h-4" />
                                 </Button>
@@ -2992,7 +2992,7 @@ export const Purchases = () => {
                                   size="icon"
                                   className="h-8 w-8 text-destructive hover:text-destructive"
                                   onClick={() => handleDeleteDocument(doc)}
-                                  title="Delete"
+                                  title={t('common.delete')}
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </Button>

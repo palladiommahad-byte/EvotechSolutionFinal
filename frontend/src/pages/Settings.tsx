@@ -1060,11 +1060,11 @@ export const Settings = () => {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground truncate">{safeString(user.name)}</p>
+                        <p className="font-medium text-foreground truncate" title={safeString(user.name)}>{safeString(user.name)}</p>
                         <p className={cn(
                           "text-sm truncate",
                           user.email ? "text-muted-foreground" : "text-muted-foreground/60 italic"
-                        )}>
+                        )} title={safeString(user.email) || "No email"}>
                           {safeString(user.email) || "No email"}
                         </p>
                       </div>
