@@ -98,11 +98,7 @@ export const Inventory = () => {
     status: 'in_stock',
     lastMovement: new Date().toISOString().split('T')[0],
   });
-  const [warehouseStock, setWarehouseStock] = useState<{
-    marrakech?: number;
-    agadir?: number;
-    ouarzazate?: number;
-  }>({});
+  const [warehouseStock, setWarehouseStock] = useState<Record<string, number>>({});
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1367,69 +1363,30 @@ export const Inventory = () => {
               <div className="flex items-center justify-between">
                 <Label className="text-base font-semibold">{t('common.warehouse')}</Label>
                 <span className="text-sm text-muted-foreground">
-                  {t('common.total')}: {(warehouseStock.marrakech || 0) + (warehouseStock.agadir || 0) + (warehouseStock.ouarzazate || 0)}
+                  {t('common.total')}: {Object.values(warehouseStock).reduce((sum, val) => sum + (val || 0), 0)}
                 </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Marrakech Warehouse */}
-                <div className="space-y-2 p-4 border border-border rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <MapPin className="w-4 h-4 text-primary" />
-                    <Label htmlFor="stock-marrakech" className="font-medium">Marrakech</Label>
+                {warehouses.map((warehouse) => (
+                  <div key={warehouse.id} className="space-y-2 p-4 border border-border rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MapPin className="w-4 h-4 text-primary" />
+                      <Label htmlFor={`stock-${warehouse.id}`} className="font-medium">{warehouse.city}</Label>
+                    </div>
+                    <Input
+                      id={`stock-${warehouse.id}`}
+                      type="number"
+                      min="0"
+                      value={warehouseStock[warehouse.id] || ''}
+                      onChange={(e) => setWarehouseStock({
+                        ...warehouseStock,
+                        [warehouse.id]: parseInt(e.target.value) || 0
+                      })}
+                      placeholder="0"
+                      className="w-full"
+                    />
                   </div>
-                  <Input
-                    id="stock-marrakech"
-                    type="number"
-                    min="0"
-                    value={warehouseStock.marrakech || ''}
-                    onChange={(e) => setWarehouseStock({
-                      ...warehouseStock,
-                      marrakech: parseInt(e.target.value) || 0
-                    })}
-                    placeholder="0"
-                    className="w-full"
-                  />
-                </div>
-
-                {/* Agadir Warehouse */}
-                <div className="space-y-2 p-4 border border-border rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <MapPin className="w-4 h-4 text-primary" />
-                    <Label htmlFor="stock-agadir" className="font-medium">Agadir</Label>
-                  </div>
-                  <Input
-                    id="stock-agadir"
-                    type="number"
-                    min="0"
-                    value={warehouseStock.agadir || ''}
-                    onChange={(e) => setWarehouseStock({
-                      ...warehouseStock,
-                      agadir: parseInt(e.target.value) || 0
-                    })}
-                    placeholder="0"
-                    className="w-full"
-                  />
-                </div>
-
-                {/* Ouarzazate Warehouse */}
-                <div className="space-y-2 p-4 border border-border rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <MapPin className="w-4 h-4 text-primary" />
-                    <Label htmlFor="stock-ouarzazate" className="font-medium">Ouarzazate</Label>
-                  </div>
-                  <Input
-                    id="stock-ouarzazate"
-                    type="number"
-                    min="0"
-                    value={warehouseStock.ouarzazate || ''}
-                    onChange={(e) => setWarehouseStock({
-                      ...warehouseStock,
-                      ouarzazate: parseInt(e.target.value) || 0
-                    })}
-                    placeholder="0"
-                    className="w-full"
-                  />
-                </div>
+                ))}
               </div>
               <p className="text-xs text-muted-foreground">
                 {t('inventory.warehouseAllocationHelp')}

@@ -145,14 +145,15 @@ const REPORT_CONFIGS = {
                 ba.account_number,
                 ba.balance,
                 'bank' as account_type
-            FROM bank_accounts ba
+            FROM treasury_bank_accounts ba
             UNION ALL
             SELECT 
-                wc.name as bank,
+                w.city as bank,
                 'Warehouse Cash' as account_number,
-                wc.balance,
+                wc.amount as balance,
                 'warehouse' as account_type
-            FROM warehouse_cash wc
+            FROM treasury_warehouse_cash wc
+            LEFT JOIN warehouses w ON wc.warehouse_id = w.id
             ORDER BY account_type DESC, bank ASC
         `,
         columns: [
@@ -169,25 +170,20 @@ const REPORT_CONFIGS = {
  * @param {string} type - Report type (inventory, sales-invoice, etc.)
  * @returns {Promise<Buffer>} The generated Excel file buffer
  */
-const generateStyledReport = async (type = 'inventory') => {
-    const config = REPORT_CONFIGS[type] || REPORT_CONFIGS['inventory'];
-
-    // 1. Fetch data
-    let rows = [];
-    try {
-        const result = await query(config.sql, []);
-        rows = result.rows;
-    } catch (error) {
-        console.error('Error fetching data for report:', error);
-        throw new Error('Database fetch failed');
-    }
-
+/**
+ * Core function to generate Excel buffer from data
+ * @param {Array} columns - Column definitions
+ * @param {Array} rows - Data rows
+ * @param {string} title - Worksheet title
+ * @returns {Promise<Buffer>}
+ */
+const createExcelBuffer = async (columns, rows, title) => {
     // 2. Create Workbook and Worksheet
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet(config.title);
+    const worksheet = workbook.addWorksheet(title);
 
     // 3. Define Columns
-    worksheet.columns = config.columns;
+    worksheet.columns = columns;
 
     // 4. Style Header Row
     const headerRow = worksheet.getRow(1);
@@ -217,7 +213,7 @@ const generateStyledReport = async (type = 'inventory') => {
     rows.forEach((row, index) => {
         // Map row data to columns based on key
         const rowData = {};
-        config.columns.forEach(col => {
+        columns.forEach(col => {
             // Handle specific column types if needed
             let val = row[col.key] || row[col.key.replace(/([A-Z])/g, "_$1").toLowerCase()]; // Try camelCase and snake_case
 
@@ -227,7 +223,7 @@ const generateStyledReport = async (type = 'inventory') => {
                 else rowData[col.key] = '';
             }
             // Numbers
-            else if (col.key === 'total' || col.key === 'quantity' || col.key === 'price' || col.key === 'total_value') {
+            else if (['total', 'quantity', 'price', 'total_value', 'amount', 'balance', 'runningBalance'].includes(col.key)) {
                 rowData[col.key] = Number(val) || 0;
             } else {
                 rowData[col.key] = val;
@@ -255,9 +251,7 @@ const generateStyledReport = async (type = 'inventory') => {
             }
 
             // Conditional formatting examples
-            // Red if Quantity < 10 (Inventory) or Total < 0 (Unlikely for docs but flexible)
-            // We check if the column key is 'quantity'
-            const colKey = config.columns[colNumber - 1]?.key;
+            const colKey = columns[colNumber - 1]?.key;
             if (colKey === 'quantity' && cell.value < 10) {
                 cell.font = { color: { argb: 'FFFF0000' }, bold: true };
             }
@@ -266,8 +260,8 @@ const generateStyledReport = async (type = 'inventory') => {
             }
 
             // Currency formatting
-            if (colKey === 'total' || colKey === 'price' || colKey === 'total_value' || colKey === 'balance') {
-                cell.numFmt = '#,##0.00 "MAD"';
+            if (['total', 'price', 'total_value', 'balance', 'amount', 'runningBalance'].includes(colKey)) {
+                cell.numFmt = '#,##0.00 "DH"'; // Changed to DH as per screenshot
                 cell.alignment = { horizontal: 'right' };
             }
         });
@@ -286,6 +280,39 @@ const generateStyledReport = async (type = 'inventory') => {
     return buffer;
 };
 
+/**
+ * Generates a styled Excel report based on type (Backend Data)
+ * @param {string} type - Report type (inventory, sales-invoice, etc.)
+ * @returns {Promise<Buffer>} The generated Excel file buffer
+ */
+const generateStyledReport = async (type = 'inventory') => {
+    const config = REPORT_CONFIGS[type] || REPORT_CONFIGS['inventory'];
+
+    // 1. Fetch data
+    let rows = [];
+    try {
+        const result = await query(config.sql, []);
+        rows = result.rows;
+    } catch (error) {
+        console.error('Error fetching data for report:', error);
+        throw new Error('Database fetch failed');
+    }
+
+    return createExcelBuffer(config.columns, rows, config.title);
+};
+
+/**
+ * Generates a styled Excel report from provided data (Frontend Data)
+ * @param {Array} data - Array of objects
+ * @param {Array} columns - Column definitions
+ * @param {string} title - Report title
+ * @returns {Promise<Buffer>}
+ */
+const generateStyledReportFromData = async (data, columns, title) => {
+    return createExcelBuffer(columns, data, title || 'Export');
+};
+
 module.exports = {
-    generateStyledReport
+    generateStyledReport,
+    generateStyledReportFromData
 };

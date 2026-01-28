@@ -3,6 +3,11 @@
 export const VAT_RATE = 0.20; // 20% TVA
 
 export const formatMAD = (amount: number): string => {
+  // Handle NaN or invalid numbers
+  if (isNaN(amount) || amount === null || amount === undefined) {
+    return '0,00\u00A0DH';
+  }
+
   // Format large numbers with M/k suffixes
   if (Math.abs(amount) >= 1000000) {
     const millions = amount / 1000000;
@@ -20,6 +25,11 @@ export const formatMAD = (amount: number): string => {
 };
 
 export const formatMADFull = (amount: number): string => {
+  // Handle NaN or invalid numbers
+  if (isNaN(amount) || amount === null || amount === undefined) {
+    return '0,00\u00A0DH';
+  }
+
   // Always format as full number with proper formatting
   // Use non-breaking space (\u00A0) before DH to keep price on same line
   return new Intl.NumberFormat('fr-MA', {

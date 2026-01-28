@@ -367,9 +367,9 @@ export const StockTracking = () => {
                     <TableHead>{t('stockTracking.table.category')}</TableHead>
                     {(isAllWarehouses || viewMode === 'all') ? (
                       <>
-                        <TableHead className="text-center">Marrakech</TableHead>
-                        <TableHead className="text-center">Agadir</TableHead>
-                        <TableHead className="text-center">Ouarzazate</TableHead>
+                        {warehouses.map((warehouse) => (
+                          <TableHead key={warehouse.id} className="text-center">{warehouse.city}</TableHead>
+                        ))}
                         <TableHead className="text-center font-bold">{t('stockTracking.card.total')}</TableHead>
                       </>
                     ) : (

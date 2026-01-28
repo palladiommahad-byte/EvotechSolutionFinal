@@ -31,9 +31,7 @@ export interface BankAccount {
 }
 
 export interface WarehouseCash {
-  marrakech: number;
-  agadir: number;
-  ouarzazate: number;
+  [warehouseId: string]: number;
 }
 
 interface TreasuryContextType {
@@ -46,7 +44,7 @@ interface TreasuryContextType {
 
   // Warehouse Cash
   warehouseCash: WarehouseCash;
-  updateWarehouseCash: (warehouse: keyof WarehouseCash, amount: number) => Promise<void>;
+  updateWarehouseCash: (warehouse: string, amount: number) => Promise<void>;
 
   // Payments
   salesPayments: Payment[];
@@ -83,7 +81,7 @@ const toUIBankAccount = (account: ServiceBankAccount): BankAccount => ({
   name: account.name,
   bank: account.bank,
   accountNumber: account.accountNumber || account.account_number,
-  balance: account.balance,
+  balance: Number(account.balance) || 0,
 });
 
 const toUIPayment = (payment: TreasuryPayment): Payment => ({
@@ -91,7 +89,7 @@ const toUIPayment = (payment: TreasuryPayment): Payment => ({
   invoiceId: payment.invoiceId || payment.invoice_id,
   invoiceNumber: payment.invoiceNumber || payment.invoice_number,
   entity: payment.entity,
-  amount: payment.amount,
+  amount: Number(payment.amount) || 0,
   paymentMethod: payment.paymentMethod || payment.payment_method,
   bank: payment.bank,
   checkNumber: payment.checkNumber || payment.check_number,
@@ -105,16 +103,13 @@ const toUIPayment = (payment: TreasuryPayment): Payment => ({
 
 // Helper to convert warehouse cash array to object format
 const warehouseCashArrayToObject = (cashArray: Array<{ warehouse_id: string; amount: number }>): WarehouseCash => {
-  const defaultCash: WarehouseCash = { marrakech: 0, agadir: 0, ouarzazate: 0 };
+  const cashObject: WarehouseCash = {};
 
   cashArray.forEach((cash) => {
-    const warehouseId = cash.warehouse_id;
-    if (warehouseId === 'marrakech' || warehouseId === 'agadir' || warehouseId === 'ouarzazate') {
-      defaultCash[warehouseId] = cash.amount || 0;
-    }
+    cashObject[cash.warehouse_id] = cash.amount || 0;
   });
 
-  return defaultCash;
+  return cashObject;
 };
 
 export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
@@ -291,7 +286,7 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
     await deleteBankAccountMutation.mutateAsync(id);
   }, [deleteBankAccountMutation]);
 
-  const updateWarehouseCash = useCallback(async (warehouse: keyof WarehouseCash, amount: number) => {
+  const updateWarehouseCash = useCallback(async (warehouse: string, amount: number) => {
     await updateWarehouseCashMutation.mutateAsync({ warehouseId: warehouse, amount });
   }, [updateWarehouseCashMutation]);
 
@@ -349,31 +344,20 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
     [totalBank, totalWarehouseCashValue]
   );
 
-  // Calculate TVA from actual invoice VAT amounts (only for cleared payments)
-  // Get cleared payment invoice numbers
-  const clearedSalesInvoiceNumbers = useMemo(
-    () => new Set(clearedSalesPayments.map(p => p.invoiceNumber)),
-    [clearedSalesPayments]
-  );
-
-  const clearedPurchaseInvoiceNumbers = useMemo(
-    () => new Set(clearedPurchasePayments.map(p => p.invoiceNumber)),
-    [clearedPurchasePayments]
-  );
-
-  // Calculate collected TVA from sales invoices (only cleared payments)
+  // Calculate collected TVA from sales invoices (only paid invoices)
   const collectedTVA = useMemo(() => {
     return invoicesData
-      .filter(inv => clearedSalesInvoiceNumbers.has(inv.document_id))
-      .reduce((sum, inv) => sum + (inv.vat_amount || 0), 0);
-  }, [invoicesData, clearedSalesInvoiceNumbers]);
+      .filter(inv => inv.status === 'paid')
+      .reduce((sum, inv) => sum + Number(inv.vat_amount || 0), 0);
+  }, [invoicesData]);
 
-  // Calculate recoverable TVA from purchase invoices (only cleared payments)
+  // Calculate recoverable TVA from purchase invoices (only paid/received invoices)
+  // Assuming 'paid' purchase invoices are fully paid
   const recoverableTVA = useMemo(() => {
     return purchaseInvoicesData
-      .filter(inv => clearedPurchaseInvoiceNumbers.has(inv.document_id))
-      .reduce((sum, inv) => sum + (inv.vat_amount || 0), 0);
-  }, [purchaseInvoicesData, clearedPurchaseInvoiceNumbers]);
+      .filter(inv => inv.status === 'paid')
+      .reduce((sum, inv) => sum + Number(inv.vat_amount || 0), 0);
+  }, [purchaseInvoicesData]);
 
   // TVA Reserve is the same as collected TVA (reserved for tax payment)
   const tvaReserve = useMemo(() => collectedTVA, [collectedTVA]);
@@ -401,40 +385,95 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
 
   // Bank Statement data
   const bankStatementData = useMemo(() => {
+    // strict check for explicit payments
+    const existingSalesInvoiceIds = new Set(salesPayments.map(p => p.invoiceNumber));
+    const existingPurchaseInvoiceIds = new Set(purchasePayments.map(p => p.invoiceNumber));
+
+    // Implicit sales payments (from Paid invoices not in treasury)
+    const implicitSales = invoicesData
+      .filter(inv =>
+        inv.status === 'paid' &&
+        !existingSalesInvoiceIds.has(inv.document_id) &&
+        (inv.payment_method === 'bank_transfer' || inv.payment_method === 'check' || inv.payment_method === 'cash')
+      )
+      .map(inv => ({
+        id: `implicit-sale-${inv.id}`,
+        invoiceId: inv.id,
+        invoiceNumber: inv.document_id,
+        entity: inv.client?.name || inv.client?.company || 'Unknown Client',
+        amount: Number(inv.total) || 0,
+        paymentMethod: inv.payment_method as 'bank_transfer' | 'check',
+        bank: (inv as any).bank_account?.name,
+        date: inv.date,
+        status: 'cleared' as const,
+        transactionType: 'credit' as const,
+        description: `${inv.document_id} - ${inv.client?.name || inv.client?.company || 'Client'}`,
+        runningBalance: 0 // placeholder
+      }));
+
+    // Implicit purchase payments (from Paid purchase invoices not in treasury)
+    const implicitPurchases = purchaseInvoicesData
+      .filter(inv =>
+        inv.status === 'paid' &&
+        !existingPurchaseInvoiceIds.has(inv.document_id) &&
+        (inv.payment_method === 'bank_transfer' || inv.payment_method === 'check' || inv.payment_method === 'cash')
+      )
+      .map(inv => ({
+        id: `implicit-purchase-${inv.id}`,
+        invoiceId: inv.id,
+        invoiceNumber: inv.document_id,
+        entity: inv.supplier?.name || inv.supplier?.company || 'Unknown Supplier',
+        amount: Number(inv.total) || 0,
+        paymentMethod: inv.payment_method as 'bank_transfer' | 'check',
+        bank: '',
+        date: inv.date,
+        status: 'cleared' as const,
+        transactionType: 'debit' as const,
+        description: `${inv.document_id} - ${inv.supplier?.name || inv.supplier?.company || 'Supplier'}`,
+        runningBalance: 0 // placeholder
+      }));
+
     const allPayments = [
       ...salesPayments
-        .filter(p => p.status === 'cleared' && (p.paymentMethod === 'bank_transfer' || (p.paymentMethod === 'check' && p.bank)))
+        .filter(p => p.status === 'cleared' && (p.paymentMethod === 'bank_transfer' || (p.paymentMethod === 'check' && p.bank) || p.paymentMethod === 'cash'))
         .map(p => ({
           ...p,
           transactionType: 'credit' as const,
           description: `${p.invoiceNumber} - ${p.entity}`,
         })),
       ...purchasePayments
-        .filter(p => p.status === 'cleared' && (p.paymentMethod === 'bank_transfer' || (p.paymentMethod === 'check' && p.bank)))
+        .filter(p => p.status === 'cleared' && (p.paymentMethod === 'bank_transfer' || (p.paymentMethod === 'check' && p.bank) || p.paymentMethod === 'cash'))
         .map(p => ({
           ...p,
           transactionType: 'debit' as const,
           description: `${p.invoiceNumber} - ${p.entity}`,
         })),
+      ...implicitSales,
+      ...implicitPurchases
     ];
 
     allPayments.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     const totalCredits = allPayments
       .filter(p => p.transactionType === 'credit')
-      .reduce((sum, p) => sum + p.amount, 0);
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
     const totalDebits = allPayments
       .filter(p => p.transactionType === 'debit')
-      .reduce((sum, p) => sum + p.amount, 0);
-    const startingBalance = totalBank - (totalCredits - totalDebits);
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-    let runningBalance = startingBalance;
+    // Use netLiquidity to accurately reflect Bank + Cash balance since we are now including cash transactions
+    const safeNetLiquidity = Number(netLiquidity) || 0;
+    const startingBalance = safeNetLiquidity - (totalCredits - totalDebits);
+
+    let runningBalance = isNaN(startingBalance) ? 0 : startingBalance;
     const statementEntries = allPayments.map(payment => {
-      const { type, transactionType, ...rest } = payment;
+      const { transactionType, ...rest } = payment;
+      const amount = Number(payment.amount) || 0;
+
       if (transactionType === 'credit') {
-        runningBalance += payment.amount;
+        runningBalance += amount;
       } else {
-        runningBalance -= payment.amount;
+        runningBalance -= amount;
       }
       return {
         ...rest,
@@ -444,7 +483,7 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return statementEntries;
-  }, [salesPayments, purchasePayments, totalBank]);
+  }, [salesPayments, purchasePayments, netLiquidity, invoicesData, purchaseInvoicesData]);
 
   const value: TreasuryContextType = {
     bankAccounts,

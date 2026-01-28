@@ -48,6 +48,13 @@ export interface SalesDocument {
   type: 'delivery_note' | 'divers' | 'invoice' | 'estimate' | 'credit_note' | 'statement';
   paymentMethod?: 'cash' | 'check' | 'bank_transfer';
   checkNumber?: string;
+  bankAccountId?: string; // For invoices with check/bank_transfer payment
+  bankAccountData?: {
+    id: string;
+    name: string;
+    bank: string;
+    accountNumber: string;
+  };
   dueDate?: string;
   note?: string;
   taxEnabled?: boolean; // For divers documents
@@ -130,6 +137,13 @@ const invoiceToSalesDocument = (invoice: InvoiceWithItems): SalesDocument => {
     type: 'invoice',
     paymentMethod: invoice.payment_method || undefined,
     checkNumber: (invoice as any).check_number || (invoice as any).checkNumber || undefined,
+    bankAccountId: (invoice as any).bank_account_id || undefined,
+    bankAccountData: (invoice as any).bank_account ? {
+      id: (invoice as any).bank_account.id,
+      name: (invoice as any).bank_account.name,
+      bank: (invoice as any).bank_account.bank,
+      accountNumber: (invoice as any).bank_account.account_number,
+    } : undefined,
     dueDate: invoice.due_date || undefined,
     note: invoice.note || undefined,
     _internalId: invoice.id,
@@ -356,6 +370,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
         due_date: data.dueDate,
         payment_method: data.paymentMethod,
         check_number: data.paymentMethod === 'check' ? data.checkNumber : undefined,
+        bank_account_id: data.bankAccountId,
         note: data.note,
         items: data.items.map(item => ({
           product_id: item.productId && uuidRegex.test(item.productId) ? item.productId : null,
@@ -368,38 +383,9 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     onSuccess: async (invoice: InvoiceWithItems, variables: Omit<SalesDocument, 'id' | 'type'>) => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'invoices'] });
 
-      // Automatically create treasury payment entry for the invoice
-      try {
-        const clientName = variables.clientData?.company || variables.clientData?.name || variables.client || 'Unknown Client';
-        const paymentMethod = variables.paymentMethod || 'cash';
-        const checkNumber = paymentMethod === 'check' ? variables.checkNumber : undefined;
-
-        // Determine initial status based on payment method
-        let initialStatus: 'in-hand' | 'pending_bank' | 'cleared' = 'in-hand';
-        if (paymentMethod === 'bank_transfer') {
-          initialStatus = 'pending_bank';
-        }
-
-        await treasuryService.createPayment({
-          invoice_id: invoice.document_id,
-          invoice_number: invoice.document_id,
-          entity: clientName,
-          amount: invoice.total,
-          payment_method: paymentMethod,
-          check_number: checkNumber,
-          status: initialStatus,
-          date: invoice.date,
-          payment_type: 'sales',
-          notes: `Auto-created from invoice ${invoice.document_id}`,
-        });
-
-        // Invalidate treasury queries to refresh the data
-        queryClient.invalidateQueries({ queryKey: ['treasury', 'payments'] });
-      } catch (treasuryError) {
-        // Log error but don't fail the invoice creation
-        console.error('Error creating treasury payment entry:', treasuryError);
-        // Still show success for invoice creation
-      }
+      // NOTE: Treasury payment creation is now handled by the backend trigger on status change ('paid')
+      // This prevents duplicate/incomplete payments (missing bank_account_id)
+      // queryClient.invalidateQueries(['treasury', 'payments']);
 
       toast({ title: 'Invoice created successfully', variant: 'success' });
     },

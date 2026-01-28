@@ -48,6 +48,8 @@ export interface TreasuryPayment {
   notes?: string;
   payment_type: 'sales' | 'purchase';
   paymentType?: 'sales' | 'purchase';
+  bank_account_id?: string;
+  bankAccountId?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -118,7 +120,7 @@ export const treasuryService = {
     }
   },
 
-  async createPayment(payment: Omit<TreasuryPayment, 'id' | 'created_at' | 'updated_at' | 'invoiceId' | 'invoiceNumber' | 'paymentMethod' | 'checkNumber' | 'maturityDate' | 'paymentType' | 'payment_date' | 'warehouse_id'>): Promise<TreasuryPayment> {
+  async createPayment(payment: Omit<TreasuryPayment, 'id' | 'created_at' | 'updated_at' | 'invoiceId' | 'invoiceNumber' | 'paymentMethod' | 'checkNumber' | 'maturityDate' | 'paymentType' | 'payment_date' | 'warehouse_id' | 'bankAccountId'>): Promise<TreasuryPayment> {
     return await apiClient.post<TreasuryPayment>('/treasury/payments', payment);
   },
 

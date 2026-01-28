@@ -18,9 +18,12 @@ router.get('/', asyncHandler(async (req, res) => {
     SELECT i.*, 
            c.id as client_id, c.name as client_name, c.company as client_company,
            c.email as client_email, c.phone as client_phone, c.ice as client_ice,
-           c.if_number as client_if_number, c.rc as client_rc
+           c.if_number as client_if_number, c.rc as client_rc,
+           ba.id as bank_account_id, ba.name as bank_account_name, 
+           ba.bank as bank_account_bank, ba.account_number as bank_account_number
     FROM invoices i
     LEFT JOIN contacts c ON i.client_id = c.id
+    LEFT JOIN treasury_bank_accounts ba ON i.bank_account_id = ba.id
     WHERE 1=1
   `;
     const params = [];
@@ -68,6 +71,12 @@ router.get('/', asyncHandler(async (req, res) => {
                     if_number: invoice.client_if_number,
                     rc: invoice.client_rc,
                 } : undefined,
+                bank_account: invoice.bank_account_id ? {
+                    id: invoice.bank_account_id,
+                    name: invoice.bank_account_name,
+                    bank: invoice.bank_account_bank,
+                    account_number: invoice.bank_account_number,
+                } : undefined,
             };
         })
     );
@@ -86,9 +95,12 @@ router.get('/:id', asyncHandler(async (req, res) => {
         `SELECT i.*, 
             c.id as client_id, c.name as client_name, c.company as client_company,
             c.email as client_email, c.phone as client_phone, c.ice as client_ice,
-            c.if_number as client_if_number, c.rc as client_rc
+            c.if_number as client_if_number, c.rc as client_rc,
+            ba.id as bank_account_id, ba.name as bank_account_name, 
+            ba.bank as bank_account_bank, ba.account_number as bank_account_number
      FROM invoices i
      LEFT JOIN contacts c ON i.client_id = c.id
+     LEFT JOIN treasury_bank_accounts ba ON i.bank_account_id = ba.id
      WHERE i.id = $1`,
         [id]
     );
@@ -116,6 +128,12 @@ router.get('/:id', asyncHandler(async (req, res) => {
             if_number: invoice.client_if_number,
             rc: invoice.client_rc,
         } : undefined,
+        bank_account: invoice.bank_account_id ? {
+            id: invoice.bank_account_id,
+            name: invoice.bank_account_name,
+            bank: invoice.bank_account_bank,
+            account_number: invoice.bank_account_number,
+        } : undefined,
     });
 }));
 
@@ -139,9 +157,12 @@ router.get('/document/:documentId', asyncHandler(async (req, res) => {
         `SELECT i.*, 
             c.id as client_id, c.name as client_name, c.company as client_company,
             c.email as client_email, c.phone as client_phone, c.ice as client_ice,
-            c.if_number as client_if_number, c.rc as client_rc
+            c.if_number as client_if_number, c.rc as client_rc,
+            ba.id as bank_account_id, ba.name as bank_account_name, 
+            ba.bank as bank_account_bank, ba.account_number as bank_account_number
      FROM invoices i
      LEFT JOIN contacts c ON i.client_id = c.id
+     LEFT JOIN treasury_bank_accounts ba ON i.bank_account_id = ba.id
      WHERE i.id = $1`,
         [result.rows[0].id]
     );
@@ -165,6 +186,12 @@ router.get('/document/:documentId', asyncHandler(async (req, res) => {
             if_number: invoice.client_if_number,
             rc: invoice.client_rc,
         } : undefined,
+        bank_account: invoice.bank_account_id ? {
+            id: invoice.bank_account_id,
+            name: invoice.bank_account_name,
+            bank: invoice.bank_account_bank,
+            account_number: invoice.bank_account_number,
+        } : undefined,
     });
 }));
 
@@ -180,6 +207,7 @@ router.post('/', asyncHandler(async (req, res) => {
         due_date,
         payment_method,
         check_number,
+        bank_account_id,
         note,
         items,
     } = req.body;
@@ -204,10 +232,10 @@ router.post('/', asyncHandler(async (req, res) => {
 
         // Insert invoice
         const invoiceResult = await client.query(
-            `INSERT INTO invoices (document_id, client_id, date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, status, note)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'draft', $11)
+            `INSERT INTO invoices (document_id, client_id, date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, bank_account_id, status, note)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'draft', $12)
        RETURNING *`,
-            [document_id, client_id, date, due_date || null, subtotal, vatRate, vatAmount, total, payment_method || null, payment_method === 'check' ? check_number : null, note || null]
+            [document_id, client_id, date, due_date || null, subtotal, vatRate, vatAmount, total, payment_method || null, payment_method === 'check' ? check_number : null, bank_account_id || null, note || null]
         );
 
         const invoice = invoiceResult.rows[0];
@@ -244,7 +272,7 @@ router.post('/', asyncHandler(async (req, res) => {
  */
 router.put('/:id', asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { date, due_date, payment_method, check_number, status, note, items } = req.body;
+    const { date, due_date, payment_method, check_number, bank_account_id, status, note, items } = req.body;
 
     const client = await getClient();
 
@@ -268,6 +296,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
         if (due_date !== undefined) { updates.push(`due_date = $${paramIndex++}`); params.push(due_date); }
         if (payment_method !== undefined) { updates.push(`payment_method = $${paramIndex++}`); params.push(payment_method); }
         if (check_number !== undefined) { updates.push(`check_number = $${paramIndex++}`); params.push(payment_method === 'check' ? check_number : null); }
+        if (bank_account_id !== undefined) { updates.push(`bank_account_id = $${paramIndex++}`); params.push(bank_account_id); }
         if (status !== undefined) { updates.push(`status = $${paramIndex++}`); params.push(status); }
         if (note !== undefined) { updates.push(`note = $${paramIndex++}`); params.push(note); }
         if (subtotal !== undefined) {
@@ -303,6 +332,58 @@ router.put('/:id', asyncHandler(async (req, res) => {
 
         await client.query('COMMIT');
 
+        // Check if invoice is now PAID and handle treasury payment
+        if (status === 'paid') {
+            const existingPaymentFn = await client.query(
+                'SELECT id FROM treasury_payments WHERE invoice_id = $1',
+                [id]
+            );
+
+            if (existingPaymentFn.rows.length === 0) {
+                // Fetch full invoice data to ensure we have totals and methods
+                const fullInvoiceRes = await client.query('SELECT * FROM invoices WHERE id = $1', [id]);
+                const fullInvoice = fullInvoiceRes.rows[0];
+
+                let paymentStatus = 'in-hand';
+                if (fullInvoice.payment_method === 'cash' || fullInvoice.payment_method === 'bank_transfer') {
+                    paymentStatus = 'cleared';
+                }
+
+                // Create Treasury Payment
+                const paymentResult = await client.query(
+                    `INSERT INTO treasury_payments 
+                    (invoice_id, invoice_number, entity, amount, payment_method, bank, check_number, maturity_date, status, payment_date, payment_type, bank_account_id)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), 'sales', $10)
+                    RETURNING *`,
+                    [
+                        fullInvoice.id,
+                        fullInvoice.document_id,
+                        'Client',
+                        fullInvoice.total,
+                        fullInvoice.payment_method || 'bank_transfer',
+                        null,
+                        fullInvoice.check_number,
+                        null,
+                        paymentStatus,
+                        fullInvoice.bank_account_id
+                    ]
+                );
+
+                // Update Entity
+                const clientResult = await client.query('SELECT name, company FROM contacts WHERE id = $1', [fullInvoice.client_id]);
+                const clientName = clientResult.rows.length > 0 ? (clientResult.rows[0].company || clientResult.rows[0].name) : 'Unknown Client';
+                await client.query('UPDATE treasury_payments SET entity = $1 WHERE id = $2', [clientName, paymentResult.rows[0].id]);
+
+                // Update Balance
+                if (paymentStatus === 'cleared' && fullInvoice.bank_account_id) {
+                    await client.query(
+                        'UPDATE treasury_bank_accounts SET balance = balance + $1, updated_at = NOW() WHERE id = $2',
+                        [fullInvoice.total, fullInvoice.bank_account_id]
+                    );
+                }
+            }
+        }
+
         // Fetch complete invoice
         const itemsResult = await query('SELECT * FROM invoice_items WHERE invoice_id = $1', [id]);
 
@@ -326,16 +407,86 @@ router.patch('/:id/status', asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    const result = await query(
-        'UPDATE invoices SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
-        [status, id]
-    );
+    const client = await getClient();
 
-    if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Not Found', message: 'Invoice not found' });
+    try {
+        await client.query('BEGIN');
+
+        const result = await client.query(
+            'UPDATE invoices SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+            [status, id]
+        );
+
+        if (result.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Not Found', message: 'Invoice not found' });
+        }
+
+        const invoice = result.rows[0];
+
+        // If invoice is marked as PAID, create a treasury payment if it doesn't exist
+        if (status === 'paid') {
+            const existingPaymentFn = await client.query(
+                'SELECT id FROM treasury_payments WHERE invoice_id = $1',
+                [id]
+            );
+
+            if (existingPaymentFn.rows.length === 0) {
+                // Determine payment status based on method
+                // Cash/Bank Transfer -> Cleared (money received)
+                // Check -> In-Hand (needs deposit)
+                let paymentStatus = 'in-hand';
+                if (invoice.payment_method === 'cash' || invoice.payment_method === 'bank_transfer') {
+                    paymentStatus = 'cleared';
+                }
+
+                // Create Treasury Payment
+                const paymentResult = await client.query(
+                    `INSERT INTO treasury_payments 
+                    (invoice_id, invoice_number, entity, amount, payment_method, bank, check_number, maturity_date, status, payment_date, payment_type, bank_account_id)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), 'sales', $10)
+                    RETURNING *`,
+                    [
+                        invoice.id,
+                        invoice.document_id, // invoice_number
+                        'Client', // entity (placeholder, usually client name but we might not have it joined here easily without another query, or keep it generic)
+                        invoice.total,
+                        invoice.payment_method || 'bank_transfer', // Default if missing?
+                        null, // bank (client bank name, often not stored in invoice)
+                        invoice.check_number,
+                        null, // maturity_date
+                        paymentStatus,
+                        invoice.bank_account_id
+                    ]
+                );
+
+                // Update Entity with real Client Name
+                // We do a sub-query update or fetch client first. 
+                // Let's fetch client name for better data
+                const clientResult = await client.query('SELECT name, company FROM contacts WHERE id = $1', [invoice.client_id]);
+                const clientName = clientResult.rows.length > 0 ? (clientResult.rows[0].company || clientResult.rows[0].name) : 'Unknown Client';
+
+                await client.query('UPDATE treasury_payments SET entity = $1 WHERE id = $2', [clientName, paymentResult.rows[0].id]);
+
+
+                // If payment is cleared and linked to a bank account, update the balance immediately
+                if (paymentStatus === 'cleared' && invoice.bank_account_id) {
+                    await client.query(
+                        'UPDATE treasury_bank_accounts SET balance = balance + $1, updated_at = NOW() WHERE id = $2',
+                        [invoice.total, invoice.bank_account_id]
+                    );
+                }
+            }
+        }
+
+        await client.query('COMMIT');
+        res.json(result.rows[0]);
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
     }
-
-    res.json(result.rows[0]);
 }));
 
 /**

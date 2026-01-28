@@ -16,7 +16,8 @@ import {
   Filter,
   Eye,
   Trash2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Download
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -45,7 +46,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,12 +63,13 @@ import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { formatMAD, VAT_RATE } from '@/lib/moroccan-utils';
 import { useContacts } from '@/contexts/ContactsContext';
 import { useTreasury } from '@/contexts/TreasuryContext';
+import { useWarehouse } from '@/contexts/WarehouseContext';
 import { useToast } from '@/hooks/use-toast';
 import { invoicesService } from '@/services/invoices.service';
 import { purchaseOrdersService } from '@/services/purchase-orders.service';
 import { purchaseInvoicesService } from '@/services/purchase-invoices.service';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+// Recharts removed as unused
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Textarea } from '@/components/ui/textarea';
@@ -73,11 +77,7 @@ import { Textarea } from '@/components/ui/textarea';
 // Import types from context
 import type { Payment, BankAccount, WarehouseCash } from '@/contexts/TreasuryContext';
 
-interface CashFlowData {
-  month: string;
-  cashIn: number;
-  cashOut: number;
-}
+// CashFlowData interface removed as unused
 
 // Interfaces for Sales and Purchases integration
 interface SalesInvoice {
@@ -108,8 +108,290 @@ interface PurchaseOrder {
 
 export const Treasury = () => {
   const { t } = useTranslation();
+
+
   const { clients, suppliers } = useContacts();
   const { toast } = useToast();
+
+  const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(new Set());
+  const [selectedInvoices, setSelectedInvoices] = useState<Set<string>>(new Set());
+  const [selectedPurchaseInvoices, setSelectedPurchaseInvoices] = useState<Set<string>>(new Set());
+
+  const toggleSelectAll = () => {
+    if (selectedTransactions.size === filteredBankStatementData.length) {
+      setSelectedTransactions(new Set());
+    } else {
+      setSelectedTransactions(new Set(filteredBankStatementData.map(i => i.id)));
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    toggleSelectAll();
+  };
+
+  const handleSelectTransaction = (id: string) => {
+    const newSelected = new Set(selectedTransactions);
+    if (newSelected.has(id)) newSelected.delete(id);
+    else newSelected.add(id);
+    setSelectedTransactions(newSelected);
+  };
+
+  const handleExportSelected = async () => {
+    const dataToExport = filteredBankStatementData.filter(i => selectedTransactions.has(i.id));
+    if (dataToExport.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez sélectionner des transactions à exporter",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const mappedData = dataToExport.map(item => ({
+      date: item.date,
+      description: item.description,
+      type: item.transactionType === 'credit' ? 'Crédit' : 'Débit',
+      amount: item.amount,
+      balance: item.runningBalance
+    }));
+
+    const columns = [
+      { key: 'date', header: 'Date', width: 15 },
+      { key: 'description', header: 'Description', width: 40 },
+      { key: 'type', header: 'Type', width: 10 },
+      { key: 'amount', header: 'Montant (DH)', width: 15 },
+      { key: 'balance', header: 'Solde (DH)', width: 15 }
+    ];
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/reports/export-custom`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          data: mappedData,
+          columns,
+          title: 'Relevé Bancaire'
+        })
+      });
+
+      if (!response.ok) throw new Error('Export failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Releve_Bancaire_${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast({
+        title: "Succès",
+        description: "Export réussi",
+        variant: "success"
+      });
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de l'export",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const toggleSelectAllInvoices = () => {
+    if (selectedInvoices.size === allInvoicesData.length) {
+      setSelectedInvoices(new Set());
+    } else {
+      setSelectedInvoices(new Set(allInvoicesData.map(i => i.id)));
+    }
+  };
+
+  const handleSelectAllInvoices = () => {
+    toggleSelectAllInvoices();
+  };
+
+  const handleSelectInvoice = (id: string) => {
+    const newSelected = new Set(selectedInvoices);
+    if (newSelected.has(id)) newSelected.delete(id);
+    else newSelected.add(id);
+    setSelectedInvoices(newSelected);
+  };
+
+  const handleExportSelectedInvoices = async () => {
+    const dataToExport = allInvoicesData.filter(i => selectedInvoices.has(i.id));
+    if (dataToExport.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez sélectionner des factures à exporter",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const mappedData = dataToExport.map(item => {
+      const client = clients.find(c => c.id === item.client_id);
+      const clientName = client?.company || client?.name || 'Unknown Client';
+      return {
+        date: item.date,
+        invoiceNumber: item.document_id,
+        client: clientName,
+        subtotal: item.subtotal,
+        vat: item.vat_amount,
+        total: item.total,
+        status: item.status
+      };
+    });
+
+    const columns = [
+      { key: 'invoiceNumber', header: 'N° Facture', width: 20 },
+      { key: 'client', header: 'Client', width: 30 },
+      { key: 'date', header: 'Date', width: 15 },
+      { key: 'subtotal', header: 'Sous-total', width: 15 },
+      { key: 'vat', header: 'TVA', width: 15 },
+      { key: 'total', header: 'Total', width: 15 },
+      { key: 'status', header: 'Statut', width: 15 }
+    ];
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/reports/export-custom`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          data: mappedData,
+          columns,
+          title: 'Aperçu des Factures'
+        })
+      });
+
+      if (!response.ok) throw new Error('Export failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Factures_${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast({
+        title: "Succès",
+        description: "Export réussi",
+        variant: "success"
+      });
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de l'export",
+        variant: "destructive"
+      });
+    }
+  };
+
+
+  const toggleSelectAllPurchaseInvoices = () => {
+    if (selectedPurchaseInvoices.size === purchaseInvoicesData.length) {
+      setSelectedPurchaseInvoices(new Set());
+    } else {
+      setSelectedPurchaseInvoices(new Set(purchaseInvoicesData.map(i => i.id)));
+    }
+  };
+
+  const handleSelectAllPurchaseInvoices = () => {
+    toggleSelectAllPurchaseInvoices();
+  };
+
+  const handleSelectPurchaseInvoice = (id: string) => {
+    const newSelected = new Set(selectedPurchaseInvoices);
+    if (newSelected.has(id)) newSelected.delete(id);
+    else newSelected.add(id);
+    setSelectedPurchaseInvoices(newSelected);
+  };
+
+  const handleExportSelectedPurchaseInvoices = async () => {
+    const dataToExport = purchaseInvoicesData.filter(i => selectedPurchaseInvoices.has(i.id));
+    if (dataToExport.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez sélectionner des factures d'achat à exporter",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const mappedData = dataToExport.map(item => {
+      const supplier = suppliers.find(s => s.id === item.supplier_id);
+      const supplierName = supplier?.company || supplier?.name || 'Unknown Supplier';
+      return {
+        date: item.date,
+        invoiceNumber: item.document_id,
+        supplier: supplierName,
+        subtotal: item.subtotal,
+        vat: item.vat_amount || 0,
+        total: item.total,
+        status: item.status
+      };
+    });
+
+    const columns = [
+      { key: 'invoiceNumber', header: 'N° Facture', width: 20 },
+      { key: 'supplier', header: 'Fournisseur', width: 30 },
+      { key: 'date', header: 'Date', width: 15 },
+      { key: 'subtotal', header: 'Sous-total', width: 15 },
+      { key: 'vat', header: 'TVA', width: 15 },
+      { key: 'total', header: 'Total', width: 15 },
+      { key: 'status', header: 'Statut', width: 15 }
+    ];
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/reports/export-custom`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          data: mappedData,
+          columns,
+          title: 'Aperçu des Achats'
+        })
+      });
+
+      if (!response.ok) throw new Error('Export failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Achats_${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast({
+        title: "Succès",
+        description: "Export réussi",
+        variant: "success"
+      });
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de l'export",
+        variant: "destructive"
+      });
+    }
+  };
+
   const {
     bankAccounts,
     warehouseCash,
@@ -136,6 +418,7 @@ export const Treasury = () => {
     deleteBankAccount,
     isLoading,
   } = useTreasury();
+  const { warehouses } = useWarehouse();
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [salesSearchQuery, setSalesSearchQuery] = useState('');
   const [purchaseSearchQuery, setPurchaseSearchQuery] = useState('');
@@ -148,12 +431,7 @@ export const Treasury = () => {
   const [viewingPayment, setViewingPayment] = useState<Payment | null>(null);
   const [dateFilterRange, setDateFilterRange] = useState<string>('all');
 
-  // Fetch invoices for aging receivables calculation
-  const { data: invoicesData = [] } = useQuery({
-    queryKey: ['invoices', 'aging'],
-    queryFn: () => invoicesService.getAll({ status: 'sent' }), // Get unpaid invoices
-    staleTime: 30000,
-  });
+  // invoicesData fetch for aging removed as unused
 
   // Fetch all invoices for insights (recent invoices with tax breakdown)
   const { data: allInvoicesData = [] } = useQuery({
@@ -357,76 +635,9 @@ export const Treasury = () => {
     return matchesSearch && matchesStatus && matchesMethod && matchesDate;
   });
 
-  // Calculate aging receivables from actual invoice data
-  const calculateAging = () => {
-    const now = new Date();
-    const buckets = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 };
+  // calculateAging and agingData removed as unused
 
-    // Filter unpaid invoices (sent or overdue status)
-    const unpaidInvoices = invoicesData.filter(inv =>
-      inv.status === 'sent' || inv.status === 'overdue'
-    );
-
-    unpaidInvoices.forEach(invoice => {
-      const invoiceDate = new Date(invoice.date);
-      const daysDiff = Math.floor((now.getTime() - invoiceDate.getTime()) / (1000 * 60 * 60 * 24));
-
-      if (daysDiff <= 30) buckets['0-30'] += invoice.total;
-      else if (daysDiff <= 60) buckets['31-60'] += invoice.total;
-      else if (daysDiff <= 90) buckets['61-90'] += invoice.total;
-      else buckets['90+'] += invoice.total;
-    });
-
-    return [
-      { name: '0-30 days', amount: buckets['0-30'] },
-      { name: '31-60 days', amount: buckets['31-60'] },
-      { name: '61-90 days', amount: buckets['61-90'] },
-      { name: '90+ days', amount: buckets['90+'] },
-    ];
-  };
-
-  const agingData = calculateAging();
-
-  // Calculate cash flow for last 6 months from actual payment data
-  const generateCashFlowData = (): CashFlowData[] => {
-    const now = new Date();
-    const months: CashFlowData[] = [];
-
-    // Generate last 6 months
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-
-      // Calculate cash in (sales payments that are cleared)
-      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
-      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
-
-      const cashIn = salesPayments
-        .filter(p => {
-          const paymentDate = new Date(p.date);
-          return paymentDate >= monthStart && paymentDate <= monthEnd && p.status === 'cleared';
-        })
-        .reduce((sum, p) => sum + p.amount, 0);
-
-      // Calculate cash out (purchase payments that are cleared)
-      const cashOut = purchasePayments
-        .filter(p => {
-          const paymentDate = new Date(p.date);
-          return paymentDate >= monthStart && paymentDate <= monthEnd && p.status === 'cleared';
-        })
-        .reduce((sum, p) => sum + p.amount, 0);
-
-      months.push({
-        month: monthName,
-        cashIn,
-        cashOut,
-      });
-    }
-
-    return months;
-  };
-
-  const cashFlowData = generateCashFlowData();
+  // generateCashFlowData and cashFlowData removed as unused
 
   // Handle Add Payment
   const handleAddPayment = async () => {
@@ -763,18 +974,12 @@ export const Treasury = () => {
             </div>
           </div>
           <div className="mt-4 space-y-1">
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Marrakech</span>
-              <span>{formatMAD(warehouseCash.marrakech)}</span>
-            </div>
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Agadir</span>
-              <span>{formatMAD(warehouseCash.agadir)}</span>
-            </div>
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Ouarzazate</span>
-              <span>{formatMAD(warehouseCash.ouarzazate)}</span>
-            </div>
+            {warehouses.map((warehouse) => (
+              <div key={warehouse.id} className="flex justify-between text-xs text-muted-foreground">
+                <span>{warehouse.city}</span>
+                <span>{formatMAD(warehouseCash[warehouse.id] || 0)}</span>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -805,337 +1010,44 @@ export const Treasury = () => {
         </div>
       )}
 
-      {/* Payment Trackers - Sales & Purchases */}
-      <div className="space-y-6">
-        {/* Sales Payments Tracker */}
-        <div className="card-elevated p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <h2 className="text-lg font-heading font-semibold text-foreground">
-              {t('treasury.tracker.salesTitle')}
-            </h2>
-            <div className="flex flex-wrap gap-2">
-              <Select value={salesStatusFilter} onValueChange={setSalesStatusFilter}>
-                <SelectTrigger className="w-[130px] h-8 text-xs">
-                  <SelectValue placeholder={t('common.status')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('common.all')}</SelectItem>
-                  <SelectItem value="in-hand">{t('status.inHand')}</SelectItem>
-                  <SelectItem value="pending_bank">{t('status.pendingBank')}</SelectItem>
-                  <SelectItem value="cleared">{t('status.cleared')}</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={salesPaymentMethodFilter} onValueChange={setSalesPaymentMethodFilter}>
-                <SelectTrigger className="w-[130px] h-8 text-xs">
-                  <SelectValue placeholder={t('treasury.table.method')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('common.all')}</SelectItem>
-                  <SelectItem value="check">{t('paymentMethods.check')}</SelectItem>
-                  <SelectItem value="bank_transfer">{t('paymentMethods.bankTransfer')}</SelectItem>
-                  <SelectItem value="cash">{t('paymentMethods.cash')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
 
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input
-              placeholder={t('treasury.tracker.searchPlaceholder')}
-              value={salesSearchQuery}
-              onChange={(e) => setSalesSearchQuery(e.target.value)}
-              className="pl-8 h-8 text-xs"
-            />
-          </div>
 
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="data-table-header hover:bg-section">
-                  <TableHead className="min-w-[120px] px-2 py-2 text-xs font-medium">{t('treasury.table.invoice')}</TableHead>
-                  <TableHead className="min-w-[140px] px-2 py-2 text-xs font-medium">{t('treasury.table.client')}</TableHead>
-                  <TableHead className="min-w-[100px] px-2 py-2 text-xs font-medium">{t('treasury.table.method')}</TableHead>
-                  <TableHead className="min-w-[140px] px-2 py-2 text-xs font-medium">{t('treasury.table.bank')}</TableHead>
-                  <TableHead className="min-w-[110px] px-2 py-2 text-xs font-medium">{t('treasury.table.maturity')}</TableHead>
-                  <TableHead className="min-w-[110px] px-2 py-2 text-xs font-medium text-right">{t('treasury.table.amount')}</TableHead>
-                  <TableHead className="min-w-[90px] px-2 py-2 text-xs font-medium">{t('treasury.table.status')}</TableHead>
-                  <TableHead className="min-w-[120px] px-2 py-2 text-xs font-medium text-center">{t('treasury.table.actions')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSalesPayments.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-6 text-xs text-muted-foreground">
-                      {t('treasury.table.noPayments')}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredSalesPayments.map((payment) => (
-                    <TableRow key={payment.id} className="hover:bg-section/50">
-                      <TableCell className="font-mono text-xs px-2 py-2 whitespace-nowrap">
-                        {payment.invoiceNumber}
-                      </TableCell>
-                      <TableCell className="px-2 py-2 text-xs min-w-[140px] max-w-[160px] truncate" title={payment.entity}>
-                        {payment.entity}
-                      </TableCell>
-                      <TableCell className="px-2 py-2 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          {getPaymentMethodIcon(payment.paymentMethod)}
-                          <span className="capitalize text-xs whitespace-nowrap">{payment.paymentMethod.replace('_', ' ')}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-2 py-2 text-xs min-w-[140px] max-w-[160px] truncate" title={payment.bank || '-'}>
-                        {payment.bank || '-'}
-                      </TableCell>
-                      <TableCell className="px-2 py-2 whitespace-nowrap">
-                        {payment.maturityDate ? (
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                            <span className="text-xs">{new Date(payment.maturityDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="px-2 py-2 text-right font-medium whitespace-nowrap text-xs">
-                        <CurrencyDisplay amount={payment.amount} />
-                      </TableCell>
-                      <TableCell className="px-2 py-2 whitespace-nowrap">
-                        <div className="scale-90 origin-left">
-                          {getStatusBadge(payment.status)}
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-2 py-2 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setViewingPayment(payment)}
-                            className="h-7 w-7 p-0"
-                            title="View details"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </Button>
-                          {payment.paymentMethod === 'check' && payment.status === 'in-hand' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleStatusUpdate(payment.id, 'pending_bank', 'sales')}
-                              className="h-7 text-xs px-2 whitespace-nowrap"
-                            >
-                              <Download className="w-3 h-3 mr-1" />
-                              Deposit
-                            </Button>
-                          )}
-                          {payment.paymentMethod === 'check' && payment.status === 'pending_bank' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleStatusUpdate(payment.id, 'cleared', 'sales')}
-                              className="h-7 text-xs px-2 whitespace-nowrap"
-                            >
-                              <CheckCircle2 className="w-3 h-3 mr-1" />
-                              Clear
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-
-        {/* Purchase Payments Tracker */}
-        <div className="card-elevated p-4 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <h2 className="text-base font-heading font-semibold text-foreground">
-              {t('treasury.tracker.purchasesTitle')}
-            </h2>
-            <div className="flex flex-wrap gap-2">
-              <Select value={purchaseStatusFilter} onValueChange={setPurchaseStatusFilter}>
-                <SelectTrigger className="w-[130px] h-8 text-xs">
-                  <SelectValue placeholder={t('common.status')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('common.all')}</SelectItem>
-                  <SelectItem value="in-hand">{t('status.inHand')}</SelectItem>
-                  <SelectItem value="pending_bank">{t('status.pendingBank')}</SelectItem>
-                  <SelectItem value="cleared">{t('status.cleared')}</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={purchasePaymentMethodFilter} onValueChange={setPurchasePaymentMethodFilter}>
-                <SelectTrigger className="w-[130px] h-8 text-xs">
-                  <SelectValue placeholder={t('treasury.table.method')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('common.all')}</SelectItem>
-                  <SelectItem value="check">{t('paymentMethods.check')}</SelectItem>
-                  <SelectItem value="bank_transfer">{t('paymentMethods.bankTransfer')}</SelectItem>
-                  <SelectItem value="cash">{t('paymentMethods.cash')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input
-              placeholder={t('treasury.tracker.searchPlaceholder')}
-              value={purchaseSearchQuery}
-              onChange={(e) => setPurchaseSearchQuery(e.target.value)}
-              className="pl-8 h-8 text-xs"
-            />
-          </div>
-
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="data-table-header hover:bg-section">
-                  <TableHead className="min-w-[120px] px-2 py-2 text-xs font-medium">{t('treasury.table.invoice')}</TableHead>
-                  <TableHead className="min-w-[140px] px-2 py-2 text-xs font-medium">{t('documents.supplier')}</TableHead>
-                  <TableHead className="min-w-[100px] px-2 py-2 text-xs font-medium">{t('treasury.table.method')}</TableHead>
-                  <TableHead className="min-w-[140px] px-2 py-2 text-xs font-medium">{t('treasury.table.bank')}</TableHead>
-                  <TableHead className="min-w-[110px] px-2 py-2 text-xs font-medium">{t('treasury.table.maturity')}</TableHead>
-                  <TableHead className="min-w-[110px] px-2 py-2 text-xs font-medium text-right">{t('treasury.table.amount')}</TableHead>
-                  <TableHead className="min-w-[90px] px-2 py-2 text-xs font-medium">{t('treasury.table.status')}</TableHead>
-                  <TableHead className="min-w-[120px] px-2 py-2 text-xs font-medium text-center">{t('treasury.table.actions')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPurchasePayments.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-6 text-xs text-muted-foreground">
-                      {t('treasury.table.noPayments')}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredPurchasePayments.map((payment) => (
-                    <TableRow key={payment.id} className="hover:bg-section/50">
-                      <TableCell className="font-mono text-xs px-2 py-2 whitespace-nowrap">
-                        {payment.invoiceNumber}
-                      </TableCell>
-                      <TableCell className="px-2 py-2 text-xs min-w-[140px] max-w-[160px] truncate" title={payment.entity}>
-                        {payment.entity}
-                      </TableCell>
-                      <TableCell className="px-2 py-2 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          {getPaymentMethodIcon(payment.paymentMethod)}
-                          <span className="capitalize text-xs whitespace-nowrap">{payment.paymentMethod.replace('_', ' ')}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-2 py-2 text-xs min-w-[140px] max-w-[160px] truncate" title={payment.bank || '-'}>
-                        {payment.bank || '-'}
-                      </TableCell>
-                      <TableCell className="px-2 py-2 whitespace-nowrap">
-                        {payment.maturityDate ? (
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                            <span className="text-xs">{formatDate(payment.maturityDate)}</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="px-2 py-2 text-right font-medium whitespace-nowrap text-xs">
-                        <CurrencyDisplay amount={payment.amount} />
-                      </TableCell>
-                      <TableCell className="px-2 py-2 whitespace-nowrap">
-                        <div className="scale-90 origin-left">
-                          {getStatusBadge(payment.status)}
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-2 py-2 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setViewingPayment(payment)}
-                            className="h-7 w-7 p-0"
-                            title={t('treasury.actions.viewDetails')}
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </Button>
-                          {payment.paymentMethod === 'check' && payment.status === 'in-hand' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleStatusUpdate(payment.id, 'pending_bank', 'purchase')}
-                              className="h-7 text-xs px-2 whitespace-nowrap"
-                            >
-                              <Download className="w-3 h-3 mr-1" />
-                              {t('treasury.actions.deposit')}
-                            </Button>
-                          )}
-                          {payment.paymentMethod === 'check' && payment.status === 'pending_bank' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleStatusUpdate(payment.id, 'cleared', 'purchase')}
-                              className="h-7 text-xs px-2 whitespace-nowrap"
-                            >
-                              <CheckCircle2 className="w-3 h-3 mr-1" />
-                              {t('treasury.actions.clear')}
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Aging Receivables */}
-        <div className="card-elevated p-4">
-          <h2 className="text-base font-heading font-semibold text-foreground mb-3">
-            {t('treasury.agingReceivables.title')}
-          </h2>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={agingData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip formatter={(value) => formatMAD(value as number)} />
-              <Legend />
-              <Bar dataKey="amount" name={t('treasury.agingReceivables.unpaidAmount')} fill="#1e293b">
-                {agingData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={
-                      index === 0 ? '#10b981' :
-                        index === 1 ? '#f59e0b' :
-                          index === 2 ? '#f97316' :
-                            '#ef4444'
-                    }
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
+      <div className="grid grid-cols-1 gap-4">
+        {/* Bank Statement */}
         {/* Bank Statement */}
         <div className="card-elevated p-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-heading font-semibold text-foreground">
-              {t('treasury.bankStatement.title')}
-            </h2>
-            <Badge variant="outline" className="text-xs">
-              {t('treasury.bankStatement.currentBalance')}: {formatMAD(totalBank)}
-            </Badge>
+            <div className="flex items-center gap-4">
+              <h2 className="text-base font-heading font-semibold text-foreground">
+                {t('treasury.bankStatement.title')}
+              </h2>
+              <Badge variant="outline" className="text-xs">
+                {t('treasury.bankStatement.currentBalance')}: {formatMAD(totalBank)}
+              </Badge>
+            </div>
+            {selectedTransactions.size > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportSelected}
+                className="h-8 text-xs gap-2"
+              >
+                <Download className="w-3.5 h-3.5" />
+                {t('common.export')} ({selectedTransactions.size})
+              </Button>
+            )}
           </div>
-          <div className="overflow-x-auto max-h-[250px]">
+          <div className="overflow-y-auto h-[450px] border rounded-md relative">
             <Table>
-              <TableHeader className="sticky top-0 bg-section z-10">
-                <TableRow className="data-table-header hover:bg-section">
+              <TableHeader className="sticky top-0 bg-card z-20 shadow-sm ring-1 ring-border/50">
+                <TableRow className="data-table-header hover:bg-card">
+                  <TableHead className="w-[50px] min-w-[50px] px-2 py-2 bg-card">
+                    <Checkbox
+                      checked={filteredBankStatementData.length > 0 && selectedTransactions.size === filteredBankStatementData.length}
+                      onCheckedChange={handleSelectAll}
+                      className="border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                    />
+                  </TableHead>
                   <TableHead className="min-w-[90px] px-2 py-2 text-xs font-medium">{t('treasury.bankStatement.table.date')}</TableHead>
                   <TableHead className="min-w-[150px] px-2 py-2 text-xs font-medium">{t('treasury.bankStatement.table.description')}</TableHead>
                   <TableHead className="min-w-[80px] px-2 py-2 text-xs font-medium">{t('treasury.bankStatement.table.type')}</TableHead>
@@ -1146,13 +1058,20 @@ export const Treasury = () => {
               <TableBody>
                 {filteredBankStatementData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-6 text-xs text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-6 text-xs text-muted-foreground">
                       {t('treasury.bankStatement.noTransactions')}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredBankStatementData.slice(0, 10).map((entry) => (
+                  filteredBankStatementData.map((entry) => (
                     <TableRow key={entry.id} className="hover:bg-section/50">
+                      <TableCell className="w-[50px] min-w-[50px] px-2 py-2">
+                        <Checkbox
+                          checked={selectedTransactions.has(entry.id)}
+                          onCheckedChange={() => handleSelectTransaction(entry.id)}
+                          className="border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                        />
+                      </TableCell>
                       <TableCell className="px-2 py-2 text-xs whitespace-nowrap">
                         {formatDate(entry.date)}
                       </TableCell>
@@ -1178,19 +1097,28 @@ export const Treasury = () => {
                   ))
                 )}
               </TableBody>
+              {filteredBankStatementData.length > 0 && (
+                <TableFooter className="bg-section sticky bottom-0 z-10 shadow-[0_-1px_0_0_rgba(0,0,0,0.1)]">
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-xs font-semibold px-2 py-2 text-right">
+                      {t('common.total')}
+                    </TableCell>
+                    <TableCell className="px-2 py-2 whitespace-nowrap text-right">
+                      <div className="flex flex-col gap-0.5 items-end">
+                        <span className="text-[10px] text-muted-foreground">Crédit: <span className="text-success font-medium">{formatMAD(filteredBankStatementData.filter(d => d.transactionType === 'credit').reduce((sum, i) => sum + (Number(i.amount) || 0), 0))}</span></span>
+                        <span className="text-[10px] text-muted-foreground">Débit: <span className="text-red-600 font-medium">{formatMAD(filteredBankStatementData.filter(d => d.transactionType === 'debit').reduce((sum, i) => sum + (Number(i.amount) || 0), 0))}</span></span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right px-2 py-2 text-xs font-bold whitespace-nowrap">
+                      <CurrencyDisplay amount={filteredBankStatementData.reduce((acc, curr) => curr.transactionType === 'credit' ? acc + (Number(curr.amount) || 0) : acc - (Number(curr.amount) || 0), 0)} />
+                    </TableCell>
+                  </TableRow>
+                </TableFooter>
+              )}
             </Table>
           </div>
-          {filteredBankStatementData.length > 10 && (
-            <div className="mt-2 text-center">
-              <p className="text-xs text-muted-foreground">
-                {t('treasury.bankStatement.showingLatest', { total: filteredBankStatementData.length })}
-              </p>
-            </div>
-          )}
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Net TVA Due Widget */}
         <div className="card-elevated p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -1251,11 +1179,29 @@ export const Treasury = () => {
               </p>
             </div>
           </div>
+          {selectedInvoices.size > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportSelectedInvoices}
+              className="h-8 text-xs gap-2"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {t('common.export')} ({selectedInvoices.size})
+            </Button>
+          )}
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-y-auto h-[450px] border rounded-md relative">
           <Table>
-            <TableHeader>
-              <TableRow className="data-table-header hover:bg-section">
+            <TableHeader className="sticky top-0 bg-card z-20 shadow-sm ring-1 ring-border/50">
+              <TableRow className="data-table-header hover:bg-card">
+                <TableHead className="w-[50px] min-w-[50px] px-2 py-2 bg-card">
+                  <Checkbox
+                    checked={allInvoicesData.length > 0 && selectedInvoices.size === allInvoicesData.length}
+                    onCheckedChange={handleSelectAllInvoices}
+                    className="border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                  />
+                </TableHead>
                 <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium">{t('treasury.tax.table.invoiceNumber')}</TableHead>
                 <TableHead className="min-w-[150px] px-3 py-3 text-xs font-medium">{t('treasury.table.client')}</TableHead>
                 <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">{t('treasury.bankStatement.table.date')}</TableHead>
@@ -1276,7 +1222,6 @@ export const Treasury = () => {
               ) : (
                 allInvoicesData
                   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                  .slice(0, 10)
                   .map((invoice) => {
                     const client = clients.find(c => c.id === invoice.client_id);
                     const clientName = client?.company || client?.name || t('treasury.tax.table.unknownClient');
@@ -1284,6 +1229,13 @@ export const Treasury = () => {
 
                     return (
                       <TableRow key={invoice.id} className="hover:bg-section/50">
+                        <TableCell className="w-[50px] min-w-[50px] px-2 py-2">
+                          <Checkbox
+                            checked={selectedInvoices.has(invoice.id)}
+                            onCheckedChange={() => handleSelectInvoice(invoice.id)}
+                            className="border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                          />
+                        </TableCell>
                         <TableCell className="font-mono text-xs px-3 py-3 whitespace-nowrap font-medium">
                           {invoice.document_id}
                         </TableCell>
@@ -1338,13 +1290,7 @@ export const Treasury = () => {
             </TableBody>
           </Table>
         </div>
-        {allInvoicesData.length > 10 && (
-          <div className="mt-3 text-center">
-            <p className="text-xs text-muted-foreground">
-              Showing latest 10 invoices of {allInvoicesData.length} total
-            </p>
-          </div>
-        )}
+
         <div className="mt-4 pt-4 border-t border-border">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-3 bg-section/50 rounded-lg">
@@ -1383,15 +1329,33 @@ export const Treasury = () => {
               </p>
             </div>
           </div>
+          {selectedPurchaseInvoices.size > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportSelectedPurchaseInvoices}
+              className="h-8 text-xs gap-2"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {t('common.export')} ({selectedPurchaseInvoices.size})
+            </Button>
+          )}
         </div>
 
         {/* Purchase Invoices Section */}
         <div className="mb-6">
           <h3 className="text-sm font-semibold text-foreground mb-3">{t('treasury.tax.purchaseInvoicesWithTax')}</h3>
-          <div className="overflow-x-auto">
+          <div className="max-h-[450px] overflow-auto border rounded-md relative">
             <Table>
-              <TableHeader>
-                <TableRow className="data-table-header hover:bg-section">
+              <TableHeader className="sticky top-0 bg-card z-20 shadow-sm ring-1 ring-border/50">
+                <TableRow className="data-table-header hover:bg-card">
+                  <TableHead className="w-[50px] min-w-[50px] px-2 py-2 bg-card">
+                    <Checkbox
+                      checked={purchaseInvoicesData.length > 0 && selectedPurchaseInvoices.size === purchaseInvoicesData.length}
+                      onCheckedChange={handleSelectAllPurchaseInvoices}
+                      className="border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                    />
+                  </TableHead>
                   <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium">{t('treasury.tax.table.invoiceNumber')}</TableHead>
                   <TableHead className="min-w-[150px] px-3 py-3 text-xs font-medium">{t('documents.supplier')}</TableHead>
                   <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">{t('treasury.bankStatement.table.date')}</TableHead>
@@ -1412,7 +1376,6 @@ export const Treasury = () => {
                 ) : (
                   purchaseInvoicesData
                     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .slice(0, 5)
                     .map((invoice) => {
                       const supplier = suppliers.find(s => s.id === invoice.supplier_id);
                       const supplierName = supplier?.company || supplier?.name || t('treasury.tax.table.unknownSupplier');
@@ -1420,6 +1383,13 @@ export const Treasury = () => {
 
                       return (
                         <TableRow key={invoice.id} className="hover:bg-section/50">
+                          <TableCell className="w-[50px] min-w-[50px] px-2 py-2">
+                            <Checkbox
+                              checked={selectedPurchaseInvoices.has(invoice.id)}
+                              onCheckedChange={() => handleSelectPurchaseInvoice(invoice.id)}
+                              className="border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                            />
+                          </TableCell>
                           <TableCell className="font-mono text-xs px-3 py-3 whitespace-nowrap font-medium">
                             {invoice.document_id}
                           </TableCell>
@@ -1476,90 +1446,11 @@ export const Treasury = () => {
           </div>
         </div>
 
-        {/* Purchase Orders Section */}
-        <div className="mb-4">
-          <h3 className="text-sm font-semibold text-foreground mb-3">{t('treasury.tax.purchaseOrdersNoTax')}</h3>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="data-table-header hover:bg-section">
-                  <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium">{t('treasury.tax.table.orderNumber')}</TableHead>
-                  <TableHead className="min-w-[150px] px-3 py-3 text-xs font-medium">{t('documents.supplier')}</TableHead>
-                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">{t('treasury.bankStatement.table.date')}</TableHead>
-                  <TableHead className="min-w-[120px] px-3 py-3 text-xs font-medium text-right">{t('treasury.tax.table.amount')}</TableHead>
-                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">{t('treasury.table.status')}</TableHead>
-                  <TableHead className="min-w-[100px] px-3 py-3 text-xs font-medium">{t('treasury.table.actions')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {purchaseOrdersData.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-4 text-sm text-muted-foreground">
-                      {t('treasury.tax.table.noPurchaseOrders')}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  purchaseOrdersData
-                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .slice(0, 5)
-                    .map((order) => {
-                      const supplier = suppliers.find(s => s.id === order.supplier_id);
-                      const supplierName = supplier?.company || supplier?.name || t('treasury.tax.table.unknownSupplier');
-                      const payment = purchasePayments.find(p => p.invoiceNumber === order.document_id);
 
-                      return (
-                        <TableRow key={order.id} className="hover:bg-section/50">
-                          <TableCell className="font-mono text-xs px-3 py-3 whitespace-nowrap font-medium">
-                            {order.document_id}
-                          </TableCell>
-                          <TableCell className="px-3 py-3 text-xs max-w-[150px] truncate" title={supplierName}>
-                            {supplierName}
-                          </TableCell>
-                          <TableCell className="px-3 py-3 text-xs whitespace-nowrap">
-                            {formatDate(order.date)}
-                          </TableCell>
-                          <TableCell className="px-3 py-3 text-xs text-right font-bold whitespace-nowrap text-danger">
-                            <CurrencyDisplay amount={order.subtotal} />
-                          </TableCell>
-                          <TableCell className="px-3 py-3 whitespace-nowrap">
-                            <div className="scale-90 origin-left">
-                              <StatusBadge
-                                status={
-                                  order.status === 'received' ? 'success' :
-                                    order.status === 'confirmed' ? 'info' :
-                                      order.status === 'cancelled' ? 'default' :
-                                        'warning'
-                                }
-                              >
-                                {order.status === 'confirmed' ? t('status.confirmed') :
-                                  order.status === 'received' ? t('status.received') :
-                                    order.status === 'cancelled' ? t('status.cancelled') :
-                                      order.status === 'sent' ? t('status.sent') :
-                                        t('status.draft')}
-                              </StatusBadge>
-                            </div>
-                          </TableCell>
-                          <TableCell className="px-3 py-3 text-xs whitespace-nowrap">
-                            {payment ? (
-                              <div className="flex items-center gap-1">
-                                {getPaymentMethodIcon(payment.paymentMethod)}
-                                <span className="capitalize text-xs">{payment.paymentMethod.replace('_', ' ')}</span>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">{t('treasury.tax.table.notTracked')}</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+
 
         <div className="mt-4 pt-4 border-t border-border">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-3 bg-section/50 rounded-lg">
               <div className="text-xs text-muted-foreground mb-1">{t('treasury.tax.totalPurchaseInvoices')}</div>
               <div className="text-lg font-semibold text-foreground">{purchaseInvoicesData.length}</div>
@@ -1570,10 +1461,8 @@ export const Treasury = () => {
                 <CurrencyDisplay amount={purchaseInvoicesData.reduce((sum, inv) => sum + (Number(inv.vat_amount) || 0), 0)} />
               </div>
             </div>
-            <div className="p-3 bg-section/50 rounded-lg">
-              <div className="text-xs text-muted-foreground mb-1">{t('treasury.tax.totalPurchaseOrders')}</div>
-              <div className="text-lg font-semibold text-foreground">{purchaseOrdersData.length}</div>
-            </div>
+
+
             <div className="p-3 bg-section/50 rounded-lg">
               <div className="text-xs text-muted-foreground mb-1">{t('treasury.tax.totalPurchaseValue')}</div>
               <div className="text-lg font-semibold text-danger">
@@ -1895,9 +1784,9 @@ export const Treasury = () => {
                     <SelectValue placeholder="Select warehouse" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="marrakech">Marrakech</SelectItem>
-                    <SelectItem value="agadir">Agadir</SelectItem>
-                    <SelectItem value="ouarzazate">Ouarzazate</SelectItem>
+                    {warehouses.map((warehouse) => (
+                      <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.city}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

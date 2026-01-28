@@ -54,6 +54,13 @@ export interface PurchaseDocument {
   note?: string;
   attachment_url?: string | null;
   checkNumber?: string;
+  bankAccountId?: string;
+  bankAccountData?: {
+    id: string;
+    name: string;
+    bank: string;
+    accountNumber: string;
+  };
   warehouseId?: string;
   // Additional fields for internal use
   _internalId?: string; // database ID
@@ -130,6 +137,14 @@ const purchaseInvoiceToPurchaseDocument = (pi: PurchaseInvoiceWithItems): Purcha
   status: mapPurchaseInvoiceStatusToUI(pi.status),
   type: 'invoice',
   paymentMethod: pi.payment_method || undefined,
+  checkNumber: (pi as any).check_number || undefined,
+  bankAccountId: (pi as any).bank_account_id || undefined,
+  bankAccountData: (pi as any).bank_account ? {
+    id: (pi as any).bank_account.id,
+    name: (pi as any).bank_account.name,
+    bank: (pi as any).bank_account.bank,
+    accountNumber: (pi as any).bank_account.account_number,
+  } : undefined,
   dueDate: pi.due_date || undefined,
   note: pi.note || undefined,
   _internalId: pi.id,
@@ -405,6 +420,8 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
         vat_amount: vatAmount,
         total: total,
         payment_method: data.paymentMethod,
+        check_number: data.checkNumber,
+        bank_account_id: data.bankAccountId,
         status: data.status as any,
         note: data.note,
         attachment_url: data.attachment_url,
@@ -439,6 +456,7 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
           status: initialStatus,
           date: purchaseInvoice.date,
           payment_type: 'purchase',
+          bank_account_id: purchaseInvoice.bank_account_id,
           notes: `Auto-created from purchase invoice ${purchaseInvoice.document_id} (VAT: ${purchaseInvoice.vat_amount})`,
         });
 
@@ -517,6 +535,7 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
             amount: updatedInvoice.total,
             payment_method: paymentMethod,
             payment_date: updatedInvoice.date,
+            bank_account_id: updatedInvoice.bank_account_id,
             notes: `Auto-updated from purchase invoice ${updatedInvoice.document_id} (VAT: ${updatedInvoice.vat_amount})`,
           });
 

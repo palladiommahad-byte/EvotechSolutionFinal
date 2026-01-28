@@ -27,6 +27,7 @@ export interface PurchaseInvoice {
   total: number;
   payment_method: 'cash' | 'check' | 'bank_transfer' | null;
   check_number: string | null;
+  bank_account_id?: string | null;
   status: 'draft' | 'received' | 'paid' | 'overdue' | 'cancelled';
   note: string | null;
   attachment_url: string | null;
@@ -90,6 +91,7 @@ export const purchaseInvoicesService = {
     total: number;
     payment_method?: 'cash' | 'check' | 'bank_transfer';
     check_number?: string;
+    bank_account_id?: string;
     status?: 'draft' | 'received' | 'paid' | 'overdue' | 'cancelled';
     note?: string;
     attachment_url?: string;
@@ -107,6 +109,7 @@ export const purchaseInvoicesService = {
     total?: number;
     payment_method?: 'cash' | 'check' | 'bank_transfer';
     check_number?: string;
+    bank_account_id?: string;
     status?: 'draft' | 'received' | 'paid' | 'overdue' | 'cancelled';
     note?: string;
     attachment_url?: string;

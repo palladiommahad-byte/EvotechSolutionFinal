@@ -55,6 +55,7 @@ import { useProducts } from '@/contexts/ProductsContext';
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { useContacts, UIContact } from '@/contexts/ContactsContext';
 import { usePurchases, PurchaseDocument, PurchaseItem } from '@/contexts/PurchasesContext';
+import { useTreasury } from '@/contexts/TreasuryContext';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useWarehouse } from '@/contexts/WarehouseContext';
 import { useToast } from '@/hooks/use-toast';
@@ -136,6 +137,10 @@ export const Purchases = () => {
 
   // Check number state
   const [formCheckNumber, setFormCheckNumber] = useState('');
+
+  // Bank account state
+  const [formBankAccount, setFormBankAccount] = useState('');
+  const { bankAccounts } = useTreasury();
 
   // Helper to get current documents based on activeTab
   const getCurrentDocuments = (): PurchaseDocument[] => {
@@ -726,6 +731,7 @@ export const Purchases = () => {
         total: documentTotal,
         status: 'draft',
         paymentMethod: documentType === 'invoice' ? formPaymentMethod : undefined,
+        bankAccountId: documentType === 'invoice' && formBankAccount ? formBankAccount : undefined,
         checkNumber: documentType === 'invoice' && formPaymentMethod === 'check' ? (formCheckNumber || undefined) : undefined,
         dueDate: formDueDate || undefined,
         note: formNote || undefined,
@@ -759,6 +765,7 @@ export const Purchases = () => {
       setFormDate(new Date().toISOString().split('T')[0]);
       setFormPaymentMethod('cash');
       setFormCheckNumber('');
+      setFormBankAccount('');
       setFormDueDate('');
       setFormNote('');
       setManualDocumentId('');
@@ -2095,6 +2102,22 @@ export const Purchases = () => {
                           />
                         </div>
                       )}
+                      {/* Bank Account Selection - For all payment methods */}
+                      <div className="space-y-2">
+                        <Label>{t('documents.bankAccount', { defaultValue: 'Bank Account' })}</Label>
+                        <Select value={formBankAccount} onValueChange={setFormBankAccount}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('documents.selectBankAccount', { defaultValue: 'Select bank account' })} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {bankAccounts.map((account) => (
+                              <SelectItem key={account.id} value={account.id}>
+                                {account.bank} - {account.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label>{t('purchases.referenceDocuments')}</Label>
                         <Select>

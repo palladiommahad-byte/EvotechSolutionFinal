@@ -16,6 +16,11 @@ router.get('/stats', asyncHandler(async (req, res) => {
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
     const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
 
+    // Previous month range
+    const startOfPrevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().split('T')[0];
+    const endOfPrevMonth = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split('T')[0];
+
+    // --- CURRENT MONTH ---
     // Total revenue (paid invoices this month)
     const revenueResult = await query(
         `SELECT COALESCE(SUM(total), 0) as total FROM invoices 
@@ -30,62 +35,64 @@ router.get('/stats', asyncHandler(async (req, res) => {
         [startOfMonth, endOfMonth]
     );
 
-    // Pending invoices
-    const pendingInvoicesResult = await query(
-        `SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as total FROM invoices 
-     WHERE status IN ('draft', 'sent')`
+    // Total orders (paid invoices this month)
+    const ordersResult = await query(
+        `SELECT COUNT(*) as count FROM invoices 
+     WHERE status = 'paid' AND date >= $1 AND date <= $2`,
+        [startOfMonth, endOfMonth]
     );
 
-    // Overdue invoices
-    const overdueInvoicesResult = await query(
-        `SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as total FROM invoices 
-     WHERE status = 'overdue' OR (status = 'sent' AND due_date < CURRENT_DATE)`
+    // --- PREVIOUS MONTH ---
+    const prevRevenueResult = await query(
+        `SELECT COALESCE(SUM(total), 0) as total FROM invoices 
+     WHERE status = 'paid' AND date >= $1 AND date <= $2`,
+        [startOfPrevMonth, endOfPrevMonth]
     );
 
-    // Product counts
-    const productStatsResult = await query(
-        `SELECT 
-       COUNT(*) FILTER (WHERE is_deleted = false) as total,
-       COUNT(*) FILTER (WHERE status = 'low_stock' AND is_deleted = false) as low_stock,
-       COUNT(*) FILTER (WHERE status = 'out_of_stock' AND is_deleted = false) as out_of_stock
-     FROM products`
+    const prevExpensesResult = await query(
+        `SELECT COALESCE(SUM(total), 0) as total FROM purchase_invoices 
+     WHERE status = 'paid' AND date >= $1 AND date <= $2`,
+        [startOfPrevMonth, endOfPrevMonth]
     );
 
-    // Contact counts
-    const contactStatsResult = await query(
-        `SELECT 
-       COUNT(*) FILTER (WHERE contact_type = 'client') as clients,
-       COUNT(*) FILTER (WHERE contact_type = 'supplier') as suppliers
-     FROM contacts WHERE status = 'active'`
+    const prevOrdersResult = await query(
+        `SELECT COUNT(*) as count FROM invoices 
+     WHERE status = 'paid' AND date >= $1 AND date <= $2`,
+        [startOfPrevMonth, endOfPrevMonth]
     );
+
+    // --- GLOBAL STATS ---
+    // Total stock value (SUM(stock * price) - using price since purchase_price might not exist)
+    const stockValueResult = await query(
+        `SELECT COALESCE(SUM(stock * price), 0) as total FROM products WHERE is_deleted = false`
+    );
+
+    const currentRevenue = parseFloat(revenueResult.rows[0].total);
+    const currentExpenses = parseFloat(expensesResult.rows[0].total);
+    const prevRevenue = parseFloat(prevRevenueResult.rows[0].total);
+    const prevExpenses = parseFloat(prevExpensesResult.rows[0].total);
 
     res.json({
-        revenue: {
-            total: parseFloat(revenueResult.rows[0].total),
-            period: 'month',
+        kpis: {
+            total_sales: currentRevenue,
+            total_earnings: currentRevenue - currentExpenses,
+            total_orders: parseInt(ordersResult.rows[0].count),
+            total_stock_value: parseFloat(stockValueResult.rows[0].total),
         },
-        expenses: {
-            total: parseFloat(expensesResult.rows[0].total),
-            period: 'month',
-        },
-        profit: parseFloat(revenueResult.rows[0].total) - parseFloat(expensesResult.rows[0].total),
-        pendingInvoices: {
-            count: parseInt(pendingInvoicesResult.rows[0].count),
-            total: parseFloat(pendingInvoicesResult.rows[0].total),
-        },
-        overdueInvoices: {
-            count: parseInt(overdueInvoicesResult.rows[0].count),
-            total: parseFloat(overdueInvoicesResult.rows[0].total),
-        },
-        products: {
-            total: parseInt(productStatsResult.rows[0].total),
-            lowStock: parseInt(productStatsResult.rows[0].low_stock),
-            outOfStock: parseInt(productStatsResult.rows[0].out_of_stock),
-        },
-        contacts: {
-            clients: parseInt(contactStatsResult.rows[0].clients),
-            suppliers: parseInt(contactStatsResult.rows[0].suppliers),
-        },
+        comparisons: {
+            sales: {
+                current: currentRevenue,
+                previous: prevRevenue
+            },
+            earnings: {
+                current: currentRevenue - currentExpenses,
+                previous: prevRevenue - prevExpenses
+            },
+            orders: {
+                current: parseInt(ordersResult.rows[0].count),
+                previous: parseInt(prevOrdersResult.rows[0].count)
+            }
+        }
     });
 }));
 
@@ -236,7 +243,8 @@ router.get('/stock-alerts', asyncHandler(async (req, res) => {
     res.json(result.rows.map(p => ({
         ...p,
         stock: parseInt(p.stock),
-        min_stock: parseInt(p.min_stock)
+        min_stock: parseInt(p.min_stock),
+        status: p.stock <= 0 ? 'out_of_stock' : 'low_stock'
     })));
 }));
 

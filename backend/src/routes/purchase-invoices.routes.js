@@ -17,9 +17,12 @@ router.get('/', asyncHandler(async (req, res) => {
     SELECT pi.*, 
            s.id as supplier_id, s.name as supplier_name, s.company as supplier_company,
            s.email as supplier_email, s.phone as supplier_phone, s.ice as supplier_ice,
-           s.if_number as supplier_if_number, s.rc as supplier_rc
+           s.if_number as supplier_if_number, s.rc as supplier_rc,
+           ba.id as bank_account_id, ba.name as bank_account_name, 
+           ba.bank as bank_account_bank, ba.account_number as bank_account_number
     FROM purchase_invoices pi
     LEFT JOIN contacts s ON pi.supplier_id = s.id
+    LEFT JOIN treasury_bank_accounts ba ON pi.bank_account_id = ba.id
     WHERE 1=1
   `;
     const params = [];
@@ -48,6 +51,12 @@ router.get('/', asyncHandler(async (req, res) => {
                     email: invoice.supplier_email, phone: invoice.supplier_phone, ice: invoice.supplier_ice,
                     if_number: invoice.supplier_if_number, rc: invoice.supplier_rc,
                 } : undefined,
+                bank_account: invoice.bank_account_id ? {
+                    id: invoice.bank_account_id,
+                    name: invoice.bank_account_name,
+                    bank: invoice.bank_account_bank,
+                    account_number: invoice.bank_account_number,
+                } : undefined,
             };
         })
     );
@@ -64,9 +73,12 @@ router.get('/:id', asyncHandler(async (req, res) => {
     const invoiceResult = await query(
         `SELECT pi.*, s.id as supplier_id, s.name as supplier_name, s.company as supplier_company,
             s.email as supplier_email, s.phone as supplier_phone, s.ice as supplier_ice,
-            s.if_number as supplier_if_number, s.rc as supplier_rc
+            s.if_number as supplier_if_number, s.rc as supplier_rc,
+            ba.id as bank_account_id, ba.name as bank_account_name, 
+            ba.bank as bank_account_bank, ba.account_number as bank_account_number
      FROM purchase_invoices pi
      LEFT JOIN contacts s ON pi.supplier_id = s.id
+     LEFT JOIN treasury_bank_accounts ba ON pi.bank_account_id = ba.id
      WHERE pi.id = $1`,
         [id]
     );
@@ -86,6 +98,12 @@ router.get('/:id', asyncHandler(async (req, res) => {
             email: invoice.supplier_email, phone: invoice.supplier_phone, ice: invoice.supplier_ice,
             if_number: invoice.supplier_if_number, rc: invoice.supplier_rc,
         } : undefined,
+        bank_account: invoice.bank_account_id ? {
+            id: invoice.bank_account_id,
+            name: invoice.bank_account_name,
+            bank: invoice.bank_account_bank,
+            account_number: invoice.bank_account_number,
+        } : undefined,
     });
 }));
 
@@ -93,7 +111,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
  * POST /api/purchase-invoices
  */
 router.post('/', asyncHandler(async (req, res) => {
-    const { document_id, supplier_id, date, due_date, subtotal, vat_rate = 20, vat_amount, total, payment_method, check_number, status = 'draft', note, attachment_url, items } = req.body;
+    const { document_id, supplier_id, date, due_date, subtotal, vat_rate = 20, vat_amount, total, payment_method, check_number, bank_account_id, status = 'draft', note, attachment_url, items } = req.body;
 
     if (!document_id || !supplier_id || !date || !items || items.length === 0) {
         return res.status(400).json({ error: 'Validation Error', message: 'document_id, supplier_id, date, and items are required' });
@@ -109,10 +127,10 @@ router.post('/', asyncHandler(async (req, res) => {
         const calculatedTotal = calculatedSubtotal + calculatedVatAmount;
 
         const invoiceResult = await client.query(
-            `INSERT INTO purchase_invoices (document_id, supplier_id, date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, status, note, attachment_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            `INSERT INTO purchase_invoices (document_id, supplier_id, date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, bank_account_id, status, note, attachment_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
-            [document_id, supplier_id, date, due_date || null, subtotal || calculatedSubtotal, vat_rate, vat_amount || calculatedVatAmount, total || calculatedTotal, payment_method || null, check_number || null, status, note || null, attachment_url || null]
+            [document_id, supplier_id, date, due_date || null, subtotal || calculatedSubtotal, vat_rate, vat_amount || calculatedVatAmount, total || calculatedTotal, payment_method || null, check_number || null, bank_account_id || null, status, note || null, attachment_url || null]
         );
 
         const invoice = invoiceResult.rows[0];
@@ -142,7 +160,7 @@ router.post('/', asyncHandler(async (req, res) => {
  */
 router.put('/:id', asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, status, note, attachment_url, items } = req.body;
+    const { date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, bank_account_id, status, note, attachment_url, items } = req.body;
 
     const client = await getClient();
 
@@ -161,6 +179,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
         if (total !== undefined) { updates.push(`total = $${paramIndex++}`); params.push(total); }
         if (payment_method !== undefined) { updates.push(`payment_method = $${paramIndex++}`); params.push(payment_method); }
         if (check_number !== undefined) { updates.push(`check_number = $${paramIndex++}`); params.push(check_number); }
+        if (bank_account_id !== undefined) { updates.push(`bank_account_id = $${paramIndex++}`); params.push(bank_account_id); }
         if (status !== undefined) { updates.push(`status = $${paramIndex++}`); params.push(status); }
         if (note !== undefined) { updates.push(`note = $${paramIndex++}`); params.push(note); }
         if (attachment_url !== undefined) { updates.push(`attachment_url = $${paramIndex++}`); params.push(attachment_url); }

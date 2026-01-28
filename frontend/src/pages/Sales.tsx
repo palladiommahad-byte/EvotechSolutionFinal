@@ -59,6 +59,7 @@ import { useProducts } from '@/contexts/ProductsContext';
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { useContacts, UIContact } from '@/contexts/ContactsContext';
 import { useSales } from '@/contexts/SalesContext';
+import { useTreasury } from '@/contexts/TreasuryContext';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useWarehouse } from '@/contexts/WarehouseContext';
 import { useToast } from '@/hooks/use-toast';
@@ -118,6 +119,9 @@ export const Sales = () => {
     deleteCreditNote,
   } = useSales();
 
+  // Get bank accounts from Treasury context
+  const { bankAccounts } = useTreasury();
+
   // Statements feature removed - no database table yet
   const [documentType, setDocumentType] = useState<'delivery_note' | 'divers' | 'invoice' | 'estimate' | 'credit_note' | 'statement'>('delivery_note');
   const [activeTab, setActiveTab] = useState<'delivery_note' | 'divers' | 'invoice' | 'estimate' | 'credit_note' | 'statement'>('delivery_note');
@@ -129,6 +133,7 @@ export const Sales = () => {
   const [formWarehouse, setFormWarehouse] = useState('marrakech');
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
   const [formPaymentMethod, setFormPaymentMethod] = useState<'cash' | 'check' | 'bank_transfer'>('cash');
+  const [formBankAccount, setFormBankAccount] = useState('');
   const [formDueDate, setFormDueDate] = useState('');
   const [formNote, setFormNote] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -721,6 +726,7 @@ export const Sales = () => {
         total: documentTotal,
         status: 'draft',
         paymentMethod: documentType === 'invoice' ? formPaymentMethod : undefined,
+        bankAccountId: (documentType === 'invoice' && formBankAccount) ? formBankAccount : undefined,
         dueDate: formDueDate || undefined,
         note: formNote || undefined,
         taxEnabled: documentType === 'divers' ? formTaxEnabled : undefined,
@@ -759,6 +765,7 @@ export const Sales = () => {
       setFormClient('');
       setFormDate(new Date().toISOString().split('T')[0]);
       setFormPaymentMethod('cash');
+      setFormBankAccount('');
       setFormDueDate('');
       setFormNote('');
       setFormTaxEnabled(false);
@@ -2128,6 +2135,22 @@ export const Sales = () => {
                             <SelectItem value="cash">{t('paymentMethods.cash')}</SelectItem>
                             <SelectItem value="check">{t('paymentMethods.check')}</SelectItem>
                             <SelectItem value="bank_transfer">{t('paymentMethods.bankTransfer')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {/* Bank Account Selection - For all payment methods */}
+                      <div className="space-y-2">
+                        <Label>{t('documents.bankAccount', { defaultValue: 'Bank Account' })}</Label>
+                        <Select value={formBankAccount} onValueChange={setFormBankAccount}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('documents.selectBankAccount', { defaultValue: 'Select bank account' })} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {bankAccounts.map((account) => (
+                              <SelectItem key={account.id} value={account.id}>
+                                {account.bank} - {account.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
