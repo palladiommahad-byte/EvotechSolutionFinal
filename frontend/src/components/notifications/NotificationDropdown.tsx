@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { 
-  Bell, 
-  CheckCheck, 
-  Trash2, 
-  CheckCircle2, 
-  AlertTriangle, 
+import {
+  Bell,
+  CheckCheck,
+  Trash2,
+  CheckCircle2,
+  AlertTriangle,
   X,
+  XCircle,
   Info,
   ArrowRight
 } from 'lucide-react';
@@ -57,13 +58,13 @@ interface NotificationDropdownProps {
 
 export const NotificationDropdown = ({ children }: NotificationDropdownProps) => {
   const navigate = useNavigate();
-  const { 
-    notifications, 
-    unreadCount, 
-    markAsRead, 
-    markAllAsRead, 
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
     deleteNotification,
-    clearAllNotifications 
+    clearAllNotifications
   } = useNotifications();
 
   const handleNotificationClick = (notification: Notification) => {
@@ -88,7 +89,7 @@ export const NotificationDropdown = ({ children }: NotificationDropdownProps) =>
       if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
       if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
       if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
-      
+
       // For older dates, show the actual date
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
     } catch {
