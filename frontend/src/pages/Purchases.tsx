@@ -76,7 +76,7 @@ import {
   generateDocumentCSV,
   generateBulkDocumentsCSV,
 } from '@/lib/csv-generator';
-// import { getSupabaseClient } from '@/lib/supabase'; // Removed legacy Supabase import
+
 
 // PurchaseItem and PurchaseDocument interfaces are imported from PurchasesContext
 

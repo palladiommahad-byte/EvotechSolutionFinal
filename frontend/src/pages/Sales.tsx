@@ -193,6 +193,7 @@ export const Sales = () => {
       toast({
         title: "Switched View",
         description: `Navigated to ${linkedDoc.type === 'invoice' ? 'Invoice' : 'Delivery Note'} ${linkedDoc.id}`,
+        variant: "success",
       });
     } else {
       toast({

@@ -1,48 +1,45 @@
 version: '3.8'
 
 services:
-  # Database Service
-  db:
-    image: postgres:15-alpine
+  postgres:
+    image: postgres:15
     container_name: evotech_db
-    restart: always
-    environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_NAME:-evotech_db}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-
-  # Backend Service
-  backend:
-    build: ./backend
-    container_name: evotech_backend
-    restart: always
-    depends_on:
-      - db
-    ports:
-      - "3000:3000"
     environment:
-      NODE_ENV: production
-      PORT: 3000
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      DB_NAME: ${DB_NAME:-evotech_db}
-      JWT_SECRET: ${JWT_SECRET:-supersecretkey}
-
-  # Frontend Service
-  frontend:
-    build: ./frontend
-    container_name: evotech_frontend
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=HelloFace34
+      - POSTGRES_DB=EvotechSolution
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     restart: always
+
+  server:
+    build: ./backend
+    container_name: evotech_server
     ports:
-      - "80:80"
+      - "3000:5000"
+    environment:
+      - PORT=5000
+      - DB_USER=postgres
+      - DB_PASSWORD=HelloFace34
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=EvotechSolution
+      - JWT_SECRET=evotech_secret_key_2026
+      - CORS_ORIGIN=http://localhost
     depends_on:
-      - backend
+      - postgres
+    restart: always
+
+  client:
+    build: ./frontend
+    container_name: evotech_client
+    ports:
+      - "8080:80"
+    depends_on:
+      - server
+    restart: always
 
 volumes:
-  postgres_data:
+  pgdata:

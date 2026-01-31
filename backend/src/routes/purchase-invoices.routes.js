@@ -228,6 +228,23 @@ router.delete('/:id', asyncHandler(async (req, res) => {
 
     try {
         await client.query('BEGIN');
+
+        // Check if there are linked treasury payments to clean up
+        const paymentsCheck = await client.query('SELECT * FROM treasury_payments WHERE invoice_id = $1', [id]);
+
+        for (const payment of paymentsCheck.rows) {
+            // If payment was cleared (money removed from bank), revert the balance
+            if (payment.status === 'cleared' && payment.bank_account_id) {
+                // For Purchases, cleared payload subtracted balance, so we add it back
+                await client.query(
+                    'UPDATE treasury_bank_accounts SET balance = balance + $1, updated_at = NOW() WHERE id = $2',
+                    [payment.amount, payment.bank_account_id]
+                );
+            }
+            // Delete the treasury payment record
+            await client.query('DELETE FROM treasury_payments WHERE id = $1', [payment.id]);
+        }
+
         await client.query('DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = $1', [id]);
         const result = await client.query('DELETE FROM purchase_invoices WHERE id = $1 RETURNING id', [id]);
         await client.query('COMMIT');
