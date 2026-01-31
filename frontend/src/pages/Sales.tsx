@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, TrendingUp, FileText, Download, Users, Package, Receipt, FileCheck, Calculator, Trash2, Send, FileX, Eye, Edit, Check, FileSpreadsheet, ChevronDown, Printer, CheckSquare } from 'lucide-react';
+import { Plus, Search, TrendingUp, FileText, Download, Users, Package, Receipt, FileCheck, Calculator, Trash2, Send, FileX, Eye, Edit, Check, FileSpreadsheet, ChevronDown, Printer, CheckSquare, ArrowRightLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -143,6 +143,65 @@ export const Sales = () => {
   const [editingDocument, setEditingDocument] = useState<SalesDocument | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<SalesDocument>>({});
   const [deletingDocument, setDeletingDocument] = useState<SalesDocument | null>(null);
+
+  const [highlightedDocId, setHighlightedDocId] = useState<string | null>(null);
+
+  // Tab State Control for Smart Redirection
+  const [deliveryNoteTab, setDeliveryNoteTab] = useState("create");
+  const [invoiceTab, setInvoiceTab] = useState("create");
+
+  // Helper to find linked document (BL <-> Invoice) based on naming convention
+  const findLinkedDocument = (doc: SalesDocument): SalesDocument | undefined => {
+    // 1. Try to match by explicit document ID (e.g., BL-123 <-> FC-123)
+    let linked: SalesDocument | undefined;
+
+    if (doc.type === 'delivery_note') {
+      const idBase = doc.id.replace('BL-', '').replace('FC-', '');
+      // Try finding Invoice with FC- prefix
+      linked = invoices.find(inv => inv.id === `FC-${idBase}` || inv.documentId === `FC-${idBase}`);
+
+      // Fallback: Check if there's an invoice explicitly linked in DB (if we had that field in frontend model)
+      // Since we don't strictly have the new column in frontend types yet, trust the ID convention first
+    } else if (doc.type === 'invoice') {
+      const idBase = doc.id.replace('FC-', '').replace('BL-', '');
+      linked = deliveryNotes.find(bl => bl.id === `BL-${idBase}` || bl.documentId === `BL-${idBase}`);
+    }
+
+    return linked;
+  };
+
+  const handleSwitchView = (doc: SalesDocument) => {
+    const linkedDoc = findLinkedDocument(doc);
+    if (linkedDoc) {
+      setActiveTab(linkedDoc.type);
+      setDocumentType(linkedDoc.type);
+
+      // Smart Redirection: Switch inner tab to list
+      if (linkedDoc.type === 'delivery_note') {
+        setDeliveryNoteTab('list');
+      } else if (linkedDoc.type === 'invoice') {
+        setInvoiceTab('list');
+      }
+
+      // Smart Redirection: Filter to show only this document
+      setSearchQuery(linkedDoc.id);
+
+      // Visual Highlight: Trigger glow effect
+      setHighlightedDocId(linkedDoc.id);
+      setTimeout(() => setHighlightedDocId(null), 2000); // Clear after animation
+
+      toast({
+        title: "Switched View",
+        description: `Navigated to ${linkedDoc.type === 'invoice' ? 'Invoice' : 'Delivery Note'} ${linkedDoc.id}`,
+      });
+    } else {
+      toast({
+        title: "Not Found",
+        description: "Linked document not found.",
+        variant: "destructive"
+      });
+    }
+  };
 
   // Helper to get current documents based on activeTab
   const getCurrentDocuments = (): SalesDocument[] => {
@@ -1229,7 +1288,7 @@ export const Sales = () => {
 
         {/* Delivery Note Tab */}
         <TabsContent value="delivery_note" className="space-y-6">
-          <Tabs defaultValue="create" className="space-y-6">
+          <Tabs value={deliveryNoteTab} onValueChange={setDeliveryNoteTab} className="space-y-6">
             <TabsList className="bg-section border border-border rounded-lg p-1.5 gap-1.5">
               <TabsTrigger
                 value="create"
@@ -1640,6 +1699,17 @@ export const Sales = () => {
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
+                                {findLinkedDocument(doc) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                    onClick={() => handleSwitchView(doc)}
+                                    title="View Associated Invoice"
+                                  >
+                                    <Receipt className="w-4 h-4" />
+                                  </Button>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -1975,8 +2045,9 @@ export const Sales = () => {
                           <TableRow
                             key={doc.id}
                             className={cn(
-                              "hover:bg-section/50",
-                              selectedDocuments.has(doc.id) && "bg-primary/5"
+                              "hover:bg-section/50 transition-colors",
+                              selectedDocuments.has(doc.id) && "bg-primary/5",
+                              highlightedDocId === doc.id && "animate-highlight-glow"
                             )}
                           >
                             <TableCell className="w-[70px] min-w-[70px] px-3 text-center">
@@ -2054,6 +2125,17 @@ export const Sales = () => {
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
+                                {findLinkedDocument(doc) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                                    onClick={() => handleSwitchView(doc)}
+                                    title="View Linked Invoice"
+                                  >
+                                    <ArrowRightLeft className="w-4 h-4" />
+                                  </Button>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -2068,7 +2150,7 @@ export const Sales = () => {
         </TabsContent>
 
         <TabsContent value="invoice" className="space-y-6">
-          <Tabs defaultValue="create" className="space-y-6">
+          <Tabs value={invoiceTab} onValueChange={setInvoiceTab} className="space-y-6">
             <TabsList className="bg-section border border-border rounded-lg p-1.5 gap-1.5">
               <TabsTrigger
                 value="create"
@@ -2401,8 +2483,9 @@ export const Sales = () => {
                           <TableRow
                             key={doc.id}
                             className={cn(
-                              "hover:bg-section/50",
-                              selectedDocuments.has(doc.id) && "bg-primary/5"
+                              "hover:bg-section/50 transition-colors",
+                              selectedDocuments.has(doc.id) && "bg-primary/5",
+                              highlightedDocId === doc.id && "animate-highlight-glow"
                             )}
                           >
                             <TableCell className="w-[70px] min-w-[70px] px-3 text-center">
@@ -2474,6 +2557,17 @@ export const Sales = () => {
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
+                                {findLinkedDocument(doc) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                    onClick={() => handleSwitchView(doc)}
+                                    title="View Associated Delivery Note"
+                                  >
+                                    <Package className="w-4 h-4" />
+                                  </Button>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>

@@ -656,12 +656,36 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
         })),
       });
     },
-    onSuccess: () => {
+    onSuccess: (result, variables) => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'deliveryNotes'] });
+
       // Invalidate products and stock items to reflect stock changes
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stockItems'] });
       toast({ title: 'Delivery note created successfully', variant: 'success' });
+
+      // AUTOMATED INVOICE GENERATION
+      // As per requirement: When BL is created, auto-generate Invoice
+      try {
+        const blId = result.document_id || variables.documentId;
+        const invoiceId = blId
+          ? (blId.startsWith('BL-') ? blId.replace('BL-', 'FC-') : `FC-${blId}`)
+          : `FC-${Date.now()}`;
+
+        createInvoiceMutation.mutate({
+          ...variables,
+          documentId: invoiceId,
+          dueDate: new Date(new Date().setDate(new Date(variables.date).getDate() + 30)).toISOString().split('T')[0], // Default 30 days
+          note: `Auto-generated from Delivery Note ${blId || ''}` + (variables.note ? `\n${variables.note}` : ''),
+          status: 'draft',
+          // Remove BL-specific fields if any, though SalesDocument type is shared
+        });
+
+        toast({ title: 'Auto-Invoice Generated', description: `Invoice ${invoiceId} created.`, variant: 'success' });
+      } catch (error) {
+        console.error('Error auto-generating invoice:', error);
+        toast({ title: 'Auto-Invoice Failed', description: 'Could not automatically create invoice.', variant: 'destructive' });
+      }
     },
     onError: (error: Error) => {
       if (error.message.includes('duplicate key') || error.message.includes('document_id_key')) {
