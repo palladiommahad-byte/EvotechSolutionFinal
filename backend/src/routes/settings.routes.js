@@ -57,21 +57,57 @@ router.put('/preferences/:userId', asyncHandler(async (req, res) => {
     const { userId } = req.params;
     const { theme_color, language, active_warehouse_id, browser_notifications_enabled, low_stock_alerts_enabled, order_updates_enabled } = req.body;
 
-    const result = await query(
+    // First try to update existing preferences
+    const updates = [];
+    const params = [];
+    let idx = 1;
+
+    // Helper to add update if field exists in body (even if null)
+    const addUpdate = (field, value) => {
+        if (value !== undefined) {
+            updates.push(`${field} = $${idx++}`);
+            params.push(value);
+        }
+    };
+
+    addUpdate('theme_color', theme_color);
+    addUpdate('language', language);
+    addUpdate('active_warehouse_id', active_warehouse_id);
+    addUpdate('browser_notifications_enabled', browser_notifications_enabled);
+    addUpdate('low_stock_alerts_enabled', low_stock_alerts_enabled);
+    addUpdate('order_updates_enabled', order_updates_enabled);
+
+    if (updates.length > 0) {
+        updates.push(`updated_at = NOW()`);
+        params.push(userId);
+
+        const updateResult = await query(
+            `UPDATE user_preferences SET ${updates.join(', ')} WHERE user_id = $${idx} RETURNING *`,
+            params
+        );
+
+        if (updateResult.rows.length > 0) {
+            return res.json(updateResult.rows[0]);
+        }
+    }
+
+    // If no record updated (or no updates allowed but we want to ensure existence), insert new record
+    // We use defaults for missing fields if we are inserting
+    const insertResult = await query(
         `INSERT INTO user_preferences (user_id, theme_color, language, active_warehouse_id, browser_notifications_enabled, low_stock_alerts_enabled, order_updates_enabled)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
-     ON CONFLICT (user_id) DO UPDATE SET 
-       theme_color = COALESCE($2, user_preferences.theme_color),
-       language = COALESCE($3, user_preferences.language),
-       active_warehouse_id = COALESCE($4, user_preferences.active_warehouse_id),
-       browser_notifications_enabled = COALESCE($5, user_preferences.browser_notifications_enabled),
-       low_stock_alerts_enabled = COALESCE($6, user_preferences.low_stock_alerts_enabled),
-       order_updates_enabled = COALESCE($7, user_preferences.order_updates_enabled),
-       updated_at = NOW()
      RETURNING *`,
-        [userId, theme_color, language, active_warehouse_id, browser_notifications_enabled, low_stock_alerts_enabled, order_updates_enabled]
+        [
+            userId,
+            theme_color || 'light',
+            language || 'en',
+            active_warehouse_id !== undefined ? active_warehouse_id : null,
+            browser_notifications_enabled !== undefined ? browser_notifications_enabled : true,
+            low_stock_alerts_enabled !== undefined ? low_stock_alerts_enabled : true,
+            order_updates_enabled !== undefined ? order_updates_enabled : true
+        ]
     );
-    res.json(result.rows[0]);
+    res.json(insertResult.rows[0]);
 }));
 
 // ============================================

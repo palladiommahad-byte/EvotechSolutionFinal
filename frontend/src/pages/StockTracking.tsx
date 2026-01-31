@@ -75,11 +75,11 @@ export const StockTracking = () => {
       return product.stock;
     }
     // Fallback if product not found (shouldn't happen) or for warehouse-specific sums if needed manually
-    return item.stock.marrakech + item.stock.agadir + item.stock.ouarzazate;
+    return Object.values(item.stock).reduce((sum, qty) => sum + qty, 0);
   };
 
   const getWarehouseStock = (item: StockItem, warehouse: string) => {
-    return item.stock[warehouse as keyof typeof item.stock] || 0;
+    return item.stock[warehouse] || 0;
   };
 
   return (

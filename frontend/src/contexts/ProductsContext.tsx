@@ -24,11 +24,7 @@ export interface StockItem {
   name: string;
   sku: string;
   category: string;
-  stock: {
-    marrakech: number;
-    agadir: number;
-    ouarzazate: number;
-  };
+  stock: Record<string, number>; // Dynamic warehouse IDs
   minStock: number;
   movement: 'up' | 'down' | 'stable';
 }
@@ -37,7 +33,7 @@ interface ProductsContextType {
   products: Product[];
   stockItems: StockItem[];
   isLoading: boolean;
-  addProduct: (product: Omit<Product, 'id'>, warehouseStock?: { marrakech?: number; agadir?: number; ouarzazate?: number }) => Promise<void>;
+  addProduct: (product: Omit<Product, 'id'>, warehouseStock?: Record<string, number>) => Promise<void>;
   updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   updateStockItem: (id: string, stockItem: Partial<StockItem>) => Promise<void>;
@@ -68,23 +64,13 @@ const toUIStockItem = (product: ServiceProduct, stockItems: ServiceStockItem[]):
   const productStockItems = stockItems.filter(si => si.product_id === product.id);
 
   // Aggregate stock by warehouse
-  const stockByWarehouse = {
-    marrakech: 0,
-    agadir: 0,
-    ouarzazate: 0,
-  };
+  const stockByWarehouse: Record<string, number> = {};
 
   let movement: 'up' | 'down' | 'stable' = 'stable';
   let minStock = product.minStock || product.min_stock || 0;
 
   productStockItems.forEach(si => {
-    if (si.warehouse_id === 'marrakech') {
-      stockByWarehouse.marrakech = si.quantity || 0;
-    } else if (si.warehouse_id === 'agadir') {
-      stockByWarehouse.agadir = si.quantity || 0;
-    } else if (si.warehouse_id === 'ouarzazate') {
-      stockByWarehouse.ouarzazate = si.quantity || 0;
-    }
+    stockByWarehouse[si.warehouse_id] = si.quantity || 0;
 
     if (si.movement) {
       movement = si.movement;
@@ -93,21 +79,6 @@ const toUIStockItem = (product: ServiceProduct, stockItems: ServiceStockItem[]):
       minStock = si.min_quantity;
     }
   });
-
-  // If no stock_items exist, use product.stock and distribute
-  if (productStockItems.length === 0) {
-    const totalStock = product.stock || 0;
-    stockByWarehouse.marrakech = Math.floor(totalStock * 0.4);
-    stockByWarehouse.agadir = Math.floor(totalStock * 0.35);
-    stockByWarehouse.ouarzazate = totalStock - stockByWarehouse.marrakech - stockByWarehouse.agadir;
-
-    // Determine movement based on stock level
-    if (totalStock > minStock * 1.5) {
-      movement = 'up';
-    } else if (totalStock < minStock) {
-      movement = 'down';
-    }
-  }
 
   return {
     id: product.id,
@@ -156,8 +127,8 @@ export const ProductsProvider = ({ children }: { children: ReactNode }) => {
       product,
       warehouseStock,
     }: {
-      product: Omit<Product, 'id'>;
-      warehouseStock?: { marrakech?: number; agadir?: number; ouarzazate?: number };
+      product: Omit<Product, 'id'>,
+      warehouseStock?: Record<string, number>
     }) => {
       // Create product
       const createdProduct = await productsService.create({
@@ -169,18 +140,12 @@ export const ProductsProvider = ({ children }: { children: ReactNode }) => {
 
       // Create stock_items if warehouse stock provided
       if (warehouseStock) {
-        const warehouses = [
-          { id: 'marrakech', quantity: warehouseStock.marrakech || 0 },
-          { id: 'agadir', quantity: warehouseStock.agadir || 0 },
-          { id: 'ouarzazate', quantity: warehouseStock.ouarzazate || 0 },
-        ];
-
-        for (const warehouse of warehouses) {
-          if (warehouse.quantity > 0) {
+        for (const [warehouseId, quantity] of Object.entries(warehouseStock)) {
+          if (quantity > 0) {
             await productsService.updateStockItem(
               createdProduct.id,
-              warehouse.id,
-              warehouse.quantity,
+              warehouseId,
+              quantity,
               product.minStock
             );
           }
@@ -223,7 +188,7 @@ export const ProductsProvider = ({ children }: { children: ReactNode }) => {
   const addProduct = useCallback(
     async (
       product: Omit<Product, 'id'>,
-      warehouseStock?: { marrakech?: number; agadir?: number; ouarzazate?: number }
+      warehouseStock?: Record<string, number>
     ) => {
       await addProductMutation.mutateAsync({ product, warehouseStock });
     },
@@ -248,24 +213,20 @@ export const ProductsProvider = ({ children }: { children: ReactNode }) => {
     async (id: string, stockItem: Partial<StockItem>) => {
       // Update stock_items for each warehouse
       if (stockItem.stock) {
-        const warehouses = [
-          { id: 'marrakech', quantity: stockItem.stock.marrakech },
-          { id: 'agadir', quantity: stockItem.stock.agadir },
-          { id: 'ouarzazate', quantity: stockItem.stock.ouarzazate },
-        ];
+        let totalStock = 0;
 
-        for (const warehouse of warehouses) {
+        for (const [warehouseId, quantity] of Object.entries(stockItem.stock)) {
           await productsService.updateStockItem(
             id,
-            warehouse.id,
-            warehouse.quantity,
+            warehouseId,
+            quantity,
             stockItem.minStock,
             stockItem.movement
           );
+          totalStock += quantity;
         }
 
         // Update total stock in products table
-        const totalStock = stockItem.stock.marrakech + stockItem.stock.agadir + stockItem.stock.ouarzazate;
         await productsService.updateStock(id, totalStock);
       } else {
         // Update individual fields if stock not provided

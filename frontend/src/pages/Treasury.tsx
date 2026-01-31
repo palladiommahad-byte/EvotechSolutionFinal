@@ -930,6 +930,10 @@ export const Treasury = () => {
               <SelectItem value="lastYear">{t('treasury.filter.lastYear')}</SelectItem>
             </SelectContent>
           </Select>
+          <Button onClick={() => setIsAddBankOpen(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            {t('treasury.addBankAccount', { defaultValue: 'Add Bank Account' })}
+          </Button>
           <Button variant="outline" onClick={handleExportExcel} className="gap-2">
             <FileSpreadsheet className="w-4 h-4" />
             {t('treasury.exportToExcel', { defaultValue: 'Styled Export (Beta)' })}

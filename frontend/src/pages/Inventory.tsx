@@ -71,7 +71,7 @@ export const Inventory = () => {
   const { t } = useTranslation();
   const { warehouseInfo, isAllWarehouses, activeWarehouse, setActiveWarehouse, warehouses } = useWarehouse();
   const { toast } = useToast();
-  const { products, stockItems, addProduct, updateProduct, deleteProduct } = useProducts();
+  const { products, stockItems, addProduct, updateProduct, deleteProduct, updateStockItem } = useProducts();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -84,6 +84,7 @@ export const Inventory = () => {
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Product>>({});
+  const [editWarehouseStock, setEditWarehouseStock] = useState<Record<string, number>>({});
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
   const [newProductData, setNewProductData] = useState<Partial<Product>>({
@@ -148,10 +149,10 @@ export const Inventory = () => {
 
     if (isAllWarehouses) {
       // Return total stock across all warehouses
-      return stockItem.stock.marrakech + stockItem.stock.agadir + stockItem.stock.ouarzazate;
+      return Object.values(stockItem.stock).reduce((sum, qty) => sum + qty, 0);
     } else {
       // Return stock for specific warehouse
-      return stockItem.stock[activeWarehouse as keyof typeof stockItem.stock] || 0;
+      return stockItem.stock[activeWarehouse as string] || 0;
     }
   };
 
@@ -188,8 +189,16 @@ export const Inventory = () => {
       price: product.price,
       status: product.status,
       lastMovement: product.lastMovement,
-      image: product.image || undefined,
+      image: product.image,
     });
+
+    // Populate warehouse stock for editing
+    const stockItem = stockItems.find(si => si.id === product.id);
+    if (stockItem) {
+      setEditWarehouseStock({ ...stockItem.stock });
+    } else {
+      setEditWarehouseStock({});
+    }
   };
 
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
@@ -236,12 +245,32 @@ export const Inventory = () => {
       }
       const productName = editFormData.name || editingProduct.name;
       try {
-        await updateProduct(editingProduct.id, editFormData);
+        await updateProduct(editingProduct.id, {
+          name: editFormData.name,
+          sku: editFormData.sku,
+          category: editFormData.category,
+          unit: editFormData.unit,
+          description: editFormData.description,
+          minStock: editFormData.minStock,
+          price: editFormData.price,
+          status: editFormData.status,
+          lastMovement: editFormData.lastMovement,
+          image: editFormData.image,
+        });
+
+        // Update stock items
+        if (Object.keys(editWarehouseStock).length > 0) {
+          await updateStockItem(editingProduct.id, {
+            stock: editWarehouseStock,
+            minStock: editFormData.minStock,
+          });
+        }
+
         setEditingProduct(null);
-        setEditFormData({});
+        setEditWarehouseStock({});
         toast({
           title: t('inventory.productUpdated'),
-          description: t('inventory.productUpdatedDescription', { name: productName }),
+          description: t('inventory.productUpdatedDescription', { name: editFormData.name }),
           variant: "success",
         });
       } catch (error) {
@@ -293,9 +322,7 @@ export const Inventory = () => {
     }
 
     // Calculate total stock from warehouse allocations
-    const totalStock = (warehouseStock.marrakech || 0) +
-      (warehouseStock.agadir || 0) +
-      (warehouseStock.ouarzazate || 0);
+    const totalStock = Object.values(warehouseStock).reduce((sum, qty) => sum + qty, 0);
 
     const newProduct: Omit<Product, 'id'> = {
       sku: newProductData.sku || '',
@@ -894,23 +921,21 @@ export const Inventory = () => {
                         {viewingProduct.minStock} {viewingProduct.unit || 'Piece'}
                       </p>
                     </div>
-                    {!isAllWarehouses && (
-                      <div className="col-span-2 space-y-2 mt-2">
-                        <Label className="text-muted-foreground text-sm">{t('common.warehouse')}</Label>
-                        <div className="grid grid-cols-3 gap-2 text-sm">
-                          {warehouses.map((wh) => {
-                            const stockItem = stockItems.find(si => si.id === viewingProduct.id);
-                            const whStock = stockItem?.stock[wh.id as keyof typeof stockItem.stock] || 0;
-                            return (
-                              <div key={wh.id} className="p-2 border border-border rounded">
-                                <p className="text-xs text-muted-foreground">{wh.city}</p>
-                                <p className="font-medium">{whStock} {viewingProduct.unit || 'Piece'}</p>
-                              </div>
-                            );
-                          })}
-                        </div>
+                    <div className="col-span-2 space-y-2 mt-2">
+                      <Label className="text-muted-foreground text-sm">{t('common.warehouse')}</Label>
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        {warehouses.map((wh) => {
+                          const stockItem = stockItems.find(si => si.id === viewingProduct.id);
+                          const whStock = stockItem?.stock[wh.id as keyof typeof stockItem.stock] || 0;
+                          return (
+                            <div key={wh.id} className="p-2 border border-border rounded">
+                              <p className="text-xs text-muted-foreground">{wh.city}</p>
+                              <p className="font-medium">{whStock} {viewingProduct.unit || 'Piece'}</p>
+                            </div>
+                          );
+                        })}
                       </div>
-                    )}
+                    </div>
                   </div>
                   {getProductStock(viewingProduct.id) < viewingProduct.minStock && (
                     <div className="mt-3 p-3 bg-warning/10 border border-warning/20 rounded-lg">
@@ -1109,16 +1134,35 @@ export const Inventory = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-stock">{t('inventory.stockQuantity')}</Label>
-                    <Input
-                      id="edit-stock"
-                      type="number"
-                      min="0"
-                      value={editFormData.stock || 0}
-                      onChange={(e) => setEditFormData({ ...editFormData, stock: parseInt(e.target.value) || 0 })}
-                      placeholder="0"
-                    />
+                  <div className="space-y-4 col-span-2 pt-4 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-semibold">{t('common.warehouse')}</Label>
+                      <span className="text-sm text-muted-foreground">
+                        {t('common.total')}: {Object.values(editWarehouseStock).reduce((sum, val) => sum + (val || 0), 0)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {warehouses.map((warehouse) => (
+                        <div key={warehouse.id} className="space-y-2 p-3 border border-border rounded-lg bg-card/50">
+                          <div className="flex items-center gap-2 mb-1">
+                            <MapPin className="w-3.5 h-3.5 text-primary" />
+                            <Label htmlFor={`edit-stock-${warehouse.id}`} className="font-medium text-sm">{warehouse.city}</Label>
+                          </div>
+                          <Input
+                            id={`edit-stock-${warehouse.id}`}
+                            type="number"
+                            min="0"
+                            value={editWarehouseStock[warehouse.id] || 0}
+                            onChange={(e) => setEditWarehouseStock({
+                              ...editWarehouseStock,
+                              [warehouse.id]: parseInt(e.target.value) || 0
+                            })}
+                            placeholder="0"
+                            className="h-9"
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="edit-min-stock">{t('inventory.minStock')}</Label>

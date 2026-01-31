@@ -43,16 +43,16 @@ const isValidUUID = (str: string | undefined | null): boolean => {
 
 export const WarehouseProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
-  
+
   // Fetch warehouses from database
   const { data: dbWarehouses = [], isLoading: isLoadingWarehouses } = useWarehouses();
   const createMutation = useCreateWarehouse();
   const updateMutation = useUpdateWarehouse();
   const deleteMutation = useDeleteWarehouse();
-  
+
   // Only use userId if it's a valid UUID
   const userId = user?.id && isValidUUID(user.id) ? user.id : '';
-  
+
   // Fetch user preferences for active warehouse
   const { data: userPreferences } = useUserPreferences(userId);
   const updatePreferencesMutation = useUpdateUserPreferences();
@@ -72,23 +72,25 @@ export const WarehouseProvider = ({ children }: { children: ReactNode }) => {
     return initialWarehouses;
   }, [dbWarehouses]);
 
-  // Initialize active warehouse from user preferences
-  const [activeWarehouse, setActiveWarehouseState] = useState<Warehouse>(() => {
-    // First try user preferences
-    if (userPreferences?.active_warehouse_id) {
-      return userPreferences.active_warehouse_id;
-    }
-    
-    return warehouses.length > 0 ? warehouses[0].id : 'all';
-  });
+  // Initialize active warehouse as 'all' by default
+  const [activeWarehouse, setActiveWarehouseState] = useState<Warehouse>('all');
 
   // Update active warehouse when user preferences change
   useEffect(() => {
-    if (userPreferences?.active_warehouse_id) {
+    if (userPreferences) {
       const prefWarehouse = userPreferences.active_warehouse_id;
-      // Verify the warehouse still exists
-      if (prefWarehouse === 'all' || warehouses.find(w => w.id === prefWarehouse)) {
-        setActiveWarehouseState(prefWarehouse);
+
+      if (prefWarehouse) {
+        // Verify the warehouse still exists
+        if (warehouses.find(w => w.id === prefWarehouse)) {
+          setActiveWarehouseState(prefWarehouse);
+        } else {
+          // If preference invalid, revert to all
+          setActiveWarehouseState('all');
+        }
+      } else {
+        // Null or undefined preference means 'all'
+        setActiveWarehouseState('all');
       }
     }
   }, [userPreferences, warehouses]);
@@ -100,14 +102,14 @@ export const WarehouseProvider = ({ children }: { children: ReactNode }) => {
   // Update active warehouse if current one doesn't exist (only when warehouses change)
   useEffect(() => {
     const currentActive = activeWarehouseRef.current;
-    
+
     if (!Array.isArray(warehouses) || warehouses.length === 0) {
       if (currentActive !== 'all') {
         setActiveWarehouseState('all');
       }
       return;
     }
-    
+
     if (currentActive !== 'all' && typeof currentActive === 'string') {
       const exists = warehouses.find(w => w.id === currentActive);
       if (!exists && warehouses.length > 0) {
@@ -120,7 +122,7 @@ export const WarehouseProvider = ({ children }: { children: ReactNode }) => {
   // Save active warehouse to user preferences
   const setActiveWarehouse = async (warehouse: Warehouse) => {
     setActiveWarehouseState(warehouse);
-    
+
     // Save to user preferences if user is logged in with valid UUID
     if (user?.id && isValidUUID(user.id)) {
       try {
@@ -133,10 +135,10 @@ export const WarehouseProvider = ({ children }: { children: ReactNode }) => {
       }
     }
   };
-  
+
   const isAllWarehouses = activeWarehouse === 'all';
-  const warehouseInfo = activeWarehouse === 'all' 
-    ? null 
+  const warehouseInfo = activeWarehouse === 'all'
+    ? null
     : warehouses.find(w => w.id === activeWarehouse) || (warehouses.length > 0 ? warehouses[0] : null);
 
   const addWarehouse = async (warehouse: Omit<WarehouseInfo, 'id'>): Promise<WarehouseInfo> => {
@@ -145,7 +147,7 @@ export const WarehouseProvider = ({ children }: { children: ReactNode }) => {
       if (!result) {
         throw new Error('Failed to create warehouse');
       }
-      
+
       return {
         id: result.id,
         name: result.name,
@@ -174,10 +176,10 @@ export const WarehouseProvider = ({ children }: { children: ReactNode }) => {
     if (warehouses.length <= 1) {
       throw new Error('Cannot delete the only warehouse');
     }
-    
+
     try {
       await deleteMutation.mutateAsync(id);
-      
+
       // If deleted warehouse was active, switch to first available
       if (activeWarehouse === id && warehouses.length > 1) {
         const remaining = warehouses.filter(w => w.id !== id);
@@ -196,10 +198,10 @@ export const WarehouseProvider = ({ children }: { children: ReactNode }) => {
   const isLoading = isLoadingWarehouses;
 
   return (
-    <WarehouseContext.Provider value={{ 
-      activeWarehouse, 
-      setActiveWarehouse, 
-      warehouseInfo, 
+    <WarehouseContext.Provider value={{
+      activeWarehouse,
+      setActiveWarehouse,
+      warehouseInfo,
       isAllWarehouses,
       warehouses: safeWarehouses,
       addWarehouse,
