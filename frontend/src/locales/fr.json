@@ -563,6 +563,7 @@
     "title": "Ventes",
     "description": "Gérer les bons de livraison, factures, devis, avoirs et relevés",
     "totalRevenue": "Revenus totaux",
+    "monthlyRevenue": "Revenu Mensuel",
     "pendingRevenue": "Revenus en attente",
     "activeClients": "Clients actifs",
     "invoiceStatistics": "Statistiques des factures",

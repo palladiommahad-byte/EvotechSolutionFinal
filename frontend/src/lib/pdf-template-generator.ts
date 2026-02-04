@@ -25,7 +25,7 @@ interface CompanyInfo {
 }
 
 interface DocumentData {
-  type: 'invoice' | 'estimate' | 'delivery_note' | 'purchase_order' | 'credit_note' | 'statement' | 'purchase_invoice' | 'purchase_delivery_note';
+  type: 'invoice' | 'estimate' | 'delivery_note' | 'purchase_order' | 'credit_note' | 'statement' | 'purchase_invoice' | 'purchase_delivery_note' | 'prelevement';
   documentId: string;
   date: string;
   client?: string;
@@ -80,6 +80,7 @@ const formatDocumentId = (id: string, docType: string): string => {
     purchase_invoice: 'FA',           // Facture d'Achat
     purchase_delivery_note: 'BL',     // Bon de Livraison
     divers: 'BL',                     // Bon de Livraison Divers
+    prelevement: 'PR',                // Prélèvement
   };
 
   const prefix = prefixes[docType] || 'DOC';
@@ -171,6 +172,7 @@ export const generatePDFFromTemplate = async (data: DocumentData): Promise<void>
         case 'credit_note': return t('pdf.creditNote');
         case 'statement': return t('pdf.statement');
         case 'purchase_invoice': return t('pdf.purchaseInvoice');
+        case 'prelevement': return 'Avance / Prélèvement'; // Fallback until translation added
         default: return t('pdf.document');
       }
     };
@@ -222,7 +224,7 @@ const generatePDFWithHtml2Canvas = async (data: DocumentData, companyInfo: any):
 
   return new Promise((resolve, reject) => {
     // Only use DocumentTemplate for supported types
-    const supportedTypes = ['invoice', 'estimate', 'delivery_note', 'purchase_order', 'purchase_invoice', 'purchase_delivery_note'];
+    const supportedTypes = ['invoice', 'estimate', 'delivery_note', 'purchase_order', 'purchase_invoice', 'purchase_delivery_note', 'prelevement'];
     const useTemplate = supportedTypes.includes(data.type);
 
     if (useTemplate) {
@@ -231,7 +233,7 @@ const generatePDFWithHtml2Canvas = async (data: DocumentData, companyInfo: any):
           CompanyProvider,
           {
             children: React.createElement(DocumentTemplate, {
-              type: data.type as 'invoice' | 'estimate' | 'delivery_note' | 'purchase_order' | 'purchase_invoice' | 'purchase_delivery_note',
+              type: data.type as 'invoice' | 'estimate' | 'delivery_note' | 'purchase_order' | 'purchase_invoice' | 'purchase_delivery_note' | 'prelevement',
               documentId: data.documentId,
               date: data.date,
               client: data.client,
@@ -333,6 +335,7 @@ const generatePDFWithHtml2Canvas = async (data: DocumentData, companyInfo: any):
             case 'statement': return t('pdf.statement');
             case 'purchase_invoice': return t('pdf.purchaseInvoice');
             case 'purchase_delivery_note': return t('pdf.deliveryNote');
+            case 'prelevement': return 'Avance / Prélèvement';
             default: return t('pdf.document');
           }
         };

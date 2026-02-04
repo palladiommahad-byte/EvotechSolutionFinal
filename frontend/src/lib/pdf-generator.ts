@@ -298,6 +298,35 @@ export const generateDeliveryNotePDF = async (document: {
   });
 };
 
+// Generate Prélèvement PDF using new template
+export const generatePrelevementPDF = async (document: {
+  id: string;
+  client?: string;
+  clientData?: any;
+  date: string;
+  items: number | InvoiceItem[];
+  total: number;
+  status?: string;
+  note?: string;
+  companyInfo?: CompanyInfo;
+}) => {
+  const items: InvoiceItem[] = Array.isArray(document.items)
+    ? document.items
+    : createFallbackItems(document.items, document.total);
+
+  await generatePDFFromTemplate({
+    type: 'prelevement',
+    documentId: document.id,
+    date: document.date,
+    client: document.client,
+    clientData: document.clientData,
+    items,
+    note: document.note,
+    language: i18n.language || 'en',
+    companyInfo: document.companyInfo,
+  });
+};
+
 // Generate Estimate PDF using new template
 export const generateEstimatePDF = async (document: {
   id: string;

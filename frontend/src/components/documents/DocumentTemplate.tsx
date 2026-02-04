@@ -5,7 +5,7 @@ import { InvoiceItem } from '@/lib/moroccan-utils';
 import { UIContact } from '@/contexts/ContactsContext';
 
 interface DocumentTemplateProps {
-  type: 'invoice' | 'estimate' | 'delivery_note' | 'purchase_order' | 'purchase_invoice' | 'purchase_delivery_note';
+  type: 'invoice' | 'estimate' | 'delivery_note' | 'purchase_order' | 'purchase_invoice' | 'purchase_delivery_note' | 'prelevement';
   documentId: string;
   date: string;
   client?: string;
@@ -40,7 +40,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
   const isIncomingPurchaseDoc = type === 'purchase_invoice' || type === 'purchase_delivery_note';
 
   const contactData = isPurchaseSide ? supplierData : clientData;
-  const showVAT = type === 'invoice' || type === 'estimate' || type === 'purchase_invoice';
+  const showVAT = type === 'invoice' || type === 'estimate' || type === 'purchase_invoice' || type === 'prelevement';
   const contactName = contactData?.company || contactData?.name || client || supplier || '-';
   const contactICE = contactData?.ice;
   const contactPhone = contactData?.phone;
@@ -53,6 +53,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
     purchase_order: { en: 'Purchase Order', fr: 'BON DE COMMANDE' },
     purchase_invoice: { en: 'Purchase Invoice', fr: 'FACTURE ACHAT' },
     purchase_delivery_note: { en: 'Delivery Note', fr: 'BON DE LIVRAISON' },
+    prelevement: { en: 'Prelevement', fr: 'AVANCE / PRÉLÈVEMENT' },
   };
 
   // Calculate font size based on text length - smaller for longer text
@@ -73,6 +74,8 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
       case 'delivery_note':
         return 'Client';
       case 'estimate':
+        return 'Client';
+      case 'prelevement':
         return 'Client';
       default:
         return 'Client';

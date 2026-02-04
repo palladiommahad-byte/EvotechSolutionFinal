@@ -6,7 +6,7 @@ import { InvoiceItem } from '@/lib/moroccan-utils';
 import i18n from '@/i18n/config';
 
 interface DocumentPDFTemplateProps {
-  type: 'invoice' | 'estimate' | 'delivery_note' | 'purchase_order' | 'credit_note' | 'statement' | 'purchase_invoice' | 'purchase_delivery_note';
+  type: 'invoice' | 'estimate' | 'delivery_note' | 'purchase_order' | 'credit_note' | 'statement' | 'purchase_invoice' | 'purchase_delivery_note' | 'prelevement';
   documentId: string;
   date: string;
   client?: string;
@@ -288,7 +288,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
   const t = (key: string, options?: any) => i18n.t(key, { lng: currentLang, ...options });
 
   const totals = calculateInvoiceTotals(items);
-  const showVAT = type === 'invoice' || type === 'estimate' || type === 'credit_note';
+  const showVAT = type === 'invoice' || type === 'estimate' || type === 'credit_note' || type === 'prelevement';
 
   const documentTitles: Record<string, string> = {
     invoice: String(t('pdf.invoice')),
@@ -299,6 +299,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
     statement: String(t('pdf.statement')),
     purchase_invoice: String(t('pdf.purchaseInvoice')),
     purchase_delivery_note: String(t('pdf.deliveryNote')),
+    prelevement: 'AVANCE / PRÉLÈVEMENT', // Fallback until translation added
   };
 
   // Calculate font size based on text length - smaller for longer text

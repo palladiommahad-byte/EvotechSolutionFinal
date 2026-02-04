@@ -17,6 +17,7 @@ const settingsRoutes = require('./routes/settings.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const taxReportsRoutes = require('./routes/tax-reports.routes');
 const reportsRoutes = require('./routes/reports.routes');
+const prelevementsRoutes = require('./routes/prelevements.routes');
 
 // Import middleware
 const { errorHandler } = require('./middleware/error.middleware');
@@ -66,6 +67,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/tax-reports', taxReportsRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/prelevements', prelevementsRoutes);
 
 // Error handling middleware (should be last)
 app.use(errorHandler);

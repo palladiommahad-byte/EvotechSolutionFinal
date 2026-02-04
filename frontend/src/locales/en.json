@@ -27,8 +27,8 @@
     "status": "Status",
     "actions": "Actions",
     "all": "All",
-    "yes": "Yes",
     "no": "No",
+    "none": "None",
     "name": "Name",
     "email": "Email",
     "phone": "Phone",
@@ -407,7 +407,11 @@
     "documentDetails": "{{documentType}} Details",
     "itemS": "item(s)",
     "exportAllAsExcel": "Export All as Excel",
-    "exportAllAsCSV": "Export All as CSV"
+    "exportAllAsCSV": "Export All as CSV",
+    "selectBankAccount": "Select Bank Account",
+    "bankAccount": "Bank Account",
+    "paymentWarehouse": "Payment Warehouse (Cash)",
+    "selectPaymentWarehouse": "Select Payment Warehouse"
   },
   "settings": {
     "title": "Settings",

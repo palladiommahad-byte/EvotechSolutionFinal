@@ -110,6 +110,7 @@ export const invoicesService = {
     payment_method?: 'cash' | 'check' | 'bank_transfer';
     check_number?: string;
     bank_account_id?: string;
+    payment_warehouse_id?: string;
     note?: string;
     items: Array<{
       product_id?: string;

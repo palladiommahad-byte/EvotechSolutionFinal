@@ -25,7 +25,8 @@ export type DocumentType =
   | 'credit_note'       // AV - Avoir (Credit Note)
   | 'statement'         // RL - Relevé (Statement)
   | 'purchase_invoice'  // FA - Facture Achat (Purchase Invoice)
-  | 'divers';           // BL - Bon de Livraison Divers
+  | 'divers'            // DIV - Divers
+  | 'prelevement';      // PRL - Prélèvement
 
 // French prefixes for all document types (Moroccan business standards)
 const DOCUMENT_PREFIXES: Record<DocumentType, string> = {
@@ -37,6 +38,7 @@ const DOCUMENT_PREFIXES: Record<DocumentType, string> = {
   statement: 'RL',         // Relevé (Statement)
   purchase_invoice: 'FA',  // Facture Achat (Purchase Invoice)
   divers: 'DIV',           // Divers
+  prelevement: 'PRL',      // Prélèvement
 };
 
 interface DocumentInfo {

@@ -70,11 +70,13 @@ import {
   generateDeliveryNotePDF,
   generateCreditNotePDF,
   generateStatementPDF,
+  generatePrelevementPDF,
 } from '@/lib/pdf-generator';
 import {
   generateDocumentExcel,
   generateBulkDocumentsExcel,
 } from '@/lib/excel-generator';
+import { PrelevementForm } from '@/components/sales/PrelevementForm';
 import {
   generateDocumentCSV,
   generateBulkDocumentsCSV,
@@ -100,6 +102,7 @@ export const Sales = () => {
     deliveryNotes,
     allDeliveryNotes,
     divers,
+    prelevements,
     creditNotes,
     isLoading: isLoadingSales,
     createInvoice,
@@ -114,6 +117,9 @@ export const Sales = () => {
     createDivers,
     updateDivers,
     deleteDivers,
+    createPrelevement, // We actually only need deletePrelevement here for main logic, create is used in Form
+    updatePrelevement,
+    deletePrelevement,
     createCreditNote,
     updateCreditNote,
     deleteCreditNote,
@@ -123,8 +129,8 @@ export const Sales = () => {
   const { bankAccounts } = useTreasury();
 
   // Statements feature removed - no database table yet
-  const [documentType, setDocumentType] = useState<'delivery_note' | 'divers' | 'invoice' | 'estimate' | 'credit_note' | 'statement'>('delivery_note');
-  const [activeTab, setActiveTab] = useState<'delivery_note' | 'divers' | 'invoice' | 'estimate' | 'credit_note' | 'statement'>('delivery_note');
+  const [documentType, setDocumentType] = useState<'delivery_note' | 'divers' | 'invoice' | 'estimate' | 'credit_note' | 'statement' | 'prelevement'>('delivery_note');
+  const [activeTab, setActiveTab] = useState<'delivery_note' | 'divers' | 'invoice' | 'estimate' | 'credit_note' | 'statement' | 'prelevement'>('delivery_note');
   const [formTaxEnabled, setFormTaxEnabled] = useState<boolean>(false); // Tax toggle for Divers
   const [items, setItems] = useState<SalesItem[]>([
     { id: '1', description: '', quantity: 1, unitPrice: 0, total: 0 },
@@ -217,6 +223,8 @@ export const Sales = () => {
         return estimates;
       case 'credit_note':
         return creditNotes;
+      case 'prelevement':
+        return prelevements;
       case 'statement':
         return []; // Statements not implemented yet
       default:
@@ -247,6 +255,7 @@ export const Sales = () => {
       'invoice': 'Invoice',
       'estimate': 'Estimate',
       'credit_note': 'Credit Note',
+      'prelevement': 'Prélèvement',
       'statement': 'Statement',
     };
 
@@ -267,6 +276,9 @@ export const Sales = () => {
           break;
         case 'credit_note':
           await deleteCreditNote(deletingDocument.id);
+          break;
+        case 'prelevement':
+          await deletePrelevement(deletingDocument.id);
           break;
         case 'statement':
           // Statements feature not implemented
@@ -297,6 +309,7 @@ export const Sales = () => {
       'invoice': 'Invoices',
       'estimate': 'Estimates',
       'credit_note': 'Credit Notes',
+      'prelevement': 'Prélèvements',
       'statement': 'Statements',
     };
 
@@ -321,6 +334,9 @@ export const Sales = () => {
               break;
             case 'credit_note':
               await deleteCreditNote(doc.id);
+              break;
+            case 'prelevement':
+              await deletePrelevement(doc.id);
               break;
             case 'statement':
               // Statements feature not implemented
@@ -493,6 +509,9 @@ export const Sales = () => {
         case 'divers':
           await generateDeliveryNotePDF({ ...docWithItems as any, companyInfo }); // Use delivery note PDF format for divers
           break;
+        case 'prelevement':
+          await generatePrelevementPDF({ ...docWithItems as any, companyInfo });
+          break;
         case 'credit_note':
           generateCreditNotePDF(doc);
           break;
@@ -593,9 +612,44 @@ export const Sales = () => {
       await handleDownloadPDF(documentsToExport[i]);
       // Small delay between exports
       if (i < documentsToExport.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
+  };
+
+  const handleBulkExportCSV = () => {
+    const currentDocuments = getCurrentDocuments();
+    const documentsToExport = currentDocuments
+      .filter(doc => selectedDocuments.has(doc.id))
+      .map(doc => ({
+        id: doc.id,
+        client: doc.client,
+        supplier: (doc as any).supplier,
+        date: doc.date,
+        items: typeof doc.items === 'number' ? doc.items : (Array.isArray(doc.items) ? doc.items.length : 0),
+        total: doc.total,
+        paymentMethod: doc.paymentMethod as string,
+        status: doc.status,
+        type: doc.type
+      }));
+    generateBulkDocumentsCSV(documentsToExport, documentType);
+  };
+
+  const handleBulkExportExcel = () => {
+    const currentDocuments = getCurrentDocuments();
+    const documentsToExport = currentDocuments
+      .filter(doc => selectedDocuments.has(doc.id))
+      .map(doc => ({
+        id: doc.id,
+        client: doc.client,
+        supplier: (doc as any).supplier,
+        date: doc.date,
+        items: typeof doc.items === 'number' ? doc.items : (Array.isArray(doc.items) ? doc.items.length : 0),
+        total: doc.total,
+        paymentMethod: doc.paymentMethod as string,
+        status: doc.status,
+        type: doc.type
+      }));
+    generateBulkDocumentsExcel(documentsToExport, documentType);
   };
 
   const handleDownloadExcel = (doc: SalesDocument) => {
@@ -604,33 +658,12 @@ export const Sales = () => {
     generateDocumentExcel({ ...doc, items: itemsCount }, docType);
   };
 
-  const handleBulkExportExcel = () => {
-    const documentsToExport = filteredDocuments.filter(doc => selectedDocuments.has(doc.id));
-    if (documentsToExport.length > 0) {
-      const mappedDocs = documentsToExport.map(doc => ({
-        ...doc,
-        items: Array.isArray(doc.items) ? doc.items.length : (doc.items || 0)
-      }));
-      generateBulkDocumentsExcel(mappedDocs, activeTab);
-    }
-  };
-
   const handleDownloadCSV = (doc: SalesDocument) => {
     const docType = doc.type || activeTab;
     const itemsCount = Array.isArray(doc.items) ? doc.items.length : (doc.items || 0);
     generateDocumentCSV({ ...doc, items: itemsCount }, docType);
   };
 
-  const handleBulkExportCSV = () => {
-    const documentsToExport = filteredDocuments.filter(doc => selectedDocuments.has(doc.id));
-    if (documentsToExport.length > 0) {
-      const mappedDocs = documentsToExport.map(doc => ({
-        ...doc,
-        items: Array.isArray(doc.items) ? doc.items.length : (doc.items || 0)
-      }));
-      generateBulkDocumentsCSV(mappedDocs, activeTab);
-    }
-  };
 
   const handleTabChange = (value: string) => {
     const tabValue = value as 'delivery_note' | 'divers' | 'invoice' | 'estimate' | 'credit_note' | 'statement';
@@ -785,8 +818,9 @@ export const Sales = () => {
         })),
         total: documentTotal,
         status: 'draft',
-        paymentMethod: documentType === 'invoice' ? formPaymentMethod : undefined,
-        bankAccountId: (documentType === 'invoice' && formBankAccount) ? formBankAccount : undefined,
+        paymentMethod: (documentType === 'invoice' || documentType === 'delivery_note') ? formPaymentMethod : undefined,
+        bankAccountId: ((documentType === 'invoice' || documentType === 'delivery_note') && formBankAccount && formPaymentMethod !== 'cash') ? formBankAccount : undefined,
+        paymentWarehouseId: ((documentType === 'invoice' || documentType === 'delivery_note') && formWarehouse && formPaymentMethod === 'cash') ? formWarehouse : undefined,
         dueDate: formDueDate || undefined,
         note: formNote || undefined,
         taxEnabled: documentType === 'divers' ? formTaxEnabled : undefined,
@@ -990,6 +1024,8 @@ export const Sales = () => {
         return ['draft', 'sent', 'accepted', 'expired', 'cancelled'];
       case 'credit_note':
         return ['draft', 'pending', 'approved', 'cancelled'];
+      case 'prelevement':
+        return ['draft', 'generated', 'cancelled'];
       case 'statement':
         return ['draft', 'current', 'overdue', 'paid'];
       default:
@@ -1016,6 +1052,9 @@ export const Sales = () => {
           break;
         case 'credit_note':
           await updateCreditNote(docId, updateData);
+          break;
+        case 'prelevement':
+          await updatePrelevement(docId, updateData);
           break;
         case 'statement':
           // Statements feature not implemented
@@ -1193,14 +1232,58 @@ export const Sales = () => {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="kpi-card">
+        <div className="kpi-card relative group">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
               <TrendingUp className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-xl sm:text-2xl font-heading font-bold text-foreground break-words overflow-visible whitespace-normal leading-tight">{formatMAD(totalRevenue)}</p>
-              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground line-clamp-1" title={t('sales.totalRevenue')}>{t('sales.totalRevenue')}</p>
+              <p className="text-xl sm:text-2xl font-heading font-bold text-foreground break-words overflow-visible whitespace-normal leading-tight">
+                {formatMAD(
+                  [...invoices]
+                    .filter(inv => {
+                      const invDate = new Date(inv.date);
+                      const now = new Date();
+                      return invDate.getMonth() === now.getMonth() && invDate.getFullYear() === now.getFullYear();
+                    })
+                    .reduce((sum, o) => {
+                      const amount = typeof o.total === 'number' ? o.total : parseFloat(o.total as any) || 0;
+                      return sum + amount;
+                    }, 0)
+                )}
+              </p>
+              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground line-clamp-1" title={t('sales.monthlyRevenue')}>{t('sales.monthlyRevenue')}</p>
+            </div>
+          </div>
+
+          {/* Warehouse Breakdown Tooltip/Dropdown */}
+          <div className="absolute top-full left-0 mt-2 w-64 bg-popover text-popover-foreground rounded-lg shadow-lg border border-border p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+            <p className="text-xs font-semibold mb-2 pb-1 border-b border-border">Répartition par Ville</p>
+            <div className="space-y-1">
+              {Object.entries(
+                [...invoices]
+                  .filter(inv => {
+                    const invDate = new Date(inv.date);
+                    const now = new Date();
+                    return invDate.getMonth() === now.getMonth() && invDate.getFullYear() === now.getFullYear();
+                  })
+                  .reduce((acc, inv) => {
+                    // Get city from client data or fallback to 'Unknown'
+                    const city = inv.clientData?.city ||
+                      (clients.find(c => c.id === inv.client)?.city) ||
+                      'Autre';
+                    // Normalize city name matching warehouse logic if possible
+                    const normalizedCity = city.trim();
+
+                    acc[normalizedCity] = (acc[normalizedCity] || 0) + (Number(inv.total) || 0);
+                    return acc;
+                  }, {} as Record<string, number>)
+              ).map(([city, amount]) => (
+                <div key={city} className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">{city}</span>
+                  <span className="font-mono font-medium">{formatMAD(amount)}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -1242,7 +1325,7 @@ export const Sales = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="bg-section border border-border rounded-lg grid grid-cols-6 w-full p-1.5 gap-1.5">
+        <TabsList className="bg-section border border-border rounded-lg grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 w-full p-1.5 gap-1.5 h-auto">
           <TabsTrigger
             value="delivery_note"
             className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
@@ -1256,6 +1339,13 @@ export const Sales = () => {
           >
             <FileText className="w-4 h-4" />
             {t('documents.divers')}
+          </TabsTrigger>
+          <TabsTrigger
+            value="prelevement"
+            className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+          >
+            <FileText className="w-4 h-4" />
+            Prélèvement
           </TabsTrigger>
           <TabsTrigger
             value="invoice"
@@ -1349,6 +1439,23 @@ export const Sales = () => {
                           </SelectContent>
                         </Select>
                       </div>
+                      <div className="space-y-2">
+                        <Label>{t('documents.bankAccount')}</Label>
+                        <Select value={formBankAccount} onValueChange={setFormBankAccount}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('documents.selectBankAccount')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">{t('common.none')}</SelectItem>
+                            {bankAccounts.map((account) => (
+                              <SelectItem key={account.id} value={account.id}>
+                                {account.name} - {account.bank} ({account.accountNumber})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
                       {documentType === 'divers' ? (
                         <div className="space-y-2">
                           <div className="flex items-center space-x-2 pt-6">
@@ -2137,6 +2244,174 @@ export const Sales = () => {
                                     <ArrowRightLeft className="w-4 h-4" />
                                   </Button>
                                 )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
+
+
+        {/* Prélèvement Tab */}
+        <TabsContent value="prelevement" className="space-y-6">
+          <Tabs defaultValue="create" className="space-y-6">
+            <TabsList className="bg-section border border-border rounded-lg p-1.5 gap-1.5">
+              <TabsTrigger
+                value="create"
+                className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                Create Prélèvement
+              </TabsTrigger>
+              <TabsTrigger
+                value="list"
+                className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+              >
+                <FileText className="w-4 h-4" />
+                All Prélèvements
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="create" className="space-y-6 animate-fade-in">
+              <PrelevementForm clients={clients} products={products} />
+            </TabsContent>
+
+            <TabsContent value="list" className="animate-fade-in">
+              <div className="space-y-4">
+                <div className="card-elevated p-4">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by prélèvement # or client..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                    {/* Status filter if applicable, for now simplified or same as others */}
+                  </div>
+                </div>
+
+                {selectedDocuments.size > 0 && (
+                  <div className="card-elevated p-4 flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground">
+                      {selectedDocuments.size} document{selectedDocuments.size > 1 ? 's' : ''} selected
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleBulkDelete} className="gap-2">
+                        <Trash2 className="w-4 h-4" />
+                        Delete Selected
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="gap-2">
+                            <Download className="w-4 h-4" />
+                            Export Selected
+                            <ChevronDown className="w-3 h-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={handleBulkExportPDF} disabled={selectedDocuments.size === 0}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            Export as PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleBulkExportCSV} disabled={selectedDocuments.size === 0}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            Export as CSV
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleBulkExportExcel} disabled={selectedDocuments.size === 0}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            Export as Excel
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                )}
+
+                <div className="card-elevated overflow-hidden border border-border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="w-[50px]">
+                          <Checkbox
+                            checked={filteredDocuments.length > 0 && selectedDocuments.size === filteredDocuments.length}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedDocuments(new Set(filteredDocuments.map(d => d.id)));
+                              } else {
+                                setSelectedDocuments(new Set());
+                              }
+                            }}
+                          />
+                        </TableHead>
+                        <TableHead>Numéro</TableHead>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Total</TableHead>
+                        <TableHead className="text-center">Statut</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredDocuments.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                            No prélèvements found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredDocuments.map((doc) => (
+                          <TableRow key={doc.id} className="group hover:bg-muted/50 transition-colors">
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedDocuments.has(doc.id)}
+                                onCheckedChange={() => toggleDocumentSelection(doc.id)}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-primary" />
+                                {formatDocumentId(doc.id, doc.type)}
+                              </div>
+                            </TableCell>
+                            <TableCell>{getClientDisplayName(doc)}</TableCell>
+                            <TableCell>{formatDate(doc.date)}</TableCell>
+                            <TableCell>
+                              <span className="font-medium text-primary">
+                                <CurrencyDisplay amount={doc.total} />
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {renderStatusSelect(doc)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                                  onClick={() => setViewingDocument(doc)}
+                                  title="View Details"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => handleDeleteDocument(doc)}
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -3668,10 +3943,10 @@ export const Sales = () => {
             </TabsContent>
           </Tabs>
         </TabsContent>
-      </Tabs>
+      </Tabs >
 
       {/* View Document Dialog */}
-      <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
+      < Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           {viewingDocument && (
             <>
@@ -3763,10 +4038,10 @@ export const Sales = () => {
             </>
           )}
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* Edit Document Dialog */}
-      <Dialog open={!!editingDocument} onOpenChange={() => setEditingDocument(null)}>
+      < Dialog open={!!editingDocument} onOpenChange={() => setEditingDocument(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           {editingDocument && (
             <>
@@ -3856,10 +4131,10 @@ export const Sales = () => {
             </>
           )}
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deletingDocument} onOpenChange={(open) => !open && setDeletingDocument(null)}>
+      < AlertDialog open={!!deletingDocument} onOpenChange={(open) => !open && setDeletingDocument(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {getDocumentTitle()}</AlertDialogTitle>
@@ -3878,8 +4153,8 @@ export const Sales = () => {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
-    </div>
+      </AlertDialog >
+    </div >
   );
 };
 

@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { invoicesService, InvoiceWithItems } from '@/services/invoices.service';
 import { estimatesService, EstimateWithItems } from '@/services/estimates.service';
 import { deliveryNotesService, DeliveryNoteWithItems } from '@/services/delivery-notes.service';
+import { prelevementsService, PrelevementWithItems } from '@/services/prelevements.service';
 import { creditNotesService, CreditNoteWithItems } from '@/services/credit-notes.service';
 import { treasuryService } from '@/services/treasury.service';
 import { productsService } from '@/services/products.service';
@@ -25,6 +26,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { UIContact } from './ContactsContext';
 import { useProducts } from './ProductsContext';
+import { generateDocumentNumber } from '@/lib/document-number-generator';
 
 // UI-friendly Sales Document interface (matches Sales page)
 export interface SalesItem {
@@ -45,7 +47,7 @@ export interface SalesDocument {
   items: SalesItem[];
   total: number;
   status: string;
-  type: 'delivery_note' | 'divers' | 'invoice' | 'estimate' | 'credit_note' | 'statement';
+  type: 'delivery_note' | 'divers' | 'invoice' | 'estimate' | 'credit_note' | 'statement' | 'prelevement';
   paymentMethod?: 'cash' | 'check' | 'bank_transfer';
   checkNumber?: string;
   bankAccountId?: string; // For invoices with check/bank_transfer payment
@@ -58,6 +60,7 @@ export interface SalesDocument {
   dueDate?: string;
   note?: string;
   taxEnabled?: boolean; // For divers documents
+  paymentWarehouseId?: string; // For cash payments to warehouse
   warehouseId?: string; // For delivery notes and divers
   // Additional fields for internal use
   _internalId?: string; // database ID
@@ -95,6 +98,11 @@ interface SalesContextType {
   createCreditNote: (data: Omit<SalesDocument, 'id' | 'type'>) => Promise<void>;
   updateCreditNote: (id: string, data: Partial<SalesDocument>) => Promise<void>;
   deleteCreditNote: (id: string) => Promise<void>;
+
+  prelevements: SalesDocument[];
+  createPrelevement: (data: Omit<SalesDocument, 'id' | 'type'>) => Promise<void>;
+  updatePrelevement: (id: string, data: Partial<SalesDocument>) => Promise<void>;
+  deletePrelevement: (id: string) => Promise<void>;
 
   // Refresh data
   refreshAll: () => Promise<void>;
@@ -265,6 +273,44 @@ const creditNoteToSalesDocument = (creditNote: CreditNoteWithItems): SalesDocume
   };
 };
 
+// Helper to convert prelevement to SalesDocument
+const prelevementToSalesDocument = (prelevement: PrelevementWithItems): SalesDocument => {
+  const clientData: UIContact | undefined = prelevement.client ? {
+    id: prelevement.client.id,
+    name: prelevement.client.name,
+    company: prelevement.client.company || '',
+    email: prelevement.client.email || '',
+    phone: prelevement.client.phone || '',
+    city: '',
+    ice: prelevement.client.ice || '',
+    ifNumber: prelevement.client.if_number || '',
+    rc: prelevement.client.rc || '',
+    status: 'active',
+    totalTransactions: 0
+  } : undefined;
+
+  return {
+    id: prelevement.document_id,
+    documentId: prelevement.document_id,
+    client: prelevement.client?.name || prelevement.client_id || '',
+    clientData,
+    date: prelevement.date,
+    items: prelevement.items.map(item => ({
+      id: item.id,
+      productId: item.product_id || undefined,
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unit_price,
+      total: item.total,
+    })),
+    total: prelevement.subtotal,
+    status: prelevement.status, // Use status directly or map if needed
+    type: 'prelevement',
+    note: prelevement.note || undefined,
+    _internalId: prelevement.id,
+  };
+};
+
 export const SalesProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -298,7 +344,14 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     staleTime: 30000,
   });
 
-  const isLoading = isLoadingInvoices || isLoadingEstimates || isLoadingDeliveryNotes || isLoadingCreditNotes;
+  // Fetch prelevements
+  const { data: prelevementsData = [], isLoading: isLoadingPrelevements } = useQuery({
+    queryKey: ['sales', 'prelevements'],
+    queryFn: () => prelevementsService.getAll(),
+    staleTime: 30000,
+  });
+
+  const isLoading = isLoadingInvoices || isLoadingEstimates || isLoadingDeliveryNotes || isLoadingCreditNotes || isLoadingPrelevements;
 
   // Convert to SalesDocument format
   const invoices: SalesDocument[] = useMemo(
@@ -329,6 +382,11 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
   const creditNotes: SalesDocument[] = useMemo(
     () => creditNotesData.map(creditNoteToSalesDocument),
     [creditNotesData]
+  );
+
+  const prelevements: SalesDocument[] = useMemo(
+    () => prelevementsData.map(prelevementToSalesDocument),
+    [prelevementsData]
   );
 
   // Helper to validate stock before document creation
@@ -372,6 +430,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
         check_number: data.paymentMethod === 'check' ? data.checkNumber : undefined,
         bank_account_id: data.bankAccountId,
         note: data.note,
+        payment_warehouse_id: data.paymentWarehouseId,
         items: data.items.map(item => ({
           product_id: item.productId && uuidRegex.test(item.productId) ? item.productId : null,
           description: item.description,
@@ -382,10 +441,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: async (invoice: InvoiceWithItems, variables: Omit<SalesDocument, 'id' | 'type'>) => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'invoices'] });
-
-      // NOTE: Treasury payment creation is now handled by the backend trigger on status change ('paid')
-      // This prevents duplicate/incomplete payments (missing bank_account_id)
-      // queryClient.invalidateQueries(['treasury', 'payments']);
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
 
       toast({ title: 'Invoice created successfully', variant: 'success' });
     },
@@ -677,7 +733,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
           documentId: invoiceId,
           dueDate: new Date(new Date().setDate(new Date(variables.date).getDate() + 30)).toISOString().split('T')[0], // Default 30 days
           note: `Auto-generated from Delivery Note ${blId || ''}` + (variables.note ? `\n${variables.note}` : ''),
-          status: 'draft',
+          status: (variables.bankAccountId || variables.paymentWarehouseId) ? 'paid' : 'draft',
           // Remove BL-specific fields if any, though SalesDocument type is shared
         });
 
@@ -950,6 +1006,85 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
   });
 
+  // Mutations for prelevements
+  const createPrelevementMutation = useMutation({
+    mutationFn: async (data: Omit<SalesDocument, 'id' | 'type'>) => {
+      return prelevementsService.create({
+        document_id: data.documentId || generateDocumentNumber('prelevement', prelevements, data.date),
+        client_id: data.clientData?.id,
+        date: data.date,
+        note: data.note,
+        items: data.items.map(item => ({
+          product_id: item.productId,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+        })),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales', 'prelevements'] });
+      toast({ title: 'Prelevement created successfully', variant: 'success' });
+    },
+    onError: (error: Error) => {
+      if (error.message.includes('duplicate key') || error.message.includes('document_id_key')) {
+        toast({
+          title: 'Error creating prelevement',
+          description: 'A document with this number already exists. Please try again.',
+          variant: 'destructive'
+        });
+        queryClient.invalidateQueries({ queryKey: ['sales', 'prelevements'] });
+      } else {
+        toast({ title: 'Error creating prelevement', description: error.message, variant: 'destructive' });
+      }
+    },
+  });
+
+  const updatePrelevementMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<SalesDocument> }) => {
+      const prelevement = prelevements.find(p => p.id === id || p._internalId === id);
+      if (!prelevement?._internalId) {
+        throw new Error('Prelevement not found');
+      }
+
+      return prelevementsService.update(prelevement._internalId, {
+        date: data.date,
+        status: data.status as any,
+        note: data.note,
+        items: data.items?.map(item => ({
+          product_id: item.productId,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+        })),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales', 'prelevements'] });
+      toast({ title: 'Prelevement updated successfully', variant: 'success' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error updating prelevement', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const deletePrelevementMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const prelevement = prelevements.find(p => p.id === id || p._internalId === id);
+      if (!prelevement?._internalId) {
+        throw new Error('Prelevement not found');
+      }
+      return prelevementsService.delete(prelevement._internalId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales', 'prelevements'] });
+      toast({ title: 'Prelevement deleted successfully', variant: 'success' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error deleting prelevement', description: error.message, variant: 'destructive' });
+    },
+  });
+
   // Refresh all data
   const refreshAll = async () => {
     await Promise.all([
@@ -957,6 +1092,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'estimates'] }),
       queryClient.invalidateQueries({ queryKey: ['sales', 'deliveryNotes'] }),
       queryClient.invalidateQueries({ queryKey: ['sales', 'creditNotes'] }),
+      queryClient.invalidateQueries({ queryKey: ['sales', 'prelevements'] }),
     ]);
   };
 
@@ -983,6 +1119,10 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     createCreditNote: async (data) => { await createCreditNoteMutation.mutateAsync(data); },
     updateCreditNote: async (id, data) => { await updateCreditNoteMutation.mutateAsync({ id, data }); },
     deleteCreditNote: async (id) => { await deleteCreditNoteMutation.mutateAsync(id); },
+    prelevements,
+    createPrelevement: async (data) => { await createPrelevementMutation.mutateAsync(data); },
+    updatePrelevement: async (id, data) => { await updatePrelevementMutation.mutateAsync({ id, data }); },
+    deletePrelevement: async (id) => { await deletePrelevementMutation.mutateAsync(id); },
     refreshAll,
   };
 

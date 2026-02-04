@@ -208,8 +208,10 @@ router.post('/', asyncHandler(async (req, res) => {
         payment_method,
         check_number,
         bank_account_id,
+        payment_warehouse_id,
         note,
         items,
+        status = 'draft'
     } = req.body;
 
     if (!document_id || !client_id || !date || !items || items.length === 0) {
@@ -233,9 +235,9 @@ router.post('/', asyncHandler(async (req, res) => {
         // Insert invoice
         const invoiceResult = await client.query(
             `INSERT INTO invoices (document_id, client_id, date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, bank_account_id, status, note)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'draft', $12)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *`,
-            [document_id, client_id, date, due_date || null, subtotal, vatRate, vatAmount, total, payment_method || null, payment_method === 'check' ? check_number : null, bank_account_id || null, note || null]
+            [document_id, client_id, date, due_date || null, subtotal, vatRate, vatAmount, total, payment_method || null, payment_method === 'check' ? check_number : null, bank_account_id || null, status, note || null]
         );
 
         const invoice = invoiceResult.rows[0];
@@ -247,6 +249,58 @@ router.post('/', asyncHandler(async (req, res) => {
          VALUES ($1, $2, $3, $4, $5, $6)`,
                 [invoice.id, item.product_id || null, item.description, item.quantity, item.unit_price, item.quantity * item.unit_price]
             );
+        }
+
+        // Handle Treasury Payment if status is PAID
+        if (status === 'paid') {
+            let paymentStatus = 'in-hand';
+            if (payment_method === 'cash' || payment_method === 'bank_transfer') {
+                paymentStatus = 'cleared';
+            }
+
+            // Create Treasury Payment
+            const paymentResult = await client.query(
+                `INSERT INTO treasury_payments 
+                (invoice_id, invoice_number, entity, amount, payment_method, bank, check_number, maturity_date, status, payment_date, payment_type, bank_account_id, warehouse_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), 'sales', $10, $11)
+                RETURNING *`,
+                [
+                    invoice.id,
+                    invoice.document_id,
+                    'Client', // Placeholder
+                    invoice.total,
+                    payment_method || 'bank_transfer',
+                    null,
+                    check_number,
+                    null,
+                    paymentStatus,
+                    bank_account_id || null,
+                    payment_warehouse_id || null
+                ]
+            );
+
+            // Update Entity with real Client Name
+            const clientResult = await client.query('SELECT name, company FROM contacts WHERE id = $1', [client_id]);
+            const clientName = clientResult.rows.length > 0 ? (clientResult.rows[0].company || clientResult.rows[0].name) : 'Unknown Client';
+            await client.query('UPDATE treasury_payments SET entity = $1 WHERE id = $2', [clientName, paymentResult.rows[0].id]);
+
+            // Update Balance if cleared
+            if (paymentStatus === 'cleared') {
+                if (bank_account_id) {
+                    await client.query(
+                        'UPDATE treasury_bank_accounts SET balance = balance + $1, updated_at = NOW() WHERE id = $2',
+                        [invoice.total, bank_account_id]
+                    );
+                } else if (payment_warehouse_id) {
+                    await client.query(
+                        `INSERT INTO treasury_warehouse_cash (warehouse_id, amount, created_at, updated_at) 
+                         VALUES ($1, $2, NOW(), NOW())
+                         ON CONFLICT (warehouse_id) 
+                         DO UPDATE SET amount = treasury_warehouse_cash.amount + EXCLUDED.amount, updated_at = NOW()`,
+                        [payment_warehouse_id, invoice.total]
+                    );
+                }
+            }
         }
 
         await client.query('COMMIT');

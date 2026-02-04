@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Plus, Search, Filter, Download, ArrowUpDown, Package, Eye, Edit, Trash2, FolderPlus, FileText, FileSpreadsheet, ChevronDown, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -87,6 +88,7 @@ export const Inventory = () => {
   const [editWarehouseStock, setEditWarehouseStock] = useState<Record<string, number>>({});
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [newProductData, setNewProductData] = useState<Partial<Product>>({
     sku: '',
     name: '',
@@ -100,6 +102,29 @@ export const Inventory = () => {
     lastMovement: new Date().toISOString().split('T')[0],
   });
   const [warehouseStock, setWarehouseStock] = useState<Record<string, number>>({});
+
+  const handleSelectProduct = (productId: string) => {
+    const newSelected = new Set(selectedProducts);
+    if (newSelected.has(productId)) {
+      newSelected.delete(productId);
+    } else {
+      newSelected.add(productId);
+    }
+    setSelectedProducts(newSelected);
+  };
+
+  const handleSelectCategory = (productIds: string[]) => {
+    const newSelected = new Set(selectedProducts);
+    const allSelected = productIds.every(id => newSelected.has(id));
+
+    if (allSelected) {
+      productIds.forEach(id => newSelected.delete(id));
+    } else {
+      productIds.forEach(id => newSelected.add(id));
+    }
+    setSelectedProducts(newSelected);
+  };
+
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -411,7 +436,7 @@ export const Inventory = () => {
         <div className="flex gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
+              <Button variant="default" className="gap-2">
                 <Download className="w-4 h-4" />
                 {t('common.export')}
                 <ChevronDown className="w-3 h-3" />
@@ -486,10 +511,10 @@ export const Inventory = () => {
           </div>
           <div className="flex gap-2">
             <Select value={activeWarehouse} onValueChange={(value) => setActiveWarehouse(value as Warehouse)}>
-              <SelectTrigger className="w-[200px] border-border bg-section hover:bg-section/80">
+              <SelectTrigger className="w-[200px] bg-primary text-primary-foreground border-primary hover:bg-primary/90 [&>svg]:text-primary-foreground">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
-                  <SelectValue placeholder="Select warehouse" className="font-medium text-foreground">
+                  <MapPin className="w-4 h-4 text-primary-foreground flex-shrink-0" />
+                  <SelectValue placeholder="Select warehouse" className="font-medium text-primary-foreground">
                     {isAllWarehouses ? 'All Warehouses' : warehouseInfo?.city}
                   </SelectValue>
                 </div>
@@ -583,7 +608,7 @@ export const Inventory = () => {
               </SelectContent>
             </Select>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[180px] bg-primary text-primary-foreground border-primary hover:bg-primary/90 [&>svg]:text-primary-foreground">
                 <SelectValue placeholder={t('inventory.category')} />
               </SelectTrigger>
               <SelectContent>
@@ -594,7 +619,7 @@ export const Inventory = () => {
               </SelectContent>
             </Select>
             <Select value={ageFilter} onValueChange={(value) => setAgeFilter(value as 'all' | 'new' | 'old')}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[180px] bg-primary text-primary-foreground border-primary hover:bg-primary/90 [&>svg]:text-primary-foreground">
                 <SelectValue placeholder={t('inventory.productAge')} />
               </SelectTrigger>
               <SelectContent>
@@ -605,7 +630,7 @@ export const Inventory = () => {
             </Select>
             <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="icon" className="w-[42px]" title={t('inventory.addCategory')}>
+                <Button variant="default" size="icon" className="w-[42px]" title={t('inventory.addCategory')}>
                   <FolderPlus className="w-4 h-4" />
                 </Button>
               </DialogTrigger>
@@ -655,7 +680,7 @@ export const Inventory = () => {
             </Dialog>
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[180px] bg-primary text-primary-foreground border-primary hover:bg-primary/90 [&>svg]:text-primary-foreground">
               <SelectValue placeholder={t('common.status')} />
             </SelectTrigger>
             <SelectContent>
@@ -670,20 +695,23 @@ export const Inventory = () => {
 
       {/* Data Table */}
       <div className="bg-white dark:bg-card rounded-lg shadow-sm border border-border">
-        {filteredProducts.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">
-            {t('common.noData')}
-          </div>
-        ) : (
-          <Accordion type="multiple" defaultValue={Array.from(new Set(filteredProducts.map(p => p.category)))} className="w-full">
-            {Object.entries(
-              filteredProducts.reduce((acc, product) => {
-                const category = product.category || "Uncategorized";
-                if (!acc[category]) acc[category] = [];
-                acc[category].push(product);
-                return acc;
-              }, {} as Record<string, typeof filteredProducts>)
-            ).map(([category, products]) => (
+        <Accordion type="multiple" defaultValue={categoryFilter === 'all' ? allCategories : [categoryFilter]} className="w-full">
+          {(categoryFilter === 'all' ? allCategories : [categoryFilter]).map((category) => {
+            const categoryProducts = filteredProducts.filter(p => p.category === category);
+
+            // If searching or filtering by status/age, and no products match in this category, 
+            // we typically hide the category. However, user requested "show as dropdown even if it empty".
+            // If categoryFilter is specific, we ALWAYS show it.
+            // If categoryFilter is 'all', we show it if it has products OR if search/filters are empty?
+            // User said: "if uuser create a category it shouuld show as dropdown even if it empty"
+            // Let's go with: Always show if categoryFilter is specific.
+            // If 'all', and search is active, hide empty ones? 
+            // Decision: To satisfy "show ... even if it empty", we show it. 
+            // But showing 20 empty categories when searching for "Apple" is bad UX.
+            // Compromise: If searchQuery is present, hide empty categories. If no search query, show all.
+            if (searchQuery && categoryProducts.length === 0) return null;
+
+            return (
               <AccordionItem key={category} value={category} className="border rounded-lg mb-4 overflow-hidden">
                 <AccordionTrigger className="hover:no-underline px-4 py-3 bg-muted/50 hover:bg-muted/70 transition-colors data-[state=open]:bg-primary/5 data-[state=open]:text-primary mb-0">
                   <div className="flex items-center gap-3">
@@ -692,18 +720,26 @@ export const Inventory = () => {
                     </div>
                     <span className="font-semibold text-lg tracking-tight">{category}</span>
                     <Badge variant="secondary" className="ml-2 font-mono">
-                      {products.length}
+                      {categoryProducts.length}
                     </Badge>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="px-0 pb-0">
-                  <div className="border-t">
+                  {/* Vertical Scroll for > 6 items (approx 50px per row * 6 = 300px + header) */}
+                  <div className="border-t max-h-[400px] overflow-y-auto">
                     <Table>
-                      <TableHeader>
+                      <TableHeader className="bg-muted/5 sticky top-0 z-10 backdrop-blur-sm">
                         <TableRow>
-                          <TableHead className="w-[100px]">{t('inventory.sku')}</TableHead>
-                          <TableHead>{t('inventory.productName')}</TableHead>
-                          <TableHead>{t('inventory.category')}</TableHead>
+                          <TableHead className="w-[40px]">
+                            <Checkbox
+                              checked={categoryProducts.length > 0 && categoryProducts.every(p => selectedProducts.has(p.id))}
+                              onCheckedChange={() => handleSelectCategory(categoryProducts.map(p => p.id))}
+                              aria-label="Select all in category"
+                            />
+                          </TableHead>
+                          <TableHead className="min-w-[100px]">{t('inventory.sku')}</TableHead>
+                          <TableHead className="min-w-[200px]">{t('inventory.productName')}</TableHead>
+                          <TableHead className="min-w-[120px]">{t('inventory.category')}</TableHead>
                           <TableHead className="text-center">{t('common.quantity')}</TableHead>
                           <TableHead className="text-center">{t('inventory.minStock')}</TableHead>
                           <TableHead className="text-right">{t('inventory.unitPrice')}</TableHead>
@@ -712,62 +748,80 @@ export const Inventory = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {products.map((product) => (
-                          <TableRow key={product.id}>
-                            <TableCell className="font-mono text-sm max-w-[100px] truncate" title={product.sku}>{product.sku}</TableCell>
-                            <TableCell className="font-medium max-w-[200px] truncate" title={product.name}>{product.name}</TableCell>
-                            <TableCell className="text-muted-foreground max-w-[120px] truncate" title={product.category}>{product.category}</TableCell>
-                            <TableCell className="text-center font-medium number-cell">
-                              {getProductStock(product.id)} {t(`unit.${(product.unit || 'Piece').toLowerCase()}`)}
-                            </TableCell>
-                            <TableCell className="text-center text-muted-foreground number-cell">
-                              {product.minStock} {t(`unit.${(product.unit || 'Piece').toLowerCase()}`)}
-                            </TableCell>
-                            <TableCell className="text-right font-medium number-cell">
-                              <CurrencyDisplay amount={product.price} />
-                            </TableCell>
-                            <TableCell className="text-center">{getStatusBadge(product.status)}</TableCell>
-                            <TableCell className="w-[120px]">
-                              <div className="flex items-center justify-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleViewProduct(product)}
-                                  title={t('inventory.viewProduct')}
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleEditProduct(product)}
-                                  title={t('inventory.editProduct')}
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
-                                  onClick={() => handleDeleteProduct(product)}
-                                  title={t('inventory.deleteProduct')}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
+                        {categoryProducts.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={9} className="h-24 text-center"> {/* Updated colSpan to 9 */}
+                              <div className="flex flex-col items-center justify-center text-muted-foreground">
+                                <Package className="w-8 h-8 mb-2 opacity-50" />
+                                <p>{t('common.noData')}</p>
                               </div>
                             </TableCell>
                           </TableRow>
-                        ))}
+                        ) : (
+                          categoryProducts.map((product) => (
+                            <TableRow key={product.id} data-state={selectedProducts.has(product.id) && "selected"}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedProducts.has(product.id)}
+                                  onCheckedChange={() => handleSelectProduct(product.id)}
+                                  aria-label={`Select ${product.name}`}
+                                />
+                              </TableCell>
+                              <TableCell className="font-mono text-sm" title={product.sku}>{product.sku}</TableCell>
+                              <TableCell className="font-medium" title={product.name}>{product.name}</TableCell>
+                              <TableCell className="text-muted-foreground" title={product.category}>{product.category}</TableCell>
+                              <TableCell className="text-center font-medium number-cell">
+                                {getProductStock(product.id)} {t(`unit.${(product.unit || 'Piece').toLowerCase()}`)}
+                              </TableCell>
+                              <TableCell className="text-center text-muted-foreground number-cell">
+                                {product.minStock} {t(`unit.${(product.unit || 'Piece').toLowerCase()}`)}
+                              </TableCell>
+                              <TableCell className="text-right font-medium number-cell">
+                                <CurrencyDisplay amount={product.price} />
+                              </TableCell>
+                              <TableCell className="text-center">{getStatusBadge(product.status)}</TableCell>
+                              <TableCell className="w-[120px]">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => handleViewProduct(product)}
+                                    title={t('inventory.viewProduct')}
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => handleEditProduct(product)}
+                                    title={t('inventory.editProduct')}
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                    onClick={() => handleDeleteProduct(product)}
+                                    title={t('inventory.deleteProduct')}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
                       </TableBody>
                     </Table>
                   </div>
                 </AccordionContent>
               </AccordionItem>
-            ))}
-          </Accordion>
-        )}
+            );
+          })}
+        </Accordion>
       </div>
 
       {/* Summary */}
