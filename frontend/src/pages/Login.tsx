@@ -239,7 +239,12 @@ export const Login = () => {
             <div className="mt-6 text-center">
               <p className="text-sm text-muted-foreground">
                 {t('auth.dontHaveAccount')}{' '}
-                <a href="#" className="text-primary hover:underline font-medium">
+                <a
+                  href="https://api.whatsapp.com/send/?phone=212709610998&text&type=phone_number&app_absent=0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline font-medium"
+                >
                   {t('auth.contactSales')}
                 </a>
               </p>
