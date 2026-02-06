@@ -15,7 +15,7 @@ router.get('/', asyncHandler(async (req, res) => {
     const { status, clientId, startDate, endDate } = req.query;
 
     let sql = `
-    SELECT i.*, 
+    SELECT i.*, i.amount_paid,
            c.id as client_id, c.name as client_name, c.company as client_company,
            c.email as client_email, c.phone as client_phone, c.ice as client_ice,
            c.if_number as client_if_number, c.rc as client_rc,
@@ -92,7 +92,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const invoiceResult = await query(
-        `SELECT i.*, 
+        `SELECT i.*, i.amount_paid,
             c.id as client_id, c.name as client_name, c.company as client_company,
             c.email as client_email, c.phone as client_phone, c.ice as client_ice,
             c.if_number as client_if_number, c.rc as client_rc,
@@ -154,7 +154,7 @@ router.get('/document/:documentId', asyncHandler(async (req, res) => {
     req.params.id = result.rows[0].id;
 
     const invoiceResult = await query(
-        `SELECT i.*, 
+        `SELECT i.*, i.amount_paid,
             c.id as client_id, c.name as client_name, c.company as client_company,
             c.email as client_email, c.phone as client_phone, c.ice as client_ice,
             c.if_number as client_if_number, c.rc as client_rc,
@@ -326,12 +326,20 @@ router.post('/', asyncHandler(async (req, res) => {
  */
 router.put('/:id', asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { date, due_date, payment_method, check_number, bank_account_id, status, note, items } = req.body;
+    const { date, due_date, payment_method, check_number, bank_account_id, status, note, items, amount_paid } = req.body;
 
     const client = await getClient();
 
     try {
         await client.query('BEGIN');
+
+        // Fetch existing invoice to get current amount_paid and total
+        const existingInvoiceResult = await client.query('SELECT * FROM invoices WHERE id = $1', [id]);
+        if (existingInvoiceResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Not Found', message: 'Invoice not found' });
+        }
+        const existingInvoice = existingInvoiceResult.rows[0];
 
         // Calculate new totals if items provided
         let subtotal, vatAmount, total;
@@ -339,6 +347,26 @@ router.put('/:id', asyncHandler(async (req, res) => {
             subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
             vatAmount = subtotal * 0.2;
             total = subtotal + vatAmount;
+        } else {
+            // Use existing totals
+            total = existingInvoice.total;
+        }
+
+        // Determine the new amount_paid and auto-calculate status
+        let newAmountPaid = amount_paid !== undefined ? parseFloat(amount_paid) : existingInvoice.amount_paid;
+        let calculatedStatus = status; // Use provided status if given
+
+        // Auto-calculate status based on amount_paid if not explicitly provided
+        if (amount_paid !== undefined && !status) {
+            if (newAmountPaid >= total) {
+                calculatedStatus = 'paid';
+            } else if (newAmountPaid > 0 && newAmountPaid < total) {
+                calculatedStatus = 'partially_paid';
+            } else if (newAmountPaid === 0) {
+                calculatedStatus = existingInvoice.status === 'paid' || existingInvoice.status === 'partially_paid'
+                    ? 'sent'
+                    : existingInvoice.status;
+            }
         }
 
         // Build update query dynamically
@@ -351,8 +379,9 @@ router.put('/:id', asyncHandler(async (req, res) => {
         if (payment_method !== undefined) { updates.push(`payment_method = $${paramIndex++}`); params.push(payment_method); }
         if (check_number !== undefined) { updates.push(`check_number = $${paramIndex++}`); params.push(payment_method === 'check' ? check_number : null); }
         if (bank_account_id !== undefined) { updates.push(`bank_account_id = $${paramIndex++}`); params.push(bank_account_id); }
-        if (status !== undefined) { updates.push(`status = $${paramIndex++}`); params.push(status); }
+        if (calculatedStatus !== undefined) { updates.push(`status = $${paramIndex++}`); params.push(calculatedStatus); }
         if (note !== undefined) { updates.push(`note = $${paramIndex++}`); params.push(note); }
+        if (amount_paid !== undefined) { updates.push(`amount_paid = $${paramIndex++}`); params.push(newAmountPaid); }
         if (subtotal !== undefined) {
             updates.push(`subtotal = $${paramIndex++}`); params.push(subtotal);
             updates.push(`vat_amount = $${paramIndex++}`); params.push(vatAmount);
@@ -371,6 +400,8 @@ router.put('/:id', asyncHandler(async (req, res) => {
             return res.status(404).json({ error: 'Not Found', message: 'Invoice not found' });
         }
 
+        const updatedInvoice = updateResult.rows[0];
+
         // Update items if provided
         if (items) {
             await client.query('DELETE FROM invoice_items WHERE invoice_id = $1', [id]);
@@ -384,59 +415,53 @@ router.put('/:id', asyncHandler(async (req, res) => {
             }
         }
 
-        await client.query('COMMIT');
+        // Treasury Integration: Handle payment difference
+        if (amount_paid !== undefined) {
+            const paymentDifference = newAmountPaid - existingInvoice.amount_paid;
 
-        // Check if invoice is now PAID and handle treasury payment
-        if (status === 'paid') {
-            const existingPaymentFn = await client.query(
-                'SELECT id FROM treasury_payments WHERE invoice_id = $1',
-                [id]
-            );
-
-            if (existingPaymentFn.rows.length === 0) {
-                // Fetch full invoice data to ensure we have totals and methods
-                const fullInvoiceRes = await client.query('SELECT * FROM invoices WHERE id = $1', [id]);
-                const fullInvoice = fullInvoiceRes.rows[0];
-
+            if (paymentDifference > 0) {
+                // Payment increased - record in treasury
                 let paymentStatus = 'in-hand';
-                if (fullInvoice.payment_method === 'cash' || fullInvoice.payment_method === 'bank_transfer') {
+                const invoicePaymentMethod = payment_method || existingInvoice.payment_method;
+                if (invoicePaymentMethod === 'cash' || invoicePaymentMethod === 'bank_transfer') {
                     paymentStatus = 'cleared';
                 }
 
-                // Create Treasury Payment
+                // Get client name for treasury record
+                const clientResult = await client.query('SELECT name, company FROM contacts WHERE id = $1', [updatedInvoice.client_id]);
+                const clientName = clientResult.rows.length > 0 ? (clientResult.rows[0].company || clientResult.rows[0].name) : 'Unknown Client';
+
+                // Create treasury payment for the difference
                 const paymentResult = await client.query(
                     `INSERT INTO treasury_payments 
                     (invoice_id, invoice_number, entity, amount, payment_method, bank, check_number, maturity_date, status, payment_date, payment_type, bank_account_id)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), 'sales', $10)
                     RETURNING *`,
                     [
-                        fullInvoice.id,
-                        fullInvoice.document_id,
-                        'Client',
-                        fullInvoice.total,
-                        fullInvoice.payment_method || 'bank_transfer',
+                        updatedInvoice.id,
+                        updatedInvoice.document_id,
+                        clientName,
+                        paymentDifference,
+                        invoicePaymentMethod || 'bank_transfer',
                         null,
-                        fullInvoice.check_number,
+                        updatedInvoice.check_number,
                         null,
                         paymentStatus,
-                        fullInvoice.bank_account_id
+                        updatedInvoice.bank_account_id
                     ]
                 );
 
-                // Update Entity
-                const clientResult = await client.query('SELECT name, company FROM contacts WHERE id = $1', [fullInvoice.client_id]);
-                const clientName = clientResult.rows.length > 0 ? (clientResult.rows[0].company || clientResult.rows[0].name) : 'Unknown Client';
-                await client.query('UPDATE treasury_payments SET entity = $1 WHERE id = $2', [clientName, paymentResult.rows[0].id]);
-
-                // Update Balance
-                if (paymentStatus === 'cleared' && fullInvoice.bank_account_id) {
+                // Update bank account balance if payment is cleared
+                if (paymentStatus === 'cleared' && updatedInvoice.bank_account_id) {
                     await client.query(
                         'UPDATE treasury_bank_accounts SET balance = balance + $1, updated_at = NOW() WHERE id = $2',
-                        [fullInvoice.total, fullInvoice.bank_account_id]
+                        [paymentDifference, updatedInvoice.bank_account_id]
                     );
                 }
             }
         }
+
+        await client.query('COMMIT');
 
         // Fetch complete invoice
         const itemsResult = await query('SELECT * FROM invoice_items WHERE invoice_id = $1', [id]);
@@ -477,6 +502,19 @@ router.patch('/:id/status', asyncHandler(async (req, res) => {
         }
 
         const invoice = result.rows[0];
+
+        // NOTIFICATION: If invoice marked as PAID, notify user
+        if (status === 'paid') {
+            await client.query(
+                `INSERT INTO notifications (title, message, type, action_url, action_label, created_at)
+                 VALUES ($1, $2, 'success', $3, 'View Invoice', NOW())`,
+                [
+                    'Payment Received',
+                    `Invoice ${invoice.document_id} has been marked as PAID.`,
+                    `/sales/invoices/${id}`
+                ]
+            );
+        }
 
         // If invoice is marked as PAID, create a treasury payment if it doesn't exist
         if (status === 'paid') {

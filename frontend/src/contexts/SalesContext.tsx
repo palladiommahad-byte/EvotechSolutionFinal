@@ -59,6 +59,7 @@ export interface SalesDocument {
   };
   dueDate?: string;
   note?: string;
+  amount_paid?: number; // For invoices
   taxEnabled?: boolean; // For divers documents
   paymentWarehouseId?: string; // For cash payments to warehouse
   warehouseId?: string; // For delivery notes and divers
@@ -141,6 +142,7 @@ const invoiceToSalesDocument = (invoice: InvoiceWithItems): SalesDocument => {
       total: item.total,
     })),
     total: invoice.total,
+    amount_paid: invoice.amount_paid,
     status: mapInvoiceStatusToUI(invoice.status),
     type: 'invoice',
     paymentMethod: invoice.payment_method || undefined,
@@ -479,6 +481,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
         status: data.status ? mapInvoiceStatus(data.status) : undefined,
         payment_method: paymentMethod,
         check_number: checkNumber,
+        amount_paid: data.amount_paid,
         note: data.note,
         items: data.items?.map(item => ({
           product_id: item.productId,
@@ -731,7 +734,10 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
         createInvoiceMutation.mutate({
           ...variables,
           documentId: invoiceId,
-          dueDate: new Date(new Date().setDate(new Date(variables.date).getDate() + 30)).toISOString().split('T')[0], // Default 30 days
+          dueDate: variables.dueDate || new Date(new Date().setDate(new Date(variables.date).getDate() + 30)).toISOString().split('T')[0], // Use selected due date or default 30 days
+          paymentMethod: variables.paymentMethod,
+          checkNumber: variables.checkNumber,
+          bankAccountId: variables.bankAccountId, // Ensure bank account is passed
           note: `Auto-generated from Delivery Note ${blId || ''}` + (variables.note ? `\n${variables.note}` : ''),
           status: (variables.bankAccountId || variables.paymentWarehouseId) ? 'paid' : 'draft',
           // Remove BL-specific fields if any, though SalesDocument type is shared

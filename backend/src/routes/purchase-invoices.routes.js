@@ -160,12 +160,41 @@ router.post('/', asyncHandler(async (req, res) => {
  */
 router.put('/:id', asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, bank_account_id, status, note, attachment_url, items } = req.body;
+    const { date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, bank_account_id, status, note, attachment_url, items, amount_paid } = req.body;
 
     const client = await getClient();
 
     try {
         await client.query('BEGIN');
+
+        // Fetch existing invoice to calculate payment difference
+        const existingResult = await client.query(
+            'SELECT amount_paid, total, payment_method, bank_account_id FROM purchase_invoices WHERE id = $1',
+            [id]
+        );
+
+        if (existingResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Not Found', message: 'Purchase invoice not found' });
+        }
+
+        const existing = existingResult.rows[0];
+        const oldAmountPaid = parseFloat(existing.amount_paid) || 0;
+        const newAmountPaid = amount_paid !== undefined ? parseFloat(amount_paid) : oldAmountPaid;
+        const invoiceTotal = total !== undefined ? parseFloat(total) : parseFloat(existing.total);
+        const paymentDifference = newAmountPaid - oldAmountPaid;
+
+        // Auto-calculate status based on amount_paid
+        let autoStatus = status;
+        if (amount_paid !== undefined) {
+            if (newAmountPaid >= invoiceTotal) {
+                autoStatus = 'paid';
+            } else if (newAmountPaid > 0 && newAmountPaid < invoiceTotal) {
+                autoStatus = 'partially_paid';
+            } else if (newAmountPaid === 0) {
+                autoStatus = 'received';
+            }
+        }
 
         const updates = [];
         const params = [];
@@ -180,7 +209,8 @@ router.put('/:id', asyncHandler(async (req, res) => {
         if (payment_method !== undefined) { updates.push(`payment_method = $${paramIndex++}`); params.push(payment_method); }
         if (check_number !== undefined) { updates.push(`check_number = $${paramIndex++}`); params.push(check_number); }
         if (bank_account_id !== undefined) { updates.push(`bank_account_id = $${paramIndex++}`); params.push(bank_account_id); }
-        if (status !== undefined) { updates.push(`status = $${paramIndex++}`); params.push(status); }
+        if (amount_paid !== undefined) { updates.push(`amount_paid = $${paramIndex++}`); params.push(newAmountPaid); }
+        if (autoStatus !== undefined) { updates.push(`status = $${paramIndex++}`); params.push(autoStatus); }
         if (note !== undefined) { updates.push(`note = $${paramIndex++}`); params.push(note); }
         if (attachment_url !== undefined) { updates.push(`attachment_url = $${paramIndex++}`); params.push(attachment_url); }
         updates.push(`updated_at = NOW()`);
@@ -191,9 +221,46 @@ router.put('/:id', asyncHandler(async (req, res) => {
             params
         );
 
-        if (updateResult.rows.length === 0) {
-            await client.query('ROLLBACK');
-            return res.status(404).json({ error: 'Not Found', message: 'Purchase invoice not found' });
+        // Treasury integration: if payment increased, record it
+        if (paymentDifference > 0) {
+            const finalPaymentMethod = payment_method || existing.payment_method || 'cash';
+            const finalBankAccountId = bank_account_id !== undefined ? bank_account_id : existing.bank_account_id;
+
+            // Get supplier name
+            const supplierResult = await client.query(
+                'SELECT name FROM contacts WHERE id = $1',
+                [updateResult.rows[0].supplier_id]
+            );
+            const supplierName = supplierResult.rows[0]?.name || 'Unknown Supplier';
+
+            // Insert treasury payment record
+            await client.query(
+                `INSERT INTO treasury_payments (
+                    invoice_id, invoice_number, entity, amount, payment_method, 
+                    check_number, payment_date, payment_type, bank_account_id, status
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                [
+                    id,
+                    updateResult.rows[0].document_id,
+                    supplierName,
+                    paymentDifference,
+                    finalPaymentMethod,
+                    check_number || null,
+                    date || new Date().toISOString().split('T')[0],
+                    'purchase',
+                    finalBankAccountId,
+                    finalPaymentMethod === 'check' ? 'in-hand' : 'cleared'
+                ]
+            );
+
+            // Update bank account balance if payment is cleared (cash or bank_transfer)
+            if ((finalPaymentMethod === 'cash' || finalPaymentMethod === 'bank_transfer') && finalBankAccountId) {
+                // For purchases, payment DECREASES the bank balance
+                await client.query(
+                    'UPDATE treasury_bank_accounts SET balance = balance - $1, updated_at = NOW() WHERE id = $2',
+                    [paymentDifference, finalBankAccountId]
+                );
+            }
         }
 
         if (items) {

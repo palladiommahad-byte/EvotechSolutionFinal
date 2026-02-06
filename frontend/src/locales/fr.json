@@ -251,11 +251,6 @@
     "applied": "Appliqué",
     "confirmed": "Confirmé"
   },
-  "paymentMethods": {
-    "cash": "Espèces",
-    "check": "Chèque",
-    "bankTransfer": "Virement bancaire"
-  },
   "documents": {
     "invoice": "Facture",
     "estimate": "Devis",
@@ -428,6 +423,20 @@
     "selectBankAccount": "Sélectionner le compte bancaire",
     "none": "Aucun"
   },
+  "invoice": {
+    "amount_paid": "Montant Versé",
+    "balance_due": "Reste à Payer"
+  },
+  "ledger": {
+    "title": "Grand Livre",
+    "debit": "Débit (Total)",
+    "credit": "Crédit (Versé)",
+    "balance": "Solde (Reste)",
+    "totalDebit": "Total Débit",
+    "totalCredit": "Total Crédit",
+    "outstandingBalance": "Reste à Percevoir",
+    "globalLedger": "Grand Livre des Factures"
+  },
   "purchases": {
     "title": "Achats",
     "description": "Gérer les bons de commande, bons de livraison, factures et relevés",
@@ -574,7 +583,23 @@
     "totalAmount": "Montant total",
     "paidAmount": "Montant payé",
     "unpaidAmount": "Montant impayé",
-    "overdueAmount": "Montant en retard"
+    "overdueAmount": "Montant en retard",
+    "invoiceBreakdownByClient": "Répartition des factures par client",
+    "summaryInvoicesPerClient": "Résumé des factures par client avec montants payés/impayés",
+    "statusSummary": "Résumé par statut",
+    "paymentSummary": "Résumé des paiements",
+    "totalInvoicesAmount": "Montant total des factures",
+    "outstandingAmount": "Montant impayé",
+    "paymentRate": "Taux de paiement",
+    "invoiceBreakdownByStatus": "Répartition des factures par statut",
+    "detailedViewInvoices": "Vue détaillée des factures"
+  },
+  "paymentMethods": {
+    "cash": "Espèces",
+    "check": "Chèque",
+    "bank_transfer": "Virement bancaire",
+    "undefined": "Non défini",
+    "bankTransfer": "Virement bancaire"
   },
   "crm": {
     "title": "CRM",

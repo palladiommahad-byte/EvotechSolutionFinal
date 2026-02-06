@@ -21,9 +21,13 @@ const prelevementsRoutes = require('./routes/prelevements.routes');
 
 // Import middleware
 const { errorHandler } = require('./middleware/error.middleware');
+const { initCronJobs } = require('./services/cron-jobs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Initialize Cron Jobs
+initCronJobs();
 
 // Middleware
 app.use(cors({

@@ -28,7 +28,8 @@ export interface Invoice {
   payment_method: 'cash' | 'check' | 'bank_transfer' | null;
   check_number?: string | null;
   bank_account_id?: string | null;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+  amount_paid: number;
+  status: 'draft' | 'sent' | 'paid' | 'partially_paid' | 'overdue' | 'cancelled';
   note: string | null;
   created_at: string;
   updated_at: string;
@@ -132,6 +133,7 @@ export const invoicesService = {
     check_number?: string | null;
     bank_account_id?: string | null;
     status?: Invoice['status'];
+    amount_paid?: number;
     note?: string;
     items?: Array<{
       product_id?: string | null;

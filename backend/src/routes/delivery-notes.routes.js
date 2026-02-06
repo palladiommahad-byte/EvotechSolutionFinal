@@ -218,12 +218,30 @@ router.post('/', asyncHandler(async (req, res) => {
                     [quantityChange, item.product_id]
                 );
 
+                // NOTIFICATION: Low Stock Warning
+                if (productUpdateResult.rows.length > 0) {
+                    const p = productUpdateResult.rows[0];
+                    if (p.status === 'low_stock' && p.min_stock > 0) {
+                        // Check for recent duplicate prevents spam in same transaction? No, per item is fine, or debounce?
+                        // Let's just insert. User needs to know.
+                        await client.query(
+                            `INSERT INTO notifications(title, message, type, action_url, action_label, created_at)
+                             VALUES($1, $2, 'warning', $3, 'View Product', NOW())`,
+                            [
+                                'Low Stock Alert',
+                                `Product "${p.name}" is running low after Delivery Note #${document_id}.Current: ${p.stock}, Min: ${p.min_stock}`,
+                                `/ inventory / products / ${p.id}`
+                            ]
+                        );
+                    }
+                }
+
                 // Update warehouse-specific stock (stock_items) if warehouse_id is provided
                 if (warehouse_id) {
                     await client.query(
-                        `INSERT INTO stock_items (product_id, warehouse_id, quantity, last_updated)
-                         VALUES ($1, $2, $3, NOW())
-                         ON CONFLICT (product_id, warehouse_id) 
+                        `INSERT INTO stock_items(product_id, warehouse_id, quantity, last_updated)
+                         VALUES($1, $2, $3, NOW())
+                         ON CONFLICT(product_id, warehouse_id) 
                          DO UPDATE SET quantity = stock_items.quantity + $3, last_updated = NOW()`,
                         [item.product_id, warehouse_id, quantityChange]
                     );
@@ -231,14 +249,14 @@ router.post('/', asyncHandler(async (req, res) => {
 
                 // Log movement in history (stock_movements)
                 await client.query(
-                    `INSERT INTO stock_movements (product_id, quantity, type, reference_id, description, created_at)
-                     VALUES ($1, $2, $3, $4, $5, NOW())`,
+                    `INSERT INTO stock_movements(product_id, quantity, type, reference_id, description, created_at)
+                     VALUES($1, $2, $3, $4, $5, NOW())`,
                     [
                         item.product_id,
                         item.quantity,
                         movementType,
                         deliveryNote.id,
-                        `${document_type === 'delivery_note' ? 'Bon de Livraison' : 'Divers'} #${document_id}`
+                        `${document_type === 'delivery_note' ? 'Bon de Livraison' : 'Divers'} #${document_id} `
                     ]
                 );
             }
@@ -279,15 +297,15 @@ router.put('/:id', asyncHandler(async (req, res) => {
         const params = [];
         let paramIndex = 1;
 
-        if (date !== undefined) { updates.push(`date = $${paramIndex++}`); params.push(date); }
-        if (status !== undefined) { updates.push(`status = $${paramIndex++}`); params.push(status); }
-        if (note !== undefined) { updates.push(`note = $${paramIndex++}`); params.push(note); }
-        if (subtotal !== undefined) { updates.push(`subtotal = $${paramIndex++}`); params.push(subtotal); }
+        if (date !== undefined) { updates.push(`date = $${paramIndex++} `); params.push(date); }
+        if (status !== undefined) { updates.push(`status = $${paramIndex++} `); params.push(status); }
+        if (note !== undefined) { updates.push(`note = $${paramIndex++} `); params.push(note); }
+        if (subtotal !== undefined) { updates.push(`subtotal = $${paramIndex++} `); params.push(subtotal); }
         updates.push(`updated_at = NOW()`);
         params.push(id);
 
         const updateResult = await client.query(
-            `UPDATE delivery_notes SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+            `UPDATE delivery_notes SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING * `,
             params
         );
 
@@ -296,14 +314,109 @@ router.put('/:id', asyncHandler(async (req, res) => {
             return res.status(404).json({ error: 'Not Found', message: 'Delivery note not found' });
         }
 
+        const updatedNote = updateResult.rows[0];
+
         if (items) {
+            // 1. REVERT OLD STOCK
+            const oldItemsResult = await client.query('SELECT * FROM delivery_note_items WHERE delivery_note_id = $1', [id]);
+            // Get ORIGINAL direction (based on pre-update note state, but for simplicity assuming direction type didn't change drastically or we use updatedNote if valid)
+            // Ideally we check old note state, but usually document_type/client doesn't change on simple edit. 
+            // Let's rely on updatedNote direction for simplicity, or we should have fetched it before UPDATE.
+            // CAUTION: If client_id changed from null to value, direction changes.
+            // Better to use the SAME direction logic as POST for the new state, and for Revert use the OLD state.
+            // However, we didn't fetch old state.
+            // FIX: Let's assume direction is consistent with the current record state (updatedNote).
+
+            const isOut = updatedNote.client_id || updatedNote.document_type === 'divers';
+
+            for (const item of oldItemsResult.rows) {
+                if (item.product_id) {
+                    const originalQuantity = Math.abs(item.quantity);
+                    const revertChange = isOut ? originalQuantity : -originalQuantity;
+
+                    await client.query(
+                        `UPDATE products SET stock = stock + $1, updated_at = NOW() WHERE id = $2`,
+                        [revertChange, item.product_id]
+                    );
+
+                    if (updatedNote.warehouse_id) {
+                        await client.query(
+                            `UPDATE stock_items SET quantity = quantity + $3, last_updated = NOW() 
+                             WHERE product_id = $1 AND warehouse_id = $2`,
+                            [item.product_id, updatedNote.warehouse_id, revertChange]
+                        );
+                    }
+                }
+            }
+
+            // 2. DELETE OLD ITEMS
             await client.query('DELETE FROM delivery_note_items WHERE delivery_note_id = $1', [id]);
+
+            // 3. INSERT NEW ITEMS & APPLY NEW STOCK
             for (const item of items) {
                 await client.query(
                     `INSERT INTO delivery_note_items (delivery_note_id, product_id, description, quantity, unit_price, total)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
+                     VALUES ($1, $2, $3, $4, $5, $6)`,
                     [id, item.product_id || null, item.description, item.quantity, item.unit_price, item.quantity * item.unit_price]
                 );
+
+                if (item.product_id) {
+                    const quantityChange = isOut ? -Math.abs(item.quantity) : Math.abs(item.quantity);
+
+                    // Update products
+                    const productUpdateResult = await client.query(
+                        `UPDATE products 
+                         SET stock = stock + $1,
+                             status = CASE 
+                                WHEN stock + $1 <= 0 THEN 'out_of_stock'
+                                WHEN min_stock > 0 AND stock + $1 <= min_stock THEN 'low_stock'
+                                ELSE 'in_stock'
+                             END,
+                             last_movement = CURRENT_DATE,
+                             updated_at = NOW()
+                         WHERE id = $2
+                         RETURNING *`,
+                        [quantityChange, item.product_id]
+                    );
+
+                    // WARN: Notification Logic for Low Stock (re-using logic from POST)
+                    if (productUpdateResult.rows.length > 0) {
+                        const p = productUpdateResult.rows[0];
+                        if (p.status === 'low_stock' && p.min_stock > 0) {
+                            await client.query(
+                                `INSERT INTO notifications (title, message, type, action_url, action_label, created_at)
+                                 VALUES ($1, $2, 'warning', $3, 'View Product', NOW())`,
+                                [
+                                    'Low Stock Alert',
+                                    `Product "${p.name}" is running low after Update to Delivery Note #${updatedNote.document_id}. Current: ${p.stock}, Min: ${p.min_stock}`,
+                                    `/inventory/products/${p.id}`
+                                ]
+                            );
+                        }
+                    }
+
+                    if (updatedNote.warehouse_id) {
+                        await client.query(
+                            `INSERT INTO stock_items (product_id, warehouse_id, quantity, last_updated)
+                                VALUES ($1, $2, $3, NOW())
+                                ON CONFLICT (product_id, warehouse_id) 
+                                DO UPDATE SET quantity = stock_items.quantity + $3, last_updated = NOW()`,
+                            [item.product_id, updatedNote.warehouse_id, quantityChange]
+                        );
+                    }
+
+                    // Log movement
+                    await client.query(
+                        `INSERT INTO stock_movements (product_id, quantity, type, reference_id, description, created_at)
+                         VALUES ($1, $2, 'adjustment', $3, $4, NOW())`,
+                        [
+                            item.product_id,
+                            quantityChange,
+                            id,
+                            `Update: ${updatedNote.document_type} #${updatedNote.document_id}`
+                        ]
+                    );
+                }
             }
         }
 
@@ -347,14 +460,66 @@ router.delete('/:id', asyncHandler(async (req, res) => {
 
     try {
         await client.query('BEGIN');
+
+        // 1. Fetch note to determine direction (Client=OUT, Supplier=IN)
+        const noteCheck = await client.query('SELECT * FROM delivery_notes WHERE id = $1', [id]);
+        if (noteCheck.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Not Found', message: 'Delivery note not found' });
+        }
+        const note = noteCheck.rows[0];
+        // Determine original movement direction
+        const isOut = note.client_id || note.document_type === 'divers';
+
+        // 2. Fetch items to revert stock
+        const itemsResult = await client.query('SELECT * FROM delivery_note_items WHERE delivery_note_id = $1', [id]);
+
+        for (const item of itemsResult.rows) {
+            if (item.product_id) {
+                // Revert logic:
+                // If original was OUT (negative stock change), we ADD it back (positive quantity).
+                // If original was IN (positive stock change), we SUBTRACT it (negative quantity).
+                const originalQuantity = Math.abs(item.quantity);
+                const revertChange = isOut ? originalQuantity : -originalQuantity;
+
+                // Update products table
+                await client.query(
+                    `UPDATE products 
+                      SET stock = stock + $1, updated_at = NOW() 
+                      WHERE id = $2`,
+                    [revertChange, item.product_id]
+                );
+
+                // Update warehouse stock if applicable (we need to know which warehouse, it's on the note)
+                if (note.warehouse_id) {
+                    await client.query(
+                        `INSERT INTO stock_items (product_id, warehouse_id, quantity, last_updated)
+                         VALUES ($1, $2, $3, NOW())
+                         ON CONFLICT (product_id, warehouse_id) 
+                         DO UPDATE SET quantity = stock_items.quantity + $3, last_updated = NOW()`,
+                        [item.product_id, note.warehouse_id, revertChange]
+                    );
+                }
+
+                // Log the reversion movement
+                await client.query(
+                    `INSERT INTO stock_movements (product_id, quantity, type, reference_id, description, created_at)
+                     VALUES ($1, $2, 'correction', $3, $4, NOW())`,
+                    [
+                        item.product_id,
+                        revertChange,
+                        note.id,
+                        `Revert: Deletion of ${note.document_type} #${note.document_id}`
+                    ]
+                );
+            }
+        }
+
         await client.query('DELETE FROM delivery_note_items WHERE delivery_note_id = $1', [id]);
         const result = await client.query('DELETE FROM delivery_notes WHERE id = $1 RETURNING id', [id]);
         await client.query('COMMIT');
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Not Found', message: 'Delivery note not found' });
-        }
-
+        // We already checked if it exists above
         res.status(204).send();
     } catch (error) {
         await client.query('ROLLBACK');

@@ -81,6 +81,7 @@ import {
   generateDocumentCSV,
   generateBulkDocumentsCSV,
 } from '@/lib/csv-generator';
+import { exportStyledExcel } from '@/lib/styled-export';
 
 // Local interfaces removed in favor of imports from SalesContext
 import { SalesDocument as ContextSalesDocument, SalesItem as ContextSalesItem } from '@/contexts/SalesContext';
@@ -142,9 +143,13 @@ export const Sales = () => {
   const [formBankAccount, setFormBankAccount] = useState('');
   const [formDueDate, setFormDueDate] = useState('');
   const [formNote, setFormNote] = useState('');
+  const [formOriginalInvoice, setFormOriginalInvoice] = useState('');
+  const [selectedStatementDocs, setSelectedStatementDocs] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
+  /* Duplicate declarations removed */
+
   const [viewingDocument, setViewingDocument] = useState<SalesDocument | null>(null);
   const [editingDocument, setEditingDocument] = useState<SalesDocument | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<SalesDocument>>({});
@@ -431,6 +436,11 @@ export const Sales = () => {
         ...editFormData,
         checkNumber: resolvedPaymentMethod === 'check' ? editFormData.checkNumber : '',
       };
+
+      // Add amount_paid for invoices
+      if (editingDocument.type === 'invoice' && editFormData.amount_paid !== undefined) {
+        (updateData as any).amount_paid = editFormData.amount_paid;
+      }
 
       // Update in database (except statements which are mock)
       switch (editingDocument.type) {
@@ -1120,6 +1130,45 @@ export const Sales = () => {
     }
   };
 
+  const handleStatementDocSelection = (docId: string) => {
+    const newSelected = new Set(selectedStatementDocs);
+    if (newSelected.has(docId)) {
+      newSelected.delete(docId);
+    } else {
+      newSelected.add(docId);
+    }
+    setSelectedStatementDocs(newSelected);
+  };
+
+  const toggleSelectAllStatementDocs = () => {
+    if (invoices.length === 0) return;
+    if (selectedStatementDocs.size === invoices.length) {
+      setSelectedStatementDocs(new Set());
+    } else {
+      setSelectedStatementDocs(new Set(invoices.map(inv => inv.id)));
+    }
+  };
+
+  const handleExportSelected = () => {
+    if (selectedStatementDocs.size === 0) return;
+
+    const selectedInvoices = invoices.filter(inv => selectedStatementDocs.has(inv.id));
+
+    exportStyledExcel({
+      title: 'Relevé des Ventes',
+      type: 'sales',
+      items: selectedInvoices.map(inv => ({
+        date: inv.date,
+        number: inv.id,
+        entity: inv.client,
+        total: inv.total,
+        paid: (inv as any).amount_paid || 0,
+        balance: inv.total - ((inv as any).amount_paid || 0),
+        status: inv.status
+      }))
+    });
+  };
+
   const totalRevenue = [...invoices, ...deliveryNotes].reduce((sum, o) => {
     const amount = typeof o.total === 'number' ? o.total : parseFloat(o.total as any) || 0;
     return sum + amount;
@@ -1440,6 +1489,29 @@ export const Sales = () => {
                         </Select>
                       </div>
                       <div className="space-y-2">
+                        <Label>{t('documents.dueDate')}</Label>
+                        <Input type="date" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t('documents.paymentMethod')}</Label>
+                        <Select
+                          value={formPaymentMethod}
+                          onValueChange={(value) => {
+                            const method = value as 'cash' | 'check' | 'bank_transfer';
+                            setFormPaymentMethod(method);
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('documents.selectPaymentMethod')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cash">{t('paymentMethods.cash')}</SelectItem>
+                            <SelectItem value="check">{t('paymentMethods.check')}</SelectItem>
+                            <SelectItem value="bank_transfer">{t('paymentMethods.bankTransfer')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
                         <Label>{t('documents.bankAccount')}</Label>
                         <Select value={formBankAccount} onValueChange={setFormBankAccount}>
                           <SelectTrigger>
@@ -1455,8 +1527,29 @@ export const Sales = () => {
                           </SelectContent>
                         </Select>
                       </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>{t('documents.paymentTerms')}</Label>
+                        <Select onValueChange={(value) => {
+                          const date = new Date(formDate);
+                          if (value === 'net15') date.setDate(date.getDate() + 15);
+                          if (value === 'net30') date.setDate(date.getDate() + 30);
+                          if (value === 'net60') date.setDate(date.getDate() + 60);
+                          if (value === 'cod') date.setDate(date.getDate()); // Cash on delivery = same day
+                          setFormDueDate(date.toISOString().split('T')[0]);
+                        }}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('documents.selectPaymentTerms')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="net15">{t('documents.net15')}</SelectItem>
+                            <SelectItem value="net30">{t('documents.net30')}</SelectItem>
+                            <SelectItem value="net60">{t('documents.net60')}</SelectItem>
+                            <SelectItem value="cod">{t('documents.cashOnDelivery')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                      {documentType === 'divers' ? (
+                      {documentType === 'divers' && (
                         <div className="space-y-2">
                           <div className="flex items-center space-x-2 pt-6">
                             <Checkbox
@@ -1471,25 +1564,6 @@ export const Sales = () => {
                               {t('documents.calculateTax', { rate: VAT_RATE * 100 })}
                             </Label>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <Label>{t('documents.referenceInvoiceOrder')}</Label>
-                          <Select>
-                            <SelectTrigger>
-                              <SelectValue placeholder={t('documents.linkToOrder')} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="fc1">FC-01/26/0001</SelectItem>
-                              <SelectItem value="fc2">FC-01/26/0002</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                      {documentType === 'delivery_note' && (
-                        <div className="space-y-2 md:col-span-2">
-                          <Label>{t('documents.deliveryAddress')}</Label>
-                          <Input placeholder={t('documents.clientDeliveryAddress')} />
                         </div>
                       )}
                     </div>
@@ -3276,13 +3350,18 @@ export const Sales = () => {
                       </div>
                       <div className="space-y-2">
                         <Label>{t('documents.originalInvoice')}</Label>
-                        <Select>
+                        <Select value={formOriginalInvoice} onValueChange={setFormOriginalInvoice} disabled={!formClient}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select original invoice" />
+                            <SelectValue placeholder={t('documents.selectOriginalInvoice') || "Select original invoice"} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="inv-001">INV-001</SelectItem>
-                            <SelectItem value="inv-002">INV-002</SelectItem>
+                            {invoices
+                              .filter(inv => (inv.clientData?.id || inv.client) === formClient)
+                              .map((inv) => (
+                                <SelectItem key={inv.id} value={inv.id}>
+                                  {inv.documentId || inv.id}
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -3935,9 +4014,130 @@ export const Sales = () => {
             </TabsContent>
 
             <TabsContent value="list" className="animate-fade-in">
-              <div className="space-y-4">
-                <div className="card-elevated p-8 text-center italic text-muted-foreground">
-                  {t('documents.statementsFeatureSoon')}
+              <div className="space-y-6">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="card-elevated p-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm text-muted-foreground">{t('ledger.totalDebit')}</p>
+                      <TrendingUp className="w-4 h-4 text-primary" />
+                    </div>
+                    <p className="text-2xl font-heading font-bold text-foreground">
+                      <CurrencyDisplay
+                        amount={invoices.reduce((sum, inv) => sum + inv.total, 0)}
+                      />
+                    </p>
+                  </div>
+                  <div className="card-elevated p-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm text-muted-foreground">{t('ledger.totalCredit')}</p>
+                      <CheckSquare className="w-4 h-4 text-success" />
+                    </div>
+                    <p className="text-2xl font-heading font-bold text-success">
+                      <CurrencyDisplay
+                        amount={invoices.reduce((sum, inv) => sum + ((inv as any).amount_paid || 0), 0)}
+                      />
+                    </p>
+                  </div>
+                  <div className="card-elevated p-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm text-muted-foreground">{t('ledger.outstandingBalance')}</p>
+                      <FileX className="w-4 h-4 text-warning" />
+                    </div>
+                    <p className="text-2xl font-heading font-bold text-warning">
+                      <CurrencyDisplay
+                        amount={invoices.reduce((sum, inv) => sum + (inv.total - ((inv as any).amount_paid || 0)), 0)}
+                      />
+                    </p>
+                  </div>
+                </div>
+
+                {/* Global Ledger Table */}
+                <div className="card-elevated overflow-hidden">
+                  <div className="p-6 border-b border-border flex justify-between items-center">
+                    <div>
+                      <h3 className="font-heading font-semibold text-foreground">{t('ledger.globalLedger')}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">Suivi détaillé de toutes les factures avec débits et crédits</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleExportSelected}
+                      disabled={selectedStatementDocs.size === 0}
+                      className="gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      Styled Export
+                    </Button>
+                  </div>
+                  <div className="max-h-[600px] overflow-y-auto">
+                    <Table>
+                      <TableHeader className="sticky top-0 z-10 bg-background">
+                        <TableRow className="data-table-header hover:bg-section">
+                          <TableHead className="text-center px-4" style={{ width: '80px', minWidth: '80px' }}>
+                            <div className="flex items-center justify-center">
+                              <Checkbox
+                                checked={invoices.length > 0 && selectedStatementDocs.size === invoices.length}
+                                onCheckedChange={toggleSelectAllStatementDocs}
+                              />
+                            </div>
+                          </TableHead>
+                          <TableHead>{t('common.date')}</TableHead>
+                          <TableHead>{t('documents.client')}</TableHead>
+                          <TableHead>{t('documents.invoiceNumber')}</TableHead>
+                          <TableHead className="text-right font-bold">{t('ledger.debit')}</TableHead>
+                          <TableHead className="text-right">{t('ledger.credit')}</TableHead>
+                          <TableHead className="text-right">{t('ledger.balance')}</TableHead>
+                          <TableHead className="text-center">{t('common.status')}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {invoices.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground" align="center">
+                              {t('documents.noDocumentsFound')}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          invoices
+                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                            .map((inv) => {
+                              const amountPaid = (inv as any).amount_paid || 0;
+                              const balance = inv.total - amountPaid;
+                              const isSelected = selectedStatementDocs.has(inv.id);
+
+                              return (
+                                <TableRow key={inv.id} className="hover:bg-section/50">
+                                  <TableCell className="text-center" style={{ width: '80px', minWidth: '80px' }}>
+                                    <div className="flex items-center justify-center">
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={() => handleStatementDocSelection(inv.id)}
+                                      />
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>{formatDate(inv.date)}</TableCell>
+                                  <TableCell className="font-medium">{inv.client}</TableCell>
+                                  <TableCell className="font-mono">{inv.id}</TableCell>
+                                  <TableCell className="text-right font-bold text-foreground">
+                                    <CurrencyDisplay amount={inv.total} />
+                                  </TableCell>
+                                  <TableCell className="text-right text-success font-medium">
+                                    <CurrencyDisplay amount={amountPaid} />
+                                  </TableCell>
+                                  <TableCell className={`text-right font-medium ${balance > 0 ? 'text-destructive' : 'text-success'}`}>
+                                    <CurrencyDisplay amount={balance} />
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {getStatusBadge(inv.status)}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               </div>
             </TabsContent>
@@ -4078,12 +4278,60 @@ export const Sales = () => {
                       <SelectContent>
                         <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="paid">Paid</SelectItem>
+                        <SelectItem value="partially_paid">Partiel</SelectItem>
                         <SelectItem value="sent">Sent</SelectItem>
                         <SelectItem value="delivered">Delivered</SelectItem>
                         <SelectItem value="overdue">Overdue</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                  {editingDocument.type === 'invoice' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>{t('invoice.amount_paid')}</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max={editingDocument.total}
+                          value={editFormData.amount_paid !== undefined ? editFormData.amount_paid : (editingDocument as any).amount_paid || 0}
+                          onChange={(e) => {
+                            const amountPaid = parseFloat(e.target.value) || 0;
+                            const total = editingDocument.total;
+                            let autoStatus = editFormData.status || editingDocument.status;
+
+                            // Auto-calculate status based on amount paid
+                            if (amountPaid >= total) {
+                              autoStatus = 'paid';
+                            } else if (amountPaid > 0 && amountPaid < total) {
+                              autoStatus = 'partially_paid';
+                            } else if (amountPaid === 0) {
+                              autoStatus = 'sent';
+                            }
+
+                            setEditFormData({
+                              ...editFormData,
+                              amount_paid: amountPaid,
+                              status: autoStatus as SalesDocument['status']
+                            });
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t('invoice.balance_due')}</Label>
+                        <div className="p-2 bg-muted rounded-md">
+                          <CurrencyDisplay
+                            amount={
+                              editingDocument.total -
+                              (editFormData.amount_paid !== undefined
+                                ? editFormData.amount_paid
+                                : (editingDocument as any).amount_paid || 0)
+                            }
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
                   {editingDocument.type === 'invoice' && (
                     <div className="space-y-2">
                       <Label>Payment Method</Label>

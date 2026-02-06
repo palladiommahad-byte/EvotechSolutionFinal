@@ -199,6 +199,17 @@ router.post('/', asyncHandler(async (req, res) => {
         status = 'out_of_stock';
     } else if (actualMinStock > 0 && stock <= actualMinStock) {
         status = 'low_stock';
+
+        // NOTIFICATION: Low Stock Warning
+        await query(
+            `INSERT INTO notifications (title, message, type, action_url, action_label, created_at)
+             VALUES ($1, $2, 'warning', $3, 'View Product', NOW())`,
+            [
+                'Low Stock Alert',
+                `New Product "${name}" (${sku}) created with low stock. Current: ${stock}, Min: ${actualMinStock}`,
+                '/inventory/products'
+            ]
+        );
     }
 
     const result = await query(
@@ -254,6 +265,25 @@ router.put('/:id', asyncHandler(async (req, res) => {
         status = 'out_of_stock';
     } else if (newMinStock > 0 && newStock <= newMinStock) {
         status = 'low_stock';
+
+        // NOTIFICATION: Low Stock Warning
+        // Check if we already have an unread notification to avoid spam
+        const existing = await query(
+            "SELECT id FROM notifications WHERE title = 'Low Stock Alert' AND message LIKE $1 AND read = false",
+            [`%${newStock}%`] // Simple check to see if we notified for this exact stock level recently
+        );
+
+        if (existing.rows.length === 0) {
+            await query(
+                `INSERT INTO notifications (title, message, type, action_url, action_label, created_at)
+                 VALUES ($1, $2, 'warning', $3, 'View Product', NOW())`,
+                [
+                    'Low Stock Alert',
+                    `Product "${name || current.name}" is running low. Current: ${newStock}, Min: ${newMinStock}`,
+                    `/inventory/products/${id}`
+                ]
+            );
+        }
     }
 
     const result = await query(
@@ -308,6 +338,24 @@ router.put('/:id/stock', asyncHandler(async (req, res) => {
         'UPDATE products SET stock = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
         [quantity, id]
     );
+
+    // NOTIFICATION: Low Stock Warning
+    if (result.rows.length > 0) {
+        const product = result.rows[0];
+        const minStock = product.min_stock || 0;
+
+        if (minStock > 0 && product.stock <= minStock) {
+            await query(
+                `INSERT INTO notifications (title, message, type, action_url, action_label, created_at)
+                 VALUES ($1, $2, 'warning', $3, 'View Product', NOW())`,
+                [
+                    'Low Stock Alert',
+                    `Product "${product.name}" stock manually updated. Current: ${product.stock}, Min: ${minStock}`,
+                    `/inventory/products/${id}`
+                ]
+            );
+        }
+    }
 
     if (result.rows.length === 0) {
         return res.status(404).json({

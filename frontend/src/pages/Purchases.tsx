@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Plus, Search, ShoppingCart, FileText, Download, Package, Receipt, FileCheck, Calculator, Trash2, Send, Eye, Edit, Check, FileSpreadsheet, ChevronDown, Printer, TrendingUp, CheckSquare, FileX, Upload, Image as ImageIcon, Paperclip } from 'lucide-react';
+import { Plus, Search, ShoppingCart, FileText, Download, Package, Receipt, FileCheck, Calculator, Trash2, Send, Eye, Edit, Check, FileSpreadsheet, ChevronDown, Printer, TrendingUp, CheckSquare, FileX, Upload, Image as ImageIcon, FilePlus, Paperclip } from 'lucide-react';
+import { exportStyledExcel } from '@/lib/styled-export';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -125,6 +126,7 @@ export const Purchases = () => {
   const [editingDocument, setEditingDocument] = useState<PurchaseDocument | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<PurchaseDocument>>({});
   const [deletingDocument, setDeletingDocument] = useState<PurchaseDocument | null>(null);
+  const [selectedStatementDocs, setSelectedStatementDocs] = useState<Set<string>>(new Set());
 
   // File upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -166,6 +168,45 @@ export const Purchases = () => {
       newSelected.add(docId);
     }
     setSelectedDocuments(newSelected);
+  };
+
+  const toggleSelectAllStatementDocs = () => {
+    if (purchaseInvoices.length === 0) return;
+    if (selectedStatementDocs.size === purchaseInvoices.length) {
+      setSelectedStatementDocs(new Set());
+    } else {
+      setSelectedStatementDocs(new Set(purchaseInvoices.map(inv => inv.id)));
+    }
+  };
+
+  const handleStatementDocSelection = (id: string) => {
+    const newSelected = new Set(selectedStatementDocs);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedStatementDocs(newSelected);
+  };
+
+  const handleExportSelected = () => {
+    if (selectedStatementDocs.size === 0) return;
+
+    const selectedInvoices = purchaseInvoices.filter(inv => selectedStatementDocs.has(inv.id));
+
+    exportStyledExcel({
+      title: 'Relevé des Achats',
+      type: 'purchases',
+      items: selectedInvoices.map(inv => ({
+        date: inv.date,
+        number: inv.id,
+        entity: inv.supplier,
+        total: inv.total,
+        paid: (inv as any).amount_paid || 0,
+        balance: inv.total - ((inv as any).amount_paid || 0),
+        status: inv.status
+      }))
+    });
   };
 
   const handleDeleteDocument = (doc: PurchaseDocument) => {
@@ -2854,178 +2895,126 @@ export const Purchases = () => {
             </TabsContent>
 
             <TabsContent value="list" className="animate-fade-in">
-              <div className="space-y-4">
-                <div className="card-elevated p-4">
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        placeholder={t('documents.searchByStatementOrClient')}
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
-                      />
+              <div className="space-y-6">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="card-elevated p-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm text-muted-foreground">{t('ledger.debit')}</p>
+                      <TrendingUp className="w-4 h-4 text-primary" />
                     </div>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-[150px]">
-                        <SelectValue placeholder={t('common.status')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">{t('documents.allStatus')}</SelectItem>
-                        <SelectItem value="current">{t('status.current')}</SelectItem>
-                        <SelectItem value="overdue">{t('status.overdue')}</SelectItem>
-                        <SelectItem value="paid">{t('status.paid')}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <p className="text-2xl font-heading font-bold text-foreground">
+                      <CurrencyDisplay amount={purchaseInvoices.reduce((sum, inv) => sum + inv.total, 0)} />
+                    </p>
+                  </div>
+                  <div className="card-elevated p-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm text-muted-foreground">{t('ledger.credit')}</p>
+                      <CheckSquare className="w-4 h-4 text-success" />
+                    </div>
+                    <p className="text-2xl font-heading font-bold text-success">
+                      <CurrencyDisplay amount={purchaseInvoices.reduce((sum, inv) => sum + ((inv as any).amount_paid || 0), 0)} />
+                    </p>
+                  </div>
+                  <div className="card-elevated p-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm text-muted-foreground">{t('ledger.balance')}</p>
+                      <FileX className="w-4 h-4 text-destructive" />
+                    </div>
+                    <p className="text-2xl font-heading font-bold text-destructive">
+                      <CurrencyDisplay amount={purchaseInvoices.reduce((sum, inv) => sum + (inv.total - ((inv as any).amount_paid || 0)), 0)} />
+                    </p>
                   </div>
                 </div>
 
-                {selectedDocuments.size > 0 && (
-                  <div className="card-elevated p-4 flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">
-                      {t('documents.documentsSelected', { count: selectedDocuments.size })}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={handleBulkDelete} className="gap-2">
-                        <Trash2 className="w-4 h-4" />
-                        {t('documents.deleteSelected')}
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" className="gap-2">
-                            <Download className="w-4 h-4" />
-                            {t('documents.exportSelected')}
-                            <ChevronDown className="w-3 h-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={handleBulkExportPDF} disabled={selectedDocuments.size === 0}>
-                            <FileText className="w-4 h-4 mr-2" />
-                            {t('documents.exportAsPDF')}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleBulkExportExcel} disabled={selectedDocuments.size === 0}>
-                            <FileSpreadsheet className="w-4 h-4 mr-2" />
-                            {t('documents.exportAsExcel')}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleBulkExportCSV} disabled={selectedDocuments.size === 0}>
-                            <FileSpreadsheet className="w-4 h-4 mr-2" />
-                            {t('documents.exportAsCSV')}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                )}
-
+                {/* Ledger Table */}
                 <div className="card-elevated overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="data-table-header hover:bg-section">
-                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center">
-                          <div className="flex items-center justify-center w-full">
-                            <Checkbox
-                              checked={filteredDocuments.length > 0 && selectedDocuments.size === filteredDocuments.length}
-                              onCheckedChange={toggleSelectAll}
-                              aria-label={t('documents.selectAll')}
-                            />
-                          </div>
-                        </TableHead>
-                        <TableHead>{t('purchases.table.statementNumber')}</TableHead>
-                        <TableHead>{t('purchases.table.supplier')}</TableHead>
-                        <TableHead>{t('purchases.table.date')}</TableHead>
-                        <TableHead className="text-right">{t('purchases.table.amountTTC')}</TableHead>
-                        <TableHead className="text-center">{t('purchases.table.status')}</TableHead>
-                        <TableHead className="text-center">{t('purchases.table.actions')}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredDocuments.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground" align="center">
-                            {t('purchases.summary.noDocumentsFound')}
-                          </TableCell>
+                  <div className="p-6 border-b border-border flex justify-between items-center">
+                    <div>
+                      <h3 className="font-heading font-semibold text-foreground">{t('ledger.title')}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">{t('ledger.description')}</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleExportSelected}
+                      disabled={selectedStatementDocs.size === 0}
+                      className="gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      Styled Export
+                    </Button>
+                  </div>
+                  <div className="max-h-[600px] overflow-y-auto">
+                    <Table>
+                      <TableHeader className="sticky top-0 z-10 bg-background">
+                        <TableRow className="data-table-header hover:bg-section">
+                          <TableHead className="text-center px-4" style={{ width: '80px', minWidth: '80px' }}>
+                            <div className="flex items-center justify-center">
+                              <Checkbox
+                                checked={purchaseInvoices.length > 0 && selectedStatementDocs.size === purchaseInvoices.length}
+                                onCheckedChange={toggleSelectAllStatementDocs}
+                              />
+                            </div>
+                          </TableHead>
+                          <TableHead>{t('common.date')}</TableHead>
+                          <TableHead>{t('documents.supplier')}</TableHead>
+                          <TableHead>{t('documents.invoiceNumber')}</TableHead>
+                          <TableHead className="text-right font-bold">{t('ledger.debit')}</TableHead>
+                          <TableHead className="text-right">{t('ledger.credit')}</TableHead>
+                          <TableHead className="text-right">{t('ledger.balance')}</TableHead>
+                          <TableHead className="text-center">{t('common.status')}</TableHead>
                         </TableRow>
-                      ) : (
-                        filteredDocuments.map((doc) => (
-                          <TableRow
-                            key={doc.id}
-                            className={cn(
-                              "hover:bg-section/50",
-                              selectedDocuments.has(doc.id) && "bg-primary/5"
-                            )}
-                          >
-                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center">
-                              <div className="flex items-center justify-center w-full">
-                                <Checkbox
-                                  checked={selectedDocuments.has(doc.id)}
-                                  onCheckedChange={() => toggleDocumentSelection(doc.id)}
-                                  aria-label={`Select ${doc.id}`}
-                                />
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-mono font-medium max-w-[120px] truncate" title={doc.id}>{doc.id}</TableCell>
-                            <TableCell className="max-w-[200px] truncate" title={doc.supplier}>{doc.supplier}</TableCell>
-                            <TableCell className="max-w-[120px] truncate" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
-                            <TableCell className="text-right font-medium number-cell">
-                              <CurrencyDisplay amount={doc.total} />
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {renderStatusSelect(doc)}
-                            </TableCell>
-                            <TableCell className="w-[220px]">
-                              <div className="flex items-center justify-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleViewDocument(doc)}
-                                  title={t('common.view')}
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleEditDocument(doc)}
-                                  title={t('common.edit')}
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleDownloadPDF(doc)}
-                                  title={t('documents.downloadPDF')}
-                                >
-                                  <Download className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handlePrintPDF(doc)}
-                                  title={t('common.print', { defaultValue: 'Print' })}
-                                >
-                                  <Printer className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
-                                  onClick={() => handleDeleteDocument(doc)}
-                                  title={t('common.delete')}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
+                      </TableHeader>
+                      <TableBody>
+                        {purchaseInvoices.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                              {t('documents.noDocumentsFound')}
                             </TableCell>
                           </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+                        ) : (
+                          purchaseInvoices
+                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                            .map((inv) => {
+                              const amountPaid = (inv as any).amount_paid || 0;
+                              const balance = inv.total - amountPaid;
+                              const isSelected = selectedStatementDocs.has(inv.id);
+
+                              return (
+                                <TableRow key={inv.id} className="hover:bg-section/50">
+                                  <TableCell className="text-center" style={{ width: '80px', minWidth: '80px' }}>
+                                    <div className="flex items-center justify-center">
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={() => handleStatementDocSelection(inv.id)}
+                                      />
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>{formatDate(inv.date)}</TableCell>
+                                  <TableCell className="max-w-[200px] truncate" title={inv.supplier}>
+                                    {inv.supplier}
+                                  </TableCell>
+                                  <TableCell className="font-mono font-medium">{inv.id}</TableCell>
+                                  <TableCell className="text-right font-bold">
+                                    <CurrencyDisplay amount={inv.total} />
+                                  </TableCell>
+                                  <TableCell className="text-right text-success">
+                                    <CurrencyDisplay amount={amountPaid} />
+                                  </TableCell>
+                                  <TableCell className={`text-right ${balance > 0 ? 'text-destructive font-medium' : 'text-success'}`}>
+                                    <CurrencyDisplay amount={balance} />
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {getStatusBadge(inv.status)}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               </div>
             </TabsContent>
@@ -3178,6 +3167,48 @@ export const Purchases = () => {
                         </SelectContent>
                       </Select>
                     </div>
+                  )}
+                  {editingDocument.type === 'invoice' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>{t('invoice.amount_paid')}</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max={editingDocument.total}
+                          value={editFormData.amount_paid !== undefined ? editFormData.amount_paid : (editingDocument as any).amount_paid || 0}
+                          onChange={(e) => {
+                            const amountPaid = parseFloat(e.target.value) || 0;
+                            const total = editingDocument.total;
+                            let autoStatus = editFormData.status || editingDocument.status;
+
+                            if (amountPaid >= total) autoStatus = 'paid';
+                            else if (amountPaid > 0 && amountPaid < total) autoStatus = 'partially_paid';
+                            else if (amountPaid === 0) autoStatus = 'received';
+
+                            setEditFormData({
+                              ...editFormData,
+                              amount_paid: amountPaid,
+                              status: autoStatus
+                            });
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t('invoice.balance_due')}</Label>
+                        <div className="p-2 bg-muted rounded-md">
+                          <CurrencyDisplay
+                            amount={
+                              editingDocument.total -
+                              (editFormData.amount_paid !== undefined
+                                ? editFormData.amount_paid
+                                : (editingDocument as any).amount_paid || 0)
+                            }
+                          />
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>

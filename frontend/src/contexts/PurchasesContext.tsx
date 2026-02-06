@@ -50,6 +50,7 @@ export interface PurchaseDocument {
   status: string;
   type: 'purchase_order' | 'delivery_note' | 'invoice' | 'statement';
   paymentMethod?: 'cash' | 'check' | 'bank_transfer';
+  amount_paid?: number; // For partial payments
   dueDate?: string;
   note?: string;
   attachment_url?: string | null;
@@ -137,6 +138,7 @@ const purchaseInvoiceToPurchaseDocument = (pi: PurchaseInvoiceWithItems): Purcha
   status: mapPurchaseInvoiceStatusToUI(pi.status),
   type: 'invoice',
   paymentMethod: pi.payment_method || undefined,
+  amount_paid: (pi as any).amount_paid || 0,
   checkNumber: (pi as any).check_number || undefined,
   bankAccountId: (pi as any).bank_account_id || undefined,
   bankAccountData: (pi as any).bank_account ? {
@@ -498,6 +500,7 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
         date: data.date,
         due_date: data.dueDate,
         payment_method: data.paymentMethod,
+        amount_paid: data.amount_paid,
         status: data.status ? mapPurchaseInvoiceStatus(data.status) : undefined,
         note: data.note,
         attachment_url: data.attachment_url,

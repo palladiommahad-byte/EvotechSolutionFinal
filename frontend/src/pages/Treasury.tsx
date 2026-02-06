@@ -163,6 +163,7 @@ export const Treasury = () => {
       { key: 'balance', header: 'Solde (DH)', width: 15 }
     ];
 
+
     try {
       const token = localStorage.getItem('auth_token');
       const response = await fetch(`${import.meta.env.VITE_API_URL}/reports/export-custom`, {
@@ -178,7 +179,11 @@ export const Treasury = () => {
         })
       });
 
-      if (!response.ok) throw new Error('Export failed');
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Export failed:', response.status, errorText);
+        throw new Error(`Export failed: ${response.status} - ${errorText}`);
+      }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -194,10 +199,10 @@ export const Treasury = () => {
         variant: "success"
       });
     } catch (err) {
-      console.error(err);
+      console.error('Export error details:', err);
       toast({
         title: "Erreur",
-        description: "Erreur lors de l'export",
+        description: `Erreur lors de l'export: ${err instanceof Error ? err.message : 'Unknown error'}`,
         variant: "destructive"
       });
     }
@@ -272,7 +277,11 @@ export const Treasury = () => {
         })
       });
 
-      if (!response.ok) throw new Error('Export failed');
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Export failed:', response.status, errorText);
+        throw new Error(`Export failed: ${response.status} - ${errorText}`);
+      }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -288,10 +297,10 @@ export const Treasury = () => {
         variant: "success"
       });
     } catch (err) {
-      console.error(err);
+      console.error('Export error details:', err);
       toast({
         title: "Erreur",
-        description: "Erreur lors de l'export",
+        description: `Erreur lors de l'export: ${err instanceof Error ? err.message : 'Unknown error'}`,
         variant: "destructive"
       });
     }
@@ -367,7 +376,11 @@ export const Treasury = () => {
         })
       });
 
-      if (!response.ok) throw new Error('Export failed');
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Export failed:', response.status, errorText);
+        throw new Error(`Export failed: ${response.status} - ${errorText}`);
+      }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -383,10 +396,10 @@ export const Treasury = () => {
         variant: "success"
       });
     } catch (err) {
-      console.error(err);
+      console.error('Export error details:', err);
       toast({
         title: "Erreur",
-        description: "Erreur lors de l'export",
+        description: `Erreur lors de l'export: ${err instanceof Error ? err.message : 'Unknown error'}`,
         variant: "destructive"
       });
     }
