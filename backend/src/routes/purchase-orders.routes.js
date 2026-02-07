@@ -147,6 +147,20 @@ router.put('/:id', asyncHandler(async (req, res) => {
     try {
         await client.query('BEGIN');
 
+        // Get current order status before update
+        const currentOrderResult = await client.query(
+            'SELECT status, document_id FROM purchase_orders WHERE id = $1',
+            [id]
+        );
+
+        if (currentOrderResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Not Found', message: 'Purchase order not found' });
+        }
+
+        const previousStatus = currentOrderResult.rows[0].status;
+        const documentId = currentOrderResult.rows[0].document_id;
+
         let calculatedSubtotal;
         if (items && items.length > 0) {
             calculatedSubtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
@@ -168,11 +182,6 @@ router.put('/:id', asyncHandler(async (req, res) => {
             params
         );
 
-        if (updateResult.rows.length === 0) {
-            await client.query('ROLLBACK');
-            return res.status(404).json({ error: 'Not Found', message: 'Purchase order not found' });
-        }
-
         if (items) {
             await client.query('DELETE FROM purchase_order_items WHERE purchase_order_id = $1', [id]);
             for (const item of items) {
@@ -181,6 +190,49 @@ router.put('/:id', asyncHandler(async (req, res) => {
            VALUES ($1, $2, $3, $4, $5, $6)`,
                     [id, item.product_id || null, item.description, item.quantity, item.unit_price, item.quantity * item.unit_price]
                 );
+            }
+        }
+
+        // If status is changing to 'received' and wasn't 'received' before, update stock
+        if (status === 'received' && previousStatus !== 'received') {
+            // Get all items for this purchase order
+            const orderItems = await client.query(
+                'SELECT * FROM purchase_order_items WHERE purchase_order_id = $1',
+                [id]
+            );
+
+            for (const item of orderItems.rows) {
+                if (item.product_id) {
+                    const quantityToAdd = Math.floor(Number(item.quantity));
+
+                    // Update product stock (add quantity)
+                    await client.query(
+                        `UPDATE products 
+                         SET stock = stock + $1, 
+                             last_movement = NOW(),
+                             status = CASE 
+                                 WHEN stock + $1 <= 0 THEN 'out_of_stock'
+                                 WHEN stock + $1 <= min_stock THEN 'low_stock'
+                                 ELSE 'in_stock'
+                             END,
+                             updated_at = NOW()
+                         WHERE id = $2`,
+                        [quantityToAdd, item.product_id]
+                    );
+
+                    // Log stock movement
+                    await client.query(
+                        `INSERT INTO stock_movements (product_id, quantity, type, reference_id, description, created_at)
+                         VALUES ($1, $2, $3, $4, $5, NOW())`,
+                        [
+                            item.product_id,
+                            quantityToAdd,
+                            'purchase_received',
+                            id,
+                            `Stock added from Purchase Order ${documentId}`
+                        ]
+                    );
+                }
             }
         }
 
@@ -195,6 +247,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
         client.release();
     }
 }));
+
 
 /**
  * DELETE /api/purchase-orders/:id

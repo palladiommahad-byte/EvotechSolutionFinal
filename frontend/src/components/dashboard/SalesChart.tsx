@@ -74,24 +74,25 @@ export const SalesChart = ({ data: displayData = [] }: SalesChartProps) => {
 
       <div className="h-[250px] min-h-[200px]">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={displayData}>
+          <AreaChart data={displayData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.01} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(214, 32%, 91%)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground))" strokeOpacity={0.1} vertical={false} />
             <XAxis
               dataKey="label"
-              stroke="hsl(215, 16%, 47%)"
+              stroke="hsl(var(--muted-foreground))"
               fontSize={12}
               tickLine={false}
               axisLine={false}
+              tickMargin={10}
               tickFormatter={(value) => String(t(`months.${value}`, value))}
             />
             <YAxis
-              stroke="hsl(215, 16%, 47%)"
+              stroke="hsl(var(--muted-foreground))"
               fontSize={12}
               tickLine={false}
               axisLine={false}
@@ -99,19 +100,24 @@ export const SalesChart = ({ data: displayData = [] }: SalesChartProps) => {
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: 'hsl(0, 0%, 100%)',
-                border: '1px solid hsl(214, 32%, 91%)',
+                backgroundColor: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.07)',
+                boxShadow: '0 4px 12px -2px rgb(0 0 0 / 0.1)',
+                padding: '8px 12px',
               }}
+              itemStyle={{ color: 'hsl(var(--foreground))', fontWeight: 500 }}
+              labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '4px', fontSize: '12px' }}
               formatter={(value: number) => [formatMAD(value), t('dashboard.totalSales')]}
+              cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '4 4' }}
             />
             <Area
               type="monotone"
               dataKey="value"
               stroke="hsl(var(--primary))"
-              strokeWidth={2}
+              strokeWidth={3}
               fill="url(#salesGradient)"
+              activeDot={{ r: 6, strokeWidth: 0, fill: 'hsl(var(--primary))' }}
             />
           </AreaChart>
         </ResponsiveContainer>

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Search, ShoppingCart, FileText, Download, Package, Receipt, FileCheck, Calculator, Trash2, Send, Eye, Edit, Check, FileSpreadsheet, ChevronDown, Printer, TrendingUp, CheckSquare, FileX, Upload, Image as ImageIcon, FilePlus, Paperclip } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Search, ShoppingCart, FileText, Download, Package, Receipt, FileCheck, Calculator, Trash2, Send, Eye, Edit, Check, FileSpreadsheet, ChevronDown, Printer, TrendingUp, CheckSquare, FileX, Upload, Image as ImageIcon, FilePlus, Paperclip, ChevronsUpDown, X } from 'lucide-react';
 import { exportStyledExcel } from '@/lib/styled-export';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Table,
   TableBody,
@@ -142,6 +155,16 @@ export const Purchases = () => {
 
   // Bank account state
   const [formBankAccount, setFormBankAccount] = useState('');
+
+  // Reference BL state for invoice
+  const [formReferenceBL, setFormReferenceBL] = useState('');
+  const [blSearchOpen, setBlSearchOpen] = useState(false);
+  const [blSearchQuery, setBlSearchQuery] = useState('');
+
+  // Reference BC state for delivery note
+  const [formReferenceBC, setFormReferenceBC] = useState('');
+  const [bcSearchOpen, setBcSearchOpen] = useState(false);
+  const [bcSearchQuery, setBcSearchQuery] = useState('');
   const { bankAccounts } = useTreasury();
 
   // Helper to get current documents based on activeTab
@@ -159,6 +182,25 @@ export const Purchases = () => {
         return [];
     }
   };
+
+  // Auto-populate items when BC is selected in BL form
+  useEffect(() => {
+    if (formReferenceBC && activeTab === 'delivery_note') {
+      const selectedBC = purchaseOrders.find(bc => bc.id === formReferenceBC);
+      if (selectedBC && selectedBC.items && selectedBC.items.length > 0) {
+        // Copy items from the selected purchase order
+        const newItems = selectedBC.items.map((item, index) => ({
+          id: `${Date.now()}-${index}`,
+          productId: item.productId,
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          total: item.total,
+        }));
+        setItems(newItems);
+      }
+    }
+  }, [formReferenceBC, activeTab, purchaseOrders]);
 
   const toggleDocumentSelection = (docId: string) => {
     const newSelected = new Set(selectedDocuments);
@@ -814,6 +856,10 @@ export const Purchases = () => {
       setSelectedFile(null);
       setFilePreview(null);
       setIsUploading(false);
+      setFormReferenceBL('');
+      setBlSearchQuery('');
+      setFormReferenceBC('');
+      setBcSearchQuery('');
     } catch (error) {
       console.error('Error creating document:', error);
       // Error toast is handled by the context
@@ -1701,19 +1747,136 @@ export const Purchases = () => {
                       </div>
                       <div className="space-y-2">
                         <Label>{t('documents.referencePurchaseOrder')}</Label>
-                        <Select>
-                          <SelectTrigger>
-                            <SelectValue placeholder={t('purchases.linkToPOOrDN')} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="bc1">BC-01/26/0001</SelectItem>
-                            <SelectItem value="bc2">BC-01/26/0002</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2 md:col-span-2">
-                        <Label>{t('documents.deliveryAddress')}</Label>
-                        <Input placeholder={t('documents.clientDeliveryAddress')} />
+                        <Popover open={bcSearchOpen} onOpenChange={setBcSearchOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={bcSearchOpen}
+                              className="w-full justify-between relative"
+                            >
+                              {formReferenceBC ? (
+                                <div className="flex items-center gap-2 flex-1 min-w-0 pr-6">
+                                  <ShoppingCart className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  <span className="truncate">
+                                    {purchaseOrders.find(bc => bc.id === formReferenceBC)?.id || formReferenceBC}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground ml-auto flex-shrink-0">
+                                    {formatMAD(purchaseOrders.find(bc => bc.id === formReferenceBC)?.total || 0)}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">{t('purchases.linkToPOOrDN')}</span>
+                              )}
+                              {formReferenceBC && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-5 w-5 absolute right-8 hover:bg-destructive/10 hover:text-destructive z-10"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    setFormReferenceBC('');
+                                    setBcSearchQuery('');
+                                  }}
+                                  type="button"
+                                  title={t('common.clear')}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[400px] p-0" align="start">
+                            <Command>
+                              <CommandInput
+                                placeholder={t('purchases.searchBC', { defaultValue: 'Rechercher un BC...' })}
+                                value={bcSearchQuery}
+                                onValueChange={setBcSearchQuery}
+                              />
+                              <CommandList>
+                                <CommandEmpty>
+                                  {t('purchases.noBCFound', { defaultValue: 'Aucun BC trouvé.' })}
+                                  {' '}({purchaseOrders.length} BCs total, {purchaseOrders.filter(bc => !formSupplier || bc.supplierData?.id === formSupplier || bc.supplier === formSupplier).length} for this supplier)
+                                </CommandEmpty>
+                                <CommandGroup>
+                                  {formReferenceBC && (
+                                    <CommandItem
+                                      value="__clear__"
+                                      onSelect={() => {
+                                        setFormReferenceBC('');
+                                        setBcSearchOpen(false);
+                                        setBcSearchQuery('');
+                                      }}
+                                      className="text-muted-foreground"
+                                    >
+                                      <X className="h-4 w-4 mr-2" />
+                                      {t('common.clearSelection', { defaultValue: 'Effacer la sélection' })}
+                                    </CommandItem>
+                                  )}
+                                  {purchaseOrders
+                                    .filter(bc => {
+                                      // Filter by selected supplier if one is chosen
+                                      if (formSupplier) {
+                                        const supplierMatch = bc.supplierData?.id === formSupplier || bc.supplier === formSupplier;
+                                        if (!supplierMatch) return false;
+                                      }
+                                      // Filter by search query
+                                      if (bcSearchQuery) {
+                                        const query = bcSearchQuery.toLowerCase();
+                                        return (
+                                          bc.id.toLowerCase().includes(query) ||
+                                          bc.supplier.toLowerCase().includes(query) ||
+                                          (bc.supplierData?.company || '').toLowerCase().includes(query) ||
+                                          formatDate(bc.date).toLowerCase().includes(query)
+                                        );
+                                      }
+                                      return true;
+                                    })
+                                    .map((bc) => (
+                                      <CommandItem
+                                        key={bc.id}
+                                        value={bc.id}
+                                        onSelect={() => {
+                                          setFormReferenceBC(bc.id);
+                                          setBcSearchOpen(false);
+                                          setBcSearchQuery('');
+                                        }}
+                                        className="flex items-start gap-3 py-3"
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "h-4 w-4 mt-0.5 flex-shrink-0",
+                                            formReferenceBC === bc.id ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-medium text-sm truncate font-mono">
+                                              {bc.id}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground flex-shrink-0">
+                                              {formatDate(bc.date)}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <span className="truncate">{bc.supplierData?.company || bc.supplier}</span>
+                                            <span>•</span>
+                                            <span className="font-medium text-foreground">
+                                              {formatMAD(bc.total)}
+                                            </span>
+                                            <span>•</span>
+                                            <span>{bc.items?.length || 0} {t('documents.items', { defaultValue: 'articles' })}</span>
+                                          </div>
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label>{t('settings.warehouses')}</Label>
@@ -2161,15 +2324,136 @@ export const Purchases = () => {
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label>{t('purchases.referenceDocuments')}</Label>
-                        <Select>
-                          <SelectTrigger>
-                            <SelectValue placeholder={t('purchases.linkToPOOrDN')} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">{t('common.none')}</SelectItem>
-                            {/* In the future, we could map existing purchaseOrders or deliveryNotes here */}
-                          </SelectContent>
-                        </Select>
+                        <Popover open={blSearchOpen} onOpenChange={setBlSearchOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={blSearchOpen}
+                              className="w-full justify-between relative"
+                            >
+                              {formReferenceBL ? (
+                                <div className="flex items-center gap-2 flex-1 min-w-0 pr-6">
+                                  <Package className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  <span className="truncate">
+                                    {deliveryNotes.find(bl => bl.id === formReferenceBL)?.id || formReferenceBL}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground ml-auto flex-shrink-0">
+                                    {formatMAD(deliveryNotes.find(bl => bl.id === formReferenceBL)?.total || 0)}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">{t('purchases.linkToPOOrDN')}</span>
+                              )}
+                              {formReferenceBL && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-5 w-5 absolute right-8 hover:bg-destructive/10 hover:text-destructive z-10"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    setFormReferenceBL('');
+                                    setBlSearchQuery('');
+                                  }}
+                                  type="button"
+                                  title={t('common.clear')}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[400px] p-0" align="start">
+                            <Command>
+                              <CommandInput
+                                placeholder={t('purchases.searchBL', { defaultValue: 'Rechercher un BL...' })}
+                                value={blSearchQuery}
+                                onValueChange={setBlSearchQuery}
+                              />
+                              <CommandList>
+                                <CommandEmpty>
+                                  {t('purchases.noBLFound', { defaultValue: 'Aucun BL trouvé.' })}
+                                  {' '}({deliveryNotes.length} BLs total, {deliveryNotes.filter(bl => !formSupplier || bl.supplierData?.id === formSupplier || bl.supplier === formSupplier).length} for this supplier)
+                                </CommandEmpty>
+                                <CommandGroup>
+                                  {formReferenceBL && (
+                                    <CommandItem
+                                      value="__clear__"
+                                      onSelect={() => {
+                                        setFormReferenceBL('');
+                                        setBlSearchOpen(false);
+                                        setBlSearchQuery('');
+                                      }}
+                                      className="text-muted-foreground"
+                                    >
+                                      <X className="h-4 w-4 mr-2" />
+                                      {t('common.clearSelection', { defaultValue: 'Effacer la sélection' })}
+                                    </CommandItem>
+                                  )}
+                                  {deliveryNotes
+                                    .filter(bl => {
+                                      // Filter by selected supplier if one is chosen
+                                      if (formSupplier) {
+                                        const supplierMatch = bl.supplierData?.id === formSupplier || bl.supplier === formSupplier;
+                                        if (!supplierMatch) return false;
+                                      }
+                                      // Filter by search query
+                                      if (blSearchQuery) {
+                                        const query = blSearchQuery.toLowerCase();
+                                        return (
+                                          bl.id.toLowerCase().includes(query) ||
+                                          bl.supplier.toLowerCase().includes(query) ||
+                                          (bl.supplierData?.company || '').toLowerCase().includes(query) ||
+                                          formatDate(bl.date).toLowerCase().includes(query)
+                                        );
+                                      }
+                                      return true;
+                                    })
+                                    .map((bl) => (
+                                      <CommandItem
+                                        key={bl.id}
+                                        value={bl.id}
+                                        onSelect={() => {
+                                          setFormReferenceBL(bl.id);
+                                          setBlSearchOpen(false);
+                                          setBlSearchQuery('');
+                                        }}
+                                        className="flex items-start gap-3 py-3"
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "h-4 w-4 mt-0.5 flex-shrink-0",
+                                            formReferenceBL === bl.id ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-medium text-sm truncate font-mono">
+                                              {bl.id}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground flex-shrink-0">
+                                              {formatDate(bl.date)}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <span className="truncate">{bl.supplierData?.company || bl.supplier}</span>
+                                            <span>•</span>
+                                            <span className="font-medium text-foreground">
+                                              {formatMAD(bl.total)}
+                                            </span>
+                                            <span>•</span>
+                                            <span>{bl.items?.length || 0} {t('documents.items', { defaultValue: 'articles' })}</span>
+                                          </div>
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                       <div className="space-y-2 md:col-span-2 p-4 bg-muted/40 rounded-lg border border-border">
                         <Label className="font-medium flex items-center gap-2 mb-2">
