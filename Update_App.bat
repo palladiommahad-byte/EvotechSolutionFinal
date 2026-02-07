@@ -8,7 +8,7 @@ docker-compose down
 
 echo.
 echo [Step 2/3] Downloading latest updates from GitHub...
-git pull
+git pull origin main
 IF %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERROR] Could not download updates! Check your internet connection.
