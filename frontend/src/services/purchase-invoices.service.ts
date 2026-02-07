@@ -81,7 +81,7 @@ export const purchaseInvoicesService = {
   },
 
   async create(data: {
-    document_id: string;
+    document_id?: string;
     supplier_id: string;
     date: string;
     due_date?: string;

@@ -161,6 +161,7 @@
     "bySigningIn": "En vous connectant, vous acceptez nos Conditions d'utilisation et notre Politique de confidentialité",
     "welcomeBackToast": "Bon retour !",
     "welcomeBackToastDescription": "Vous avez été connecté avec succès.",
+    "welcomeBackUser": "Bon retour, {{name}}",
     "error": "Erreur",
     "errorDescription": "Une erreur s'est produite lors de la connexion. Veuillez réessayer.",
     "invalidCredentialsDescription": "Email ou mot de passe invalide. Veuillez réessayer."
@@ -349,7 +350,6 @@
     "purchaseOrderNumber": "Numéro de bon de commande",
     "enterPONumber": "Entrer le numéro du bon de commande",
     "enterDNNumber": "Entrer le numéro du bon de livraison",
-    "enterDocumentNumber": "Entrer le numéro du document",
     "idAlreadyExists": "Ce numéro de document existe déjà. Veuillez utiliser un numéro unique.",
     "itemDescription": "Description du produit ou service",
     "clientInformation": "Informations client",

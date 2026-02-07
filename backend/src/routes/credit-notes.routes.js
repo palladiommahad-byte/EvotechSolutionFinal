@@ -1,7 +1,9 @@
 const express = require('express');
 const { query, getClient } = require('../config/database');
 const { verifyToken } = require('../middleware/auth.middleware');
+
 const { asyncHandler } = require('../middleware/error.middleware');
+const { generateDocumentNumber } = require('../services/document-generation.service');
 
 const router = express.Router();
 
@@ -94,10 +96,20 @@ router.get('/:id', asyncHandler(async (req, res) => {
  * POST /api/credit-notes
  */
 router.post('/', asyncHandler(async (req, res) => {
-    const { document_id, client_id, invoice_id, date, note, items } = req.body;
+    let { document_id, client_id, invoice_id, date, note, items } = req.body;
 
-    if (!document_id || !client_id || !date || !items || items.length === 0) {
-        return res.status(400).json({ error: 'Validation Error', message: 'document_id, client_id, date, and items are required' });
+    if (!client_id || !date || !items || items.length === 0) {
+        return res.status(400).json({ error: 'Validation Error', message: 'client_id, date, and items are required' });
+    }
+
+    // Auto-generate document_id if not provided
+    if (!document_id) {
+        try {
+            document_id = await generateDocumentNumber('credit_note', date);
+        } catch (err) {
+            console.error('Error generating document number:', err);
+            return res.status(500).json({ error: 'Generation Error', message: 'Failed to generate document number' });
+        }
     }
 
     const client = await getClient();

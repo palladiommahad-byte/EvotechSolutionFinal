@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Trash2, Send, Download, FileText, Edit } from 'lucide-react';
 import { useSales } from '@/contexts/SalesContext';
+import { useCompany } from '@/contexts/CompanyContext';
 import { useToast } from '@/components/ui/use-toast';
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { ProductSearch } from '@/components/ui/product-search';
@@ -31,6 +32,7 @@ interface PrelevementItem {
 export const PrelevementForm: React.FC<PrelevementFormProps> = ({ clients, products }) => {
     const { t } = useTranslation();
     const { createPrelevement } = useSales();
+    const { companyInfo } = useCompany();
     const { toast } = useToast();
 
     const [formClient, setFormClient] = useState<string>('');
@@ -42,6 +44,15 @@ export const PrelevementForm: React.FC<PrelevementFormProps> = ({ clients, produ
     const [manualDocumentId, setManualDocumentId] = useState('');
     const [isManualId, setIsManualId] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Sync isManualId with company settings
+    useEffect(() => {
+        if (companyInfo?.autoNumberDocuments === false) {
+            setIsManualId(true);
+        } else {
+            setIsManualId(false);
+        }
+    }, [companyInfo?.autoNumberDocuments]);
 
     // Calculate totals
     const subtotal = items.reduce((sum, item) => sum + item.total, 0);
@@ -102,7 +113,7 @@ export const PrelevementForm: React.FC<PrelevementFormProps> = ({ clients, produ
             return;
         }
 
-        let documentId = '';
+        let documentId: string | undefined;
         if (isManualId) {
             if (!manualDocumentId.trim()) {
                 toast({ title: 'Validation Error', description: t('documents.enterDocumentNumber'), variant: 'destructive' });
@@ -180,17 +191,19 @@ export const PrelevementForm: React.FC<PrelevementFormProps> = ({ clients, produ
                                 <div className="flex items-center justify-between">
                                     <Label>Numéro de prélèvement</Label>
                                     {isManualId ? (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => {
-                                                setIsManualId(false);
-                                                setManualDocumentId('');
-                                            }}
-                                            className="h-6 text-xs text-muted-foreground hover:text-foreground"
-                                        >
-                                            {t('common.autoGenerate')}
-                                        </Button>
+                                        companyInfo?.autoNumberDocuments !== false && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setIsManualId(false);
+                                                    setManualDocumentId('');
+                                                }}
+                                                className="h-6 text-xs text-muted-foreground hover:text-foreground"
+                                            >
+                                                {t('common.autoGenerate')}
+                                            </Button>
+                                        )
                                     ) : (
                                         <Button
                                             variant="outline"

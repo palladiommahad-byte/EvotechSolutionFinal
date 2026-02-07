@@ -23,6 +23,7 @@ export interface CompanySettings {
   cnss?: string;
   logo?: string | null;
   footer_text?: string;
+  auto_number_documents?: boolean;
   created_at?: string;
   updated_at?: string;
 }

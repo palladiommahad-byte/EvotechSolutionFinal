@@ -153,7 +153,7 @@ export const Settings = () => {
     }
   });
   const [showLogo, setShowLogo] = useState(true);
-  const [autoNumber, setAutoNumber] = useState(true);
+  const [autoNumber, setAutoNumber] = useState(companyInfo?.autoNumberDocuments ?? true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Convert database users to TeamUser format for compatibility
@@ -285,10 +285,15 @@ export const Settings = () => {
         }
         return prev;
       });
+
+      // Update autoNumber state
+      if (companyInfo.autoNumberDocuments !== undefined) {
+        setAutoNumber(companyInfo.autoNumberDocuments);
+      }
     } catch (error) {
       console.error('Error syncing formData:', error);
     }
-  }, [companyInfoString]);
+  }, [companyInfoString, companyInfo?.autoNumberDocuments]);
 
   // Warehouse management states
   const [warehouseToDelete, setWarehouseToDelete] = useState<WarehouseInfo | null>(null);
@@ -345,6 +350,7 @@ export const Settings = () => {
     updateCompanyInfo({
       logo: formData.logo,
       footerText: formData.footerText,
+      autoNumberDocuments: autoNumber,
     });
     toast({
       title: "Success",

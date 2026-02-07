@@ -159,6 +159,7 @@
     "bySigningIn": "By signing in, you agree to our Terms of Service and Privacy Policy",
     "welcomeBackToast": "Welcome back!",
     "welcomeBackToastDescription": "You have been successfully logged in.",
+    "welcomeBackUser": "Welcome back, {{name}}",
     "error": "Error",
     "errorDescription": "An error occurred during login. Please try again.",
     "invalidCredentialsDescription": "Invalid email or password. Please try again."

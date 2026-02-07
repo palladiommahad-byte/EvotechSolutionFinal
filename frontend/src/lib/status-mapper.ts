@@ -18,7 +18,7 @@ export function mapInvoiceStatus(uiStatus: string): 'draft' | 'sent' | 'paid' | 
     'overdue': 'overdue',
     'cancelled': 'cancelled',
   };
-  
+
   return statusMap[uiStatus.toLowerCase()] || 'draft';
 }
 
@@ -33,7 +33,7 @@ export function mapInvoiceStatusToUI(dbStatus: string): string {
     'overdue': 'overdue',
     'cancelled': 'cancelled',
   };
-  
+
   return statusMap[dbStatus.toLowerCase()] || dbStatus;
 }
 
@@ -51,7 +51,7 @@ export function mapEstimateStatus(uiStatus: string): 'draft' | 'sent' | 'accepte
     'expired': 'expired',
     'cancelled': 'rejected', // Map 'cancelled' to 'rejected' in database
   };
-  
+
   return statusMap[uiStatus.toLowerCase()] || 'draft';
 }
 
@@ -66,7 +66,7 @@ export function mapEstimateStatusToUI(dbStatus: string): string {
     'rejected': 'cancelled', // Map 'rejected' to 'cancelled' in UI
     'expired': 'expired',
   };
-  
+
   return statusMap[dbStatus.toLowerCase()] || dbStatus;
 }
 
@@ -83,7 +83,7 @@ export function mapDeliveryNoteStatus(uiStatus: string): 'draft' | 'delivered' |
     'delivered': 'delivered',
     'cancelled': 'cancelled',
   };
-  
+
   return statusMap[uiStatus.toLowerCase()] || 'draft';
 }
 
@@ -96,7 +96,7 @@ export function mapDeliveryNoteStatusToUI(dbStatus: string): string {
     'delivered': 'delivered',
     'cancelled': 'cancelled',
   };
-  
+
   return statusMap[dbStatus.toLowerCase()] || dbStatus;
 }
 
@@ -114,7 +114,7 @@ export function mapCreditNoteStatus(uiStatus: string): 'draft' | 'sent' | 'appli
     'applied': 'applied',
     'cancelled': 'cancelled',
   };
-  
+
   return statusMap[uiStatus.toLowerCase()] || 'draft';
 }
 
@@ -128,7 +128,7 @@ export function mapCreditNoteStatusToUI(dbStatus: string): string {
     'applied': 'approved', // Map 'applied' to 'approved' in UI
     'cancelled': 'cancelled',
   };
-  
+
   return statusMap[dbStatus.toLowerCase()] || dbStatus;
 }
 
@@ -147,7 +147,7 @@ export function mapPurchaseOrderStatus(uiStatus: string): 'draft' | 'sent' | 'co
     'received': 'received',
     'cancelled': 'cancelled',
   };
-  
+
   return statusMap[uiStatus.toLowerCase()] || 'draft';
 }
 
@@ -162,7 +162,7 @@ export function mapPurchaseOrderStatusToUI(dbStatus: string): string {
     'received': 'received',
     'cancelled': 'cancelled',
   };
-  
+
   return statusMap[dbStatus.toLowerCase()] || dbStatus;
 }
 
@@ -180,7 +180,7 @@ export function mapPurchaseInvoiceStatus(uiStatus: string): 'draft' | 'received'
     'overdue': 'overdue',
     'cancelled': 'cancelled',
   };
-  
+
   return statusMap[uiStatus.toLowerCase()] || 'draft';
 }
 
@@ -195,6 +195,6 @@ export function mapPurchaseInvoiceStatusToUI(dbStatus: string): string {
     'overdue': 'overdue',
     'cancelled': 'cancelled',
   };
-  
+
   return statusMap[dbStatus.toLowerCase()] || dbStatus;
 }

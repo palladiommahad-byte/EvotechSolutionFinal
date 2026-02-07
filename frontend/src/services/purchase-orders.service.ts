@@ -73,7 +73,7 @@ export const purchaseOrdersService = {
   },
 
   async create(data: {
-    document_id: string;
+    document_id?: string;
     supplier_id: string;
     date: string;
     subtotal: number;

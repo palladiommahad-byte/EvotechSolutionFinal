@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { toast } from '@/hooks/use-toast';
 
@@ -8,6 +9,8 @@ import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Bell, Search, User, Settings, LogOut, UserCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { format } from 'date-fns';
+import { fr, enUS } from 'date-fns/locale';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -25,9 +28,12 @@ import { NotificationDropdown } from '@/components/notifications/NotificationDro
 
 export const TopHeader = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user: authUser, logout } = useAuth();
+  const { companyInfo } = useCompany();
   const { unreadCount } = useNotifications();
+
+  const companyLogo = companyInfo.logo;
   // Use auth user data directly
   const displayName = authUser?.name || 'User';
   const displayEmail = authUser?.email || '';
@@ -45,19 +51,23 @@ export const TopHeader = () => {
 
   return (
     <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
-      {/* Search */}
-      <div className="flex items-center gap-4 flex-1 max-w-md">
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder={t('common.search')}
-            className="pl-10 bg-section border-border"
-          />
-        </div>
+      {/* Welcome Message */}
+      <div className="flex items-center gap-4 flex-1">
+        <h1 className="text-lg font-medium text-foreground">
+          {t('auth.welcomeBackUser', { name: '' })}
+          <span className="text-primary font-semibold ml-1">{displayName}</span>
+        </h1>
       </div>
 
-      {/* Language Switcher */}
+      {/* Language Switcher & Date */}
       <div className="flex items-center gap-4">
+        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-muted/30 rounded-full border border-border/50">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            {format(new Date(), 'EEEE, d MMMM yyyy', {
+              locale: i18n.language === 'fr' ? fr : enUS
+            })}
+          </span>
+        </div>
         <LanguageSwitcher />
 
         {/* Actions */}
@@ -83,7 +93,7 @@ export const TopHeader = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground relative rounded-full data-[state=open]:bg-primary data-[state=open]:text-primary-foreground">
                 <Avatar className="w-8 h-8 border-2 border-border hover:border-primary/50 transition-colors">
-                  <AvatarImage src={undefined} alt={displayName} />
+                  <AvatarImage src={companyLogo || undefined} alt={displayName} />
                   <AvatarFallback className="bg-primary/10 text-primary">
                     <User className="w-4 h-4" />
                   </AvatarFallback>

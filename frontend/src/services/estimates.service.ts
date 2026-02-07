@@ -85,7 +85,7 @@ export const estimatesService = {
   },
 
   async create(estimate: {
-    document_id: string;
+    document_id?: string;
     client_id: string;
     date: string;
     note?: string;

@@ -150,6 +150,15 @@ export const Purchases = () => {
   const [manualDocumentId, setManualDocumentId] = useState('');
   const [isManualId, setIsManualId] = useState(false);
 
+  // Sync isManualId with company settings
+  React.useEffect(() => {
+    if (companyInfo?.autoNumberDocuments === false) {
+      setIsManualId(true);
+    } else {
+      setIsManualId(false);
+    }
+  }, [companyInfo?.autoNumberDocuments]);
+
   // Check number state
   const [formCheckNumber, setFormCheckNumber] = useState('');
 
@@ -726,18 +735,22 @@ export const Purchases = () => {
     ];
 
     // Generate unique document number using database function or use manual input
-    let documentNumber: string;
+    let documentNumber: string | undefined;
 
-    if (isManualId && manualDocumentId.trim()) {
-      documentNumber = manualDocumentId.trim();
+    // Use manual document ID if provided
+    if (isManualId) {
+      if (!manualDocumentId.trim()) {
+        toast({
+          title: t('common.error', { defaultValue: 'Error' }),
+          description: t('documents.enterDocumentNumber', { defaultValue: 'Please enter a document number.' }),
+          variant: "destructive",
+        });
+        return;
+      }
 
-      // Validate uniqueness
-      const alreadyExists = allExistingDocuments.some(doc =>
-        doc.id.toLowerCase() === documentNumber.toLowerCase() ||
-        doc.documentId.toLowerCase() === documentNumber.toLowerCase()
-      );
-
-      if (alreadyExists) {
+      // Check for uniqueness
+      const idExists = allExistingDocuments.some(doc => doc.id === manualDocumentId.trim() || doc.documentId === manualDocumentId.trim());
+      if (idExists) {
         toast({
           title: t('common.error', { defaultValue: 'Error' }),
           description: t('documents.idAlreadyExists', { defaultValue: 'This document ID already exists. Please use a unique ID.' }),
@@ -745,29 +758,11 @@ export const Purchases = () => {
         });
         return;
       }
+
+      documentNumber = manualDocumentId.trim();
     } else {
-      try {
-        const { generateDocumentNumberFromDB } = await import('@/lib/document-number-service');
-        documentNumber = await generateDocumentNumberFromDB(
-          documentType === 'invoice' ? 'purchase_invoice' :
-            documentType === 'purchase_order' ? 'purchase_order' :
-              documentType === 'delivery_note' ? 'delivery_note' :
-                'statement',
-          allExistingDocuments,
-          formDate
-        );
-      } catch (error) {
-        console.warn('Failed to generate document number, using fallback:', error);
-        // Fallback to direct generator call
-        documentNumber = generateDocumentNumber(
-          documentType === 'invoice' ? 'purchase_invoice' :
-            documentType === 'purchase_order' ? 'purchase_order' :
-              documentType === 'delivery_note' ? 'delivery_note' :
-                'statement',
-          allExistingDocuments,
-          formDate
-        );
-      }
+      // Auto-generation handled by backend
+      documentNumber = undefined;
     }
 
     // Handle File Upload - Disabled for local backend
@@ -788,7 +783,7 @@ export const Purchases = () => {
     }
 
     try {
-      const newDocumentData: Omit<PurchaseDocument, 'id' | 'type'> = {
+      const newDocumentData: any = {
         documentId: documentNumber,
         supplier: supplierData.id,
         attachment_url: attachmentUrl,
@@ -822,15 +817,17 @@ export const Purchases = () => {
       };
 
       // Create in database (except statements which are mock)
+      // Create in database (except statements which are mock)
+      let createdDoc: any;
       switch (documentType) {
         case 'purchase_order':
-          await createPurchaseOrder(newDocumentData);
+          createdDoc = await createPurchaseOrder(newDocumentData);
           break;
         case 'delivery_note':
-          await createDeliveryNote(newDocumentData);
+          createdDoc = await createDeliveryNote(newDocumentData);
           break;
         case 'invoice':
-          await createPurchaseInvoice(newDocumentData);
+          createdDoc = await createPurchaseInvoice(newDocumentData);
           break;
         case 'statement':
           // Statements feature not implemented yet
@@ -1321,17 +1318,19 @@ export const Purchases = () => {
                         <div className="flex items-center justify-between">
                           <Label>{t('documents.purchaseOrderNumber')}</Label>
                           {isManualId ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setIsManualId(false);
-                                setManualDocumentId('');
-                              }}
-                              className="h-6 text-xs"
-                            >
-                              {t('common.autoGenerate')}
-                            </Button>
+                            companyInfo?.autoNumberDocuments !== false && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setIsManualId(false);
+                                  setManualDocumentId('');
+                                }}
+                                className="h-6 text-xs"
+                              >
+                                {t('common.autoGenerate')}
+                              </Button>
+                            )
                           ) : (
                             <Button
                               variant="ghost"
@@ -1712,17 +1711,19 @@ export const Purchases = () => {
                         <div className="flex items-center justify-between">
                           <Label>{t('documents.deliveryNoteNumber')}</Label>
                           {isManualId ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setIsManualId(false);
-                                setManualDocumentId('');
-                              }}
-                              className="h-6 text-xs"
-                            >
-                              {t('common.autoGenerate')}
-                            </Button>
+                            companyInfo?.autoNumberDocuments !== false && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setIsManualId(false);
+                                  setManualDocumentId('');
+                                }}
+                                className="h-6 text-xs"
+                              >
+                                {t('common.autoGenerate')}
+                              </Button>
+                            )
                           ) : (
                             <Button
                               variant="ghost"
@@ -2242,17 +2243,19 @@ export const Purchases = () => {
                         <div className="flex items-center justify-between">
                           <Label>{t('documents.invoiceNumber')}</Label>
                           {isManualId ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setIsManualId(false);
-                                setManualDocumentId('');
-                              }}
-                              className="h-6 text-xs"
-                            >
-                              {t('common.autoGenerate')}
-                            </Button>
+                            companyInfo?.autoNumberDocuments !== false && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setIsManualId(false);
+                                  setManualDocumentId('');
+                                }}
+                                className="h-6 text-xs"
+                              >
+                                {t('common.autoGenerate')}
+                              </Button>
+                            )
                           ) : (
                             <Button
                               variant="ghost"

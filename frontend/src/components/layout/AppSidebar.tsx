@@ -202,7 +202,7 @@ export const AppSidebar = () => {
         {collapsed ? (
           <div className="relative group flex justify-center">
             <Avatar className="w-8 h-8 border-2 border-primary-foreground/20">
-              <AvatarImage src={undefined} alt={displayName} />
+              <AvatarImage src={companyLogo || undefined} alt={displayName} />
               <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground">
                 <User className="w-4 h-4" />
               </AvatarFallback>
@@ -215,7 +215,7 @@ export const AppSidebar = () => {
         ) : (
           <div className="flex items-center gap-3 px-3 py-2 rounded-lg text-primary-foreground/80">
             <Avatar className="w-8 h-8 border-2 border-primary-foreground/20 flex-shrink-0">
-              <AvatarImage src={undefined} alt={displayName} />
+              <AvatarImage src={companyLogo || undefined} alt={displayName} />
               <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground">
                 <User className="w-4 h-4" />
               </AvatarFallback>

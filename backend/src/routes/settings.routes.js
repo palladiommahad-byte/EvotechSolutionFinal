@@ -18,15 +18,15 @@ router.get('/company', asyncHandler(async (req, res) => {
 }));
 
 router.put('/company', asyncHandler(async (req, res) => {
-    const { name, legal_form, email, phone, address, ice, if_number, rc, tp, cnss, logo, footer_text } = req.body;
+    const { name, legal_form, email, phone, address, ice, if_number, rc, tp, cnss, logo, footer_text, auto_number_documents } = req.body;
 
     const existing = await query('SELECT id FROM company_settings LIMIT 1');
 
     if (existing.rows.length === 0) {
         const result = await query(
-            `INSERT INTO company_settings (name, legal_form, email, phone, address, ice, if_number, rc, tp, cnss, logo, footer_text)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-            [name || 'Company', legal_form, email, phone, address, ice, if_number, rc, tp, cnss, logo, footer_text]
+            `INSERT INTO company_settings (name, legal_form, email, phone, address, ice, if_number, rc, tp, cnss, logo, footer_text, auto_number_documents)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+            [name || 'Company', legal_form, email, phone, address, ice, if_number, rc, tp, cnss, logo, footer_text, auto_number_documents !== undefined ? auto_number_documents : true]
         );
         return res.status(201).json(result.rows[0]);
     }
@@ -37,9 +37,10 @@ router.put('/company', asyncHandler(async (req, res) => {
      phone = COALESCE($4, phone), address = COALESCE($5, address), ice = COALESCE($6, ice),
      if_number = COALESCE($7, if_number), rc = COALESCE($8, rc), tp = COALESCE($9, tp),
      cnss = COALESCE($10, cnss), logo = COALESCE($11, logo), footer_text = COALESCE($12, footer_text),
+     auto_number_documents = COALESCE($13, auto_number_documents),
      updated_at = NOW()
-     WHERE id = $13 RETURNING *`,
-        [name, legal_form, email, phone, address, ice, if_number, rc, tp, cnss, logo, footer_text, existing.rows[0].id]
+     WHERE id = $14 RETURNING *`,
+        [name, legal_form, email, phone, address, ice, if_number, rc, tp, cnss, logo, footer_text, auto_number_documents, existing.rows[0].id]
     );
     res.json(result.rows[0]);
 }));

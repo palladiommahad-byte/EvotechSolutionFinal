@@ -88,7 +88,7 @@ export const creditNotesService = {
   },
 
   async create(creditNote: {
-    document_id: string;
+    document_id?: string;
     client_id: string;
     invoice_id?: string;
     date: string;

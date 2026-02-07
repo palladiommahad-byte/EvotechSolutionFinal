@@ -14,6 +14,7 @@ export interface CompanyInfo {
   cnss: string;
   logo?: string | null;
   footerText?: string;
+  autoNumberDocuments?: boolean;
 }
 
 interface CompanyContextType {
@@ -35,6 +36,7 @@ const defaultCompanyInfo: CompanyInfo = {
   cnss: '1234567',
   logo: null,
   footerText: 'Merci pour votre confiance. Paiement à 30 jours. TVA 20%.',
+  autoNumberDocuments: true,
 };
 
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
@@ -63,13 +65,14 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
       cnss: dbSettings.cnss || defaultCompanyInfo.cnss,
       logo: dbSettings.logo ?? defaultCompanyInfo.logo,
       footerText: dbSettings.footer_text || defaultCompanyInfo.footerText,
+      autoNumberDocuments: dbSettings.auto_number_documents ?? defaultCompanyInfo.autoNumberDocuments,
     };
   }, [dbSettings]);
 
   const updateCompanyInfo = async (info: Partial<CompanyInfo>) => {
     // Convert CompanyInfo format to database format
     const dbUpdate: any = {};
-    
+
     if (info.name !== undefined) dbUpdate.name = info.name;
     if (info.legalForm !== undefined) dbUpdate.legal_form = info.legalForm;
     if (info.email !== undefined) dbUpdate.email = info.email;
@@ -82,6 +85,7 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (info.cnss !== undefined) dbUpdate.cnss = info.cnss;
     if (info.logo !== undefined) dbUpdate.logo = info.logo;
     if (info.footerText !== undefined) dbUpdate.footer_text = info.footerText;
+    if (info.autoNumberDocuments !== undefined) dbUpdate.auto_number_documents = info.autoNumberDocuments;
 
     try {
       await updateMutation.mutateAsync(dbUpdate);

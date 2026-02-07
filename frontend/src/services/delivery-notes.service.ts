@@ -99,7 +99,7 @@ export const deliveryNotesService = {
   },
 
   async create(deliveryNote: {
-    document_id: string;
+    document_id?: string;
     client_id?: string;
     supplier_id?: string;
     warehouse_id?: string;

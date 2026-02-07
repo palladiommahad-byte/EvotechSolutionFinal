@@ -1,7 +1,9 @@
 const express = require('express');
 const { query, getClient } = require('../config/database');
 const { verifyToken } = require('../middleware/auth.middleware');
+
 const { asyncHandler } = require('../middleware/error.middleware');
+const { generateDocumentNumber } = require('../services/document-generation.service');
 
 const router = express.Router();
 
@@ -93,10 +95,20 @@ router.get('/:id', asyncHandler(async (req, res) => {
  * POST /api/purchase-orders
  */
 router.post('/', asyncHandler(async (req, res) => {
-    const { document_id, supplier_id, date, subtotal, status = 'draft', note, items } = req.body;
+    let { document_id, supplier_id, date, subtotal, status = 'draft', note, items } = req.body;
 
-    if (!document_id || !supplier_id || !date || !items || items.length === 0) {
-        return res.status(400).json({ error: 'Validation Error', message: 'document_id, supplier_id, date, and items are required' });
+    if (!supplier_id || !date || !items || items.length === 0) {
+        return res.status(400).json({ error: 'Validation Error', message: 'supplier_id, date, and items are required' });
+    }
+
+    // Auto-generate document_id if not provided
+    if (!document_id) {
+        try {
+            document_id = await generateDocumentNumber('purchase_order', date);
+        } catch (err) {
+            console.error('Error generating document number:', err);
+            return res.status(500).json({ error: 'Generation Error', message: 'Failed to generate document number' });
+        }
     }
 
     const client = await getClient();

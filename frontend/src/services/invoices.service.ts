@@ -104,7 +104,7 @@ export const invoicesService = {
    * Create a new invoice with items
    */
   async create(invoice: {
-    document_id: string;
+    document_id?: string;
     client_id: string;
     date: string;
     due_date?: string;

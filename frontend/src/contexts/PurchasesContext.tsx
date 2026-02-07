@@ -78,15 +78,16 @@ interface PurchasesContextType {
   isLoading: boolean;
 
   // CRUD operations
-  createPurchaseOrder: (data: Omit<PurchaseDocument, 'id' | 'type'>) => Promise<void>;
+  // CRUD operations
+  createPurchaseOrder: (data: Omit<PurchaseDocument, 'id' | 'type'>) => Promise<any>;
   updatePurchaseOrder: (id: string, data: Partial<PurchaseDocument>) => Promise<void>;
   deletePurchaseOrder: (id: string) => Promise<void>;
 
-  createPurchaseInvoice: (data: Omit<PurchaseDocument, 'id' | 'type'>) => Promise<void>;
+  createPurchaseInvoice: (data: Omit<PurchaseDocument, 'id' | 'type'>) => Promise<any>;
   updatePurchaseInvoice: (id: string, data: Partial<PurchaseDocument>) => Promise<void>;
   deletePurchaseInvoice: (id: string) => Promise<void>;
 
-  createDeliveryNote: (data: Omit<PurchaseDocument, 'id' | 'type'>) => Promise<void>;
+  createDeliveryNote: (data: Omit<PurchaseDocument, 'id' | 'type'>) => Promise<any>;
   updateDeliveryNote: (id: string, data: Partial<PurchaseDocument>) => Promise<void>;
   deleteDeliveryNote: (id: string) => Promise<void>;
 
@@ -241,7 +242,7 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
       }
 
       return purchaseOrdersService.create({
-        document_id: data.documentId || `BC-${Date.now()}`,
+        document_id: data.documentId,
         supplier_id: supplierId,
         date: data.date,
         subtotal: data.total,
@@ -289,7 +290,7 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
         // Still show success for purchase order creation
       }
 
-      toast({ title: 'Purchase order created successfully', variant: 'success' });
+      toast({ title: 'Purchase order created successfully', description: `Order ${purchaseOrder.document_id} created.`, variant: 'success' });
     },
     onError: (error: Error) => {
       // Check if it's a duplicate key error
@@ -413,7 +414,7 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
       const total = subtotal + vatAmount;
 
       return purchaseInvoicesService.create({
-        document_id: data.documentId || `FA-${Date.now()}`,
+        document_id: data.documentId,
         supplier_id: supplierId,
         date: data.date,
         due_date: data.dueDate,
@@ -470,7 +471,7 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
         // Still show success for purchase invoice creation
       }
 
-      toast({ title: 'Purchase invoice created successfully', variant: 'success' });
+      toast({ title: 'Purchase invoice created successfully', description: `Invoice ${purchaseInvoice.document_id} created.`, variant: 'success' });
     },
     onError: (error: Error) => {
       // Check if it's a duplicate key error
@@ -598,7 +599,7 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
       const supplierId = data.supplierData?.id || data.supplier;
 
       return deliveryNotesService.create({
-        document_id: data.documentId || `BL-${Date.now()}`,
+        document_id: data.documentId,
         supplier_id: supplierId,
         warehouse_id: data.warehouseId,
         date: data.date,
@@ -612,12 +613,12 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
         })),
       });
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['purchases', 'delivery_notes'] });
       // Invalidate products and stock items to reflect stock changes
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stockItems'] });
-      toast({ title: 'Delivery note created successfully', variant: 'success' });
+      toast({ title: 'Delivery note created successfully', description: `Note ${result.document_id} created.`, variant: 'success' });
     },
     onError: (error: Error) => {
       toast({ title: 'Error creating delivery note', description: error.message, variant: 'destructive' });
@@ -675,13 +676,13 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
       deliveryNotes: purchaseDeliveryNotes,
       allDeliveryNotes,
       isLoading,
-      createPurchaseOrder: async (data) => { await createPurchaseOrderMutation.mutateAsync(data); },
+      createPurchaseOrder: async (data) => { return await createPurchaseOrderMutation.mutateAsync(data); },
       updatePurchaseOrder: async (id, data) => { await updatePurchaseOrderMutation.mutateAsync({ id, data }); },
       deletePurchaseOrder: async (id) => { await deletePurchaseOrderMutation.mutateAsync(id); },
-      createPurchaseInvoice: async (data) => { await createPurchaseInvoiceMutation.mutateAsync(data); },
+      createPurchaseInvoice: async (data) => { return await createPurchaseInvoiceMutation.mutateAsync(data); },
       updatePurchaseInvoice: async (id, data) => { await updatePurchaseInvoiceMutation.mutateAsync({ id, data }); },
       deletePurchaseInvoice: async (id) => { await deletePurchaseInvoiceMutation.mutateAsync(id); },
-      createDeliveryNote: async (data) => { await createDeliveryNoteMutation.mutateAsync(data); },
+      createDeliveryNote: async (data) => { return await createDeliveryNoteMutation.mutateAsync(data); },
       updateDeliveryNote: async (id, data) => { await updateDeliveryNoteMutation.mutateAsync({ id, data }); },
       deleteDeliveryNote: async (id) => { await deleteDeliveryNoteMutation.mutateAsync(id); },
       refreshAll: async () => {

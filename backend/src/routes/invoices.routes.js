@@ -1,7 +1,9 @@
 const express = require('express');
 const { query, getClient } = require('../config/database');
 const { verifyToken } = require('../middleware/auth.middleware');
+
 const { asyncHandler } = require('../middleware/error.middleware');
+const { generateDocumentNumber } = require('../services/document-generation.service');
 
 const router = express.Router();
 
@@ -200,7 +202,7 @@ router.get('/document/:documentId', asyncHandler(async (req, res) => {
  * Create a new invoice with items
  */
 router.post('/', asyncHandler(async (req, res) => {
-    const {
+    let {
         document_id,
         client_id,
         date,
@@ -214,11 +216,21 @@ router.post('/', asyncHandler(async (req, res) => {
         status = 'draft'
     } = req.body;
 
-    if (!document_id || !client_id || !date || !items || items.length === 0) {
+    if (!client_id || !date || !items || items.length === 0) {
         return res.status(400).json({
             error: 'Validation Error',
-            message: 'document_id, client_id, date, and items are required',
+            message: 'client_id, date, and items are required',
         });
+    }
+
+    // Auto-generate document_id if not provided
+    if (!document_id) {
+        try {
+            document_id = await generateDocumentNumber('invoice', date);
+        } catch (err) {
+            console.error('Error generating document number:', err);
+            return res.status(500).json({ error: 'Generation Error', message: 'Failed to generate document number' });
+        }
     }
 
     const client = await getClient();
