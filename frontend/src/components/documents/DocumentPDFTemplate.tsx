@@ -134,10 +134,10 @@ const styles = StyleSheet.create({
     lineHeight: 1.3,
   },
   invoiceToBox: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#F9FAFB',
     padding: '10px 12px',
     borderRadius: 5,
-    border: '1px solid #3b82f6',
+    border: '1px solid #E5E7EB',
   },
   clientName: {
     fontSize: 9,
@@ -287,6 +287,10 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
   const currentLang = language || i18n.language || 'en';
   const t = (key: string, options?: any) => i18n.t(key, { lng: currentLang, ...options });
 
+  // Dynamic PDF colors from settings
+  const primaryColor = companyInfo.pdfPrimaryColor || '#3b82f6';
+  const titleColor = companyInfo.pdfTitleColor || '#3b82f6';
+
   const totals = calculateInvoiceTotals(items);
   const showVAT = type === 'invoice' || type === 'estimate' || type === 'credit_note' || type === 'prelevement';
 
@@ -385,7 +389,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                   />
                 )}
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.companyName}>{(companyInfo.name || 'COMPANY NAME').toUpperCase()}</Text>
+                  <Text style={[styles.companyName, { color: titleColor }]}>{(companyInfo.name || 'COMPANY NAME').toUpperCase()}</Text>
                   {companyInfo.email && companyInfo.email.includes('@') && (
                     <Text style={styles.website}>
                       {(companyInfo.email.split('@')[1] || '').toUpperCase()}
@@ -396,10 +400,10 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
 
               {/* Document Title */}
               <View style={{ alignItems: 'flex-end', width: 'auto' }}>
-                <Text style={[styles.documentTitle, { fontSize: getTitleFontSize(documentTitles[type]) }]}>
+                <Text style={[styles.documentTitle, { fontSize: getTitleFontSize(documentTitles[type]), color: titleColor }]}>
                   {documentTitles[type]}
                 </Text>
-                <View style={[styles.invoiceDetails, { width: 'auto', alignSelf: 'flex-end' }]}>
+                <View style={[styles.invoiceDetails, { width: 'auto', alignSelf: 'flex-end', backgroundColor: primaryColor }]}>
                   <View style={styles.invoiceDetailRow}>
                     <Text>
                       <Text style={styles.invoiceDetailLabel}>{String(t('pdf.documentNumber'))}: </Text>
@@ -430,8 +434,8 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
             }}>
               {/* Left Box - From (Sender) */}
               <View style={{ width: '40%', flexShrink: 0 }}>
-                <Text style={styles.invoiceToLabel}>{String(t('pdf.from'))}:</Text>
-                <View style={styles.invoiceToBox}>
+                <Text style={[styles.invoiceToLabel, { color: primaryColor }]}>{String(t('pdf.from'))}:</Text>
+                <View style={[styles.invoiceToBox, { borderColor: primaryColor }]}>
                   {type === 'purchase_invoice' || type === 'purchase_delivery_note' ? (
                     /* For Purchase Invoice/Delivery Note: Sender is Supplier */
                     <View>
@@ -489,12 +493,12 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
 
               {/* Right Box - To (Recipient) */}
               <View style={{ width: '40%', flexShrink: 0 }}>
-                <Text style={styles.invoiceToLabel}>
+                <Text style={[styles.invoiceToLabel, { color: primaryColor }]}>
                   {type === 'purchase_order' ? String(t('pdf.supplier')) :
                     type === 'purchase_invoice' || type === 'purchase_delivery_note' ? String(t('pdf.invoiceTo')) :
                       String(t('pdf.invoiceTo'))}:
                 </Text>
-                <View style={styles.invoiceToBox}>
+                <View style={[styles.invoiceToBox, { borderColor: primaryColor }]}>
                   {type === 'purchase_invoice' || type === 'purchase_delivery_note' ? (
                     /* For Purchase Invoice/Delivery Note: Recipient is Company (Us) */
                     <View>
@@ -553,9 +557,9 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
           </View>
 
           {/* Items Table - Can flow across pages */}
-          <View style={styles.table} wrap>
+          <View style={[styles.table, { borderColor: primaryColor }]} wrap>
             {/* Table Header */}
-            <View style={styles.tableHeader} wrap={false}>
+            <View style={[styles.tableHeader, { backgroundColor: primaryColor }]} wrap={false}>
               <View style={[styles.tableHeaderCell, { flex: 0.6, width: '6%' }]}>
                 <Text>{String(t('pdf.no'))}</Text>
               </View>
@@ -648,7 +652,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
             )}
 
             {/* Summary Box - Right Side - Always Right Aligned */}
-            <View style={styles.summaryBox} wrap={false}>
+            <View style={[styles.summaryBox, { backgroundColor: primaryColor }]} wrap={false}>
               {showVAT && (
                 <>
                   <View style={styles.summaryRow}>

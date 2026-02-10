@@ -18,11 +18,10 @@ router.get('/company', asyncHandler(async (req, res) => {
 }));
 
 router.put('/company', asyncHandler(async (req, res) => {
-    const { name, legal_form, email, phone, address, ice, if_number, rc, tp, cnss, logo, footer_text, auto_number_documents } = req.body;
-
     const existing = await query('SELECT id FROM company_settings LIMIT 1');
 
     if (existing.rows.length === 0) {
+        const { name, legal_form, email, phone, address, ice, if_number, rc, tp, cnss, logo, footer_text, auto_number_documents } = req.body;
         const result = await query(
             `INSERT INTO company_settings (name, legal_form, email, phone, address, ice, if_number, rc, tp, cnss, logo, footer_text, auto_number_documents)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
@@ -31,16 +30,33 @@ router.put('/company', asyncHandler(async (req, res) => {
         return res.status(201).json(result.rows[0]);
     }
 
+    // Build dynamic UPDATE query with only the fields present in the request body
+    // This allows fields to be explicitly set to null (e.g., removing logo)
+    // and avoids overwriting fields that were not sent
+    const allowedFields = ['name', 'legal_form', 'email', 'phone', 'address', 'ice', 'if_number', 'rc', 'tp', 'cnss', 'logo', 'footer_text', 'auto_number_documents', 'pdf_primary_color', 'pdf_title_color'];
+    const updates = [];
+    const params = [];
+    let idx = 1;
+
+    for (const field of allowedFields) {
+        if (field in req.body) {
+            updates.push(`${field} = $${idx++}`);
+            params.push(req.body[field]);
+        }
+    }
+
+    if (updates.length === 0) {
+        // No fields to update, return current settings
+        const current = await query('SELECT * FROM company_settings WHERE id = $1', [existing.rows[0].id]);
+        return res.json(current.rows[0]);
+    }
+
+    updates.push('updated_at = NOW()');
+    params.push(existing.rows[0].id);
+
     const result = await query(
-        `UPDATE company_settings SET 
-     name = COALESCE($1, name), legal_form = COALESCE($2, legal_form), email = COALESCE($3, email),
-     phone = COALESCE($4, phone), address = COALESCE($5, address), ice = COALESCE($6, ice),
-     if_number = COALESCE($7, if_number), rc = COALESCE($8, rc), tp = COALESCE($9, tp),
-     cnss = COALESCE($10, cnss), logo = COALESCE($11, logo), footer_text = COALESCE($12, footer_text),
-     auto_number_documents = COALESCE($13, auto_number_documents),
-     updated_at = NOW()
-     WHERE id = $14 RETURNING *`,
-        [name, legal_form, email, phone, address, ice, if_number, rc, tp, cnss, logo, footer_text, auto_number_documents, existing.rows[0].id]
+        `UPDATE company_settings SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
+        params
     );
     res.json(result.rows[0]);
 }));

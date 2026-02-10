@@ -133,6 +133,8 @@ export const Settings = () => {
         cnss: safeString(companyInfo?.cnss),
         logo: companyInfo?.logo ? safeString(companyInfo.logo) : null,
         footerText: safeString(companyInfo?.footerText),
+        pdfPrimaryColor: safeString(companyInfo?.pdfPrimaryColor) || '#3b82f6',
+        pdfTitleColor: safeString(companyInfo?.pdfTitleColor) || '#3b82f6',
       };
     } catch (error) {
       console.error('Error initializing formData:', error);
@@ -149,6 +151,8 @@ export const Settings = () => {
         cnss: '',
         logo: null,
         footerText: '',
+        pdfPrimaryColor: '#3b82f6',
+        pdfTitleColor: '#3b82f6',
       };
     }
   });
@@ -241,6 +245,8 @@ export const Settings = () => {
       cnss: companyInfo.cnss,
       logo: companyInfo.logo,
       footerText: companyInfo.footerText,
+      pdfPrimaryColor: companyInfo.pdfPrimaryColor,
+      pdfTitleColor: companyInfo.pdfTitleColor,
     });
   }, [
     companyInfo?.name,
@@ -274,6 +280,8 @@ export const Settings = () => {
         cnss: safeString(companyInfo.cnss),
         logo: companyInfo.logo ? safeString(companyInfo.logo) : null,
         footerText: safeString(companyInfo.footerText),
+        pdfPrimaryColor: safeString(companyInfo.pdfPrimaryColor) || '#3b82f6',
+        pdfTitleColor: safeString(companyInfo.pdfTitleColor) || '#3b82f6',
       };
 
       // Only update if values actually changed to prevent unnecessary re-renders
@@ -332,31 +340,73 @@ export const Settings = () => {
         return;
       }
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         const logoUrl = reader.result as string;
-        setFormData({ ...formData, logo: logoUrl });
-        updateCompanyInfo({ logo: logoUrl });
+        setFormData(prev => ({ ...prev, logo: logoUrl }));
+        try {
+          await updateCompanyInfo({ logo: logoUrl });
+          toast({
+            title: "Success",
+            description: "Logo updated successfully.",
+            variant: "success",
+          });
+        } catch (error) {
+          console.error('Error saving logo:', error);
+          // Revert on failure
+          setFormData(prev => ({ ...prev, logo: companyInfo?.logo ? safeString(companyInfo.logo) : null }));
+          toast({
+            title: "Error",
+            description: "Failed to save logo. Please try again.",
+            variant: "destructive",
+          });
+        }
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleRemoveLogo = () => {
-    setFormData({ ...formData, logo: null });
-    updateCompanyInfo({ logo: null });
+  const handleRemoveLogo = async () => {
+    const oldLogo = formData.logo;
+    setFormData(prev => ({ ...prev, logo: null }));
+    try {
+      await updateCompanyInfo({ logo: null });
+      toast({
+        title: "Success",
+        description: "Logo removed successfully.",
+        variant: "success",
+      });
+    } catch (error) {
+      console.error('Error removing logo:', error);
+      setFormData(prev => ({ ...prev, logo: oldLogo }));
+      toast({
+        title: "Error",
+        description: "Failed to remove logo. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleSaveBranding = () => {
-    updateCompanyInfo({
-      logo: formData.logo,
-      footerText: formData.footerText,
-      autoNumberDocuments: autoNumber,
-    });
-    toast({
-      title: "Success",
-      description: "Branding settings saved successfully.",
-      variant: "success",
-    });
+  const handleSaveBranding = async () => {
+    try {
+      await updateCompanyInfo({
+        logo: formData.logo,
+        footerText: formData.footerText,
+        autoNumberDocuments: autoNumber,
+        pdfPrimaryColor: formData.pdfPrimaryColor,
+        pdfTitleColor: formData.pdfTitleColor,
+      });
+      toast({
+        title: "Success",
+        description: "Branding settings saved successfully.",
+        variant: "success",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save branding settings.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleUpdateProfile = async () => {
@@ -997,6 +1047,62 @@ export const Settings = () => {
                   </div>
                   <Switch checked={autoNumber} onCheckedChange={setAutoNumber} />
                 </div>
+              </div>
+            </div>
+
+            {/* PDF Color Customization */}
+            <div className="mt-8 pt-6 border-t border-border">
+              <h4 className="text-md font-heading font-semibold text-foreground mb-4">PDF Document Colors</h4>
+              <p className="text-sm text-muted-foreground mb-6">Customize the colors used in your generated PDF documents.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {/* Primary Color */}
+                <div className="space-y-3">
+                  <Label className="block">Primary Color</Label>
+                  <p className="text-xs text-muted-foreground">Table headers, details box, summary section</p>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={formData.pdfPrimaryColor || '#3b82f6'}
+                      onChange={(e) => setFormData(prev => ({ ...prev, pdfPrimaryColor: e.target.value }))}
+                      className="w-12 h-10 rounded-md border border-border cursor-pointer"
+                    />
+                    <Input
+                      value={formData.pdfPrimaryColor || '#3b82f6'}
+                      onChange={(e) => setFormData(prev => ({ ...prev, pdfPrimaryColor: e.target.value }))}
+                      className="w-28 font-mono text-sm"
+                      maxLength={7}
+                    />
+                  </div>
+                </div>
+                {/* Title Color */}
+                <div className="space-y-3">
+                  <Label className="block">Document Title Color</Label>
+                  <p className="text-xs text-muted-foreground">Document name (e.g., FACTURE, DEVIS)</p>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={formData.pdfTitleColor || '#3b82f6'}
+                      onChange={(e) => setFormData(prev => ({ ...prev, pdfTitleColor: e.target.value }))}
+                      className="w-12 h-10 rounded-md border border-border cursor-pointer"
+                    />
+                    <Input
+                      value={formData.pdfTitleColor || '#3b82f6'}
+                      onChange={(e) => setFormData(prev => ({ ...prev, pdfTitleColor: e.target.value }))}
+                      className="w-28 font-mono text-sm"
+                      maxLength={7}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormData(prev => ({ ...prev, pdfPrimaryColor: '#3b82f6', pdfTitleColor: '#3b82f6' }))}
+                  className="text-xs"
+                >
+                  Reset to Default Colors
+                </Button>
               </div>
             </div>
 

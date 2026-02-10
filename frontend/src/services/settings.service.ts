@@ -24,6 +24,8 @@ export interface CompanySettings {
   logo?: string | null;
   footer_text?: string;
   auto_number_documents?: boolean;
+  pdf_primary_color?: string;
+  pdf_title_color?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -114,7 +116,7 @@ export const settingsService = {
       return await apiClient.put<CompanySettings>('/settings/company', settings);
     } catch (error) {
       console.error('Error updating company settings:', error);
-      return null;
+      throw error;
     }
   },
 
