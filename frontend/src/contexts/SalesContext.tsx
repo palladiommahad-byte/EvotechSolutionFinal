@@ -739,7 +739,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
           paymentMethod: variables.paymentMethod,
           checkNumber: variables.checkNumber,
           bankAccountId: variables.bankAccountId, // Ensure bank account is passed
-          note: `Auto-generated from Delivery Note ${blId || ''}` + (variables.note ? `\n${variables.note}` : ''),
+          note: variables.note,
           status: (variables.bankAccountId || variables.paymentWarehouseId) ? 'paid' : 'draft',
           // Remove BL-specific fields if any, though SalesDocument type is shared
         });
