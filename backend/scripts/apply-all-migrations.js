@@ -20,24 +20,22 @@ async function applyAllMigrations() {
         await client.connect();
         console.log('Connected to database successfully!\n');
 
-        // List of migrations to apply (in order)
-        const migrations = [
-            '002_create_tax_reports.sql',
-            // 003 was already applied separately
-            '004_add_bank_account_to_treasury_payments.sql',
-        ];
+        // Read all migration files from directory
+        const migrationsDir = path.join(__dirname, '../migrations');
+        const files = fs.readdirSync(migrationsDir);
+
+        // Filter for SQL files and sort them
+        const migrations = files
+            .filter(file => file.endsWith('.sql'))
+            .sort(); // Sorts alphabetically (001, 002, etc.)
+
+        console.log(`Found ${migrations.length} migration files.`);
 
         for (const migrationFile of migrations) {
             console.log(`\n📄 Processing: ${migrationFile}`);
             console.log('─'.repeat(50));
 
-            const migrationPath = path.join(__dirname, '../migrations', migrationFile);
-
-            if (!fs.existsSync(migrationPath)) {
-                console.log(`⚠️  File not found, skipping...`);
-                continue;
-            }
-
+            const migrationPath = path.join(migrationsDir, migrationFile);
             const sql = fs.readFileSync(migrationPath, 'utf8');
 
             try {
@@ -45,10 +43,13 @@ async function applyAllMigrations() {
                 console.log(`✅ ${migrationFile} applied successfully!`);
             } catch (err) {
                 // Check if error is due to table/column already existing
+                // Postgres error code 42P07 is duplicate_table, 42701 is duplicate_column
+                // But we mainly check the message for "already exists" to be safe across versions
                 if (err.message.includes('already exists')) {
                     console.log(`ℹ️  ${migrationFile} - Already applied (objects exist)`);
                 } else {
-                    throw err;
+                    console.error(`❌ Error in ${migrationFile}: ${err.message}`);
+                    throw err; // Stop on error
                 }
             }
         }
