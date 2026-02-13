@@ -883,7 +883,7 @@ export const Treasury = () => {
         return;
       }
 
-      const res = await fetch(`http://localhost:3000/api/reports/export?type=treasury`, {
+      const res = await fetch(`/api/reports/export?type=treasury`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 

@@ -15,7 +15,7 @@ timeout /t 10
 
 :: Open browser
 echo Opening application...
-start http://localhost
+start http://192.168.100.241:8080
 
 echo Deployment complete!
 pause

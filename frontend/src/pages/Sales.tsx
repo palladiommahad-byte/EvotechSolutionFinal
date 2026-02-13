@@ -1273,7 +1273,7 @@ export const Sales = () => {
                         activeTab === 'divers' ? 'sales-divers' :
                           activeTab === 'credit_note' ? 'sales-credit_note' : 'sales-invoice';
 
-                  const res = await fetch(`http://localhost:3000/api/reports/export?type=${docType}`, {
+                  const res = await fetch(`/api/reports/export?type=${docType}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                   });
 

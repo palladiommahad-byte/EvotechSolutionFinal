@@ -1155,7 +1155,7 @@ export const Purchases = () => {
                     activeTab === 'purchase_order' ? 'purchases-purchase_order' :
                       activeTab === 'delivery_note' ? 'purchases-delivery_note' : 'purchases-purchase_order';
 
-                  const res = await fetch(`http://localhost:3000/api/reports/export?type=${docType}`, {
+                  const res = await fetch(`/api/reports/export?type=${docType}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                   });
 

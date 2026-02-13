@@ -463,7 +463,7 @@ export const Inventory = () => {
                     return;
                   }
 
-                  const res = await fetch('http://localhost:3000/api/reports/export', {
+                  const res = await fetch('/api/reports/export', {
                     headers: { 'Authorization': `Bearer ${token}` }
                   });
 

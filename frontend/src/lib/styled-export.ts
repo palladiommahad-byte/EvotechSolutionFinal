@@ -45,7 +45,7 @@ export const exportStyledExcel = async (data: ExportData) => {
             { header: 'Statut', key: 'status', width: 15 }
         ];
 
-        const response = await fetch('http://localhost:3000/api/reports/export-custom', {
+        const response = await fetch('/api/reports/export-custom', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
