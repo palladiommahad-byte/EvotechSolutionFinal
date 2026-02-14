@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Package, AlertTriangle, CheckCircle, XCircle, TrendingUp, TrendingDown, MapPin, Building2, Check, LayoutGrid, List, History, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Package, AlertTriangle, CheckCircle, XCircle, TrendingUp, TrendingDown, MapPin, Building2, Check, LayoutGrid, List, History, ArrowRight, ArrowLeft, ArrowUp, ArrowDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useWarehouse, type Warehouse } from '@/contexts/WarehouseContext';
 import { useProducts, StockItem } from '@/contexts/ProductsContext';
@@ -87,9 +87,11 @@ export const StockTracking = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-heading font-bold text-foreground">Stock Tracking</h1>
+          <h1 className="text-2xl font-heading font-bold text-foreground">{t('stockTracking.title')}</h1>
           <p className="text-muted-foreground">
-            Monitor stock levels {isAllWarehouses ? 'across all warehouses' : `at ${warehouseInfo?.name}`}
+            {t('stockTracking.monitorStockLevels')} {isAllWarehouses ?
+              t('stockTracking.acrossAllWarehouses') :
+              `${t('stockTracking.at')} ${warehouseInfo?.name}`}
           </p>
         </div>
         <div className="flex gap-2">
@@ -487,53 +489,86 @@ export const StockTracking = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  movements.map((movement) => (
-                    <TableRow key={movement.id} className="hover:bg-section/50">
-                      <TableCell className="text-sm">
-                        {new Date(movement.created_at).toLocaleDateString()}
-                        <span className="text-xs text-muted-foreground block">
-                          {new Date(movement.created_at).toLocaleTimeString()}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-medium text-foreground">
-                          {movement.product_name || t('stockTracking.table.unknownProduct')}
-                        </span>
-                        <span className="text-xs text-muted-foreground block">
-                          {movement.product_sku}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className={cn(
-                          "px-2 py-1 rounded-full text-xs font-medium",
-                          movement.type.includes('delivery') ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" :
-                            movement.type.includes('initial') ? "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300" :
-                              "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
-                        )}>
-                          {movement.type.replace(/_/g, ' ').toUpperCase()}
-                        </span>
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {movement.reference_id || '-'}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {movement.description}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className={cn(
-                          "flex items-center justify-end gap-1 font-bold",
-                          movement.quantity > 0 ? "text-success" : "text-destructive"
-                        )}>
-                          {movement.quantity > 0 ? (
-                            <ArrowRight className="w-3 h-3" />
-                          ) : (
-                            <ArrowLeft className="w-3 h-3" />
-                          )}
-                          {movement.quantity > 0 ? '+' : ''}{movement.quantity}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  movements.map((movement) => {
+                    // Determine if movement is positive or negative
+                    const isPositive =
+                      (movement.type === 'in' ||
+                        movement.type === 'purchase_received' ||
+                        movement.type === 'initial' ||
+                        movement.type === 'adjustment_in' ||
+                        movement.type === 'transfer_in') && movement.quantity > 0;
+
+                    const isNegative =
+                      (movement.type === 'out' ||
+                        movement.type === 'sale' ||
+                        movement.type === 'adjustment_out' ||
+                        movement.type === 'transfer_out') || movement.quantity < 0;
+
+                    // Helper to format type label
+                    const formatType = (type: string) => {
+                      const key = type.toLowerCase();
+                      // Try to find translation for specific type, fallback to formatted string if not found
+                      const translationKey = `stockTracking.movementTypes.${key}`;
+                      const translation = t(translationKey);
+
+                      // If translation matches key (means missing), fallback to readable text
+                      if (translation === translationKey) {
+                        return type.replace(/_/g, ' ').toUpperCase();
+                      }
+
+                      return translation;
+                    };
+
+                    return (
+                      <TableRow key={movement.id} className="hover:bg-section/50">
+                        <TableCell className="text-sm">
+                          {new Date(movement.created_at).toLocaleDateString()}
+                          <span className="text-xs text-muted-foreground block">
+                            {new Date(movement.created_at).toLocaleTimeString()}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-medium text-foreground">
+                            {movement.product_name || t('stockTracking.table.unknownProduct')}
+                          </span>
+                          <span className="text-xs text-muted-foreground block">
+                            {movement.product_sku}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className={cn(
+                            "px-2 py-1 rounded-full text-xs font-medium",
+                            isPositive
+                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                              : isNegative
+                                ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                                : "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
+                          )}>
+                            {formatType(movement.type)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {movement.reference_id || '-'}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {movement.description}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className={cn(
+                            "flex items-center justify-end gap-1 font-bold",
+                            isPositive ? "text-success" : isNegative ? "text-destructive" : "text-muted-foreground"
+                          )}>
+                            {isPositive ? (
+                              <ArrowUp className="w-3 h-3" />
+                            ) : isNegative ? (
+                              <ArrowDown className="w-3 h-3" />
+                            ) : null}
+                            {isPositive ? '+' : isNegative ? '-' : ''}{Math.abs(movement.quantity)}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

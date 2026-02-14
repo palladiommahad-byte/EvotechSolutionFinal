@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 18,
   },
   companyInfo: {
@@ -66,12 +66,12 @@ const styles = StyleSheet.create({
     paddingRight: 40,
     flexDirection: 'row',
     gap: 16,
+    alignItems: 'center',
   },
   logo: {
-    height: 60,
-    maxWidth: 120,
+    height: 72,
+    maxWidth: 144,
     flexShrink: 0,
-    marginTop: 4,
   },
   companyName: {
     fontSize: 16,
@@ -390,11 +390,6 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                 )}
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.companyName, { color: titleColor }]}>{(companyInfo.name || 'COMPANY NAME').toUpperCase()}</Text>
-                  {companyInfo.email && companyInfo.email.includes('@') && (
-                    <Text style={styles.website}>
-                      {(companyInfo.email.split('@')[1] || '').toUpperCase()}
-                    </Text>
-                  )}
                 </View>
               </View>
 
@@ -659,7 +654,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                     <Text style={styles.summaryText}>{String(t('documents.subtotalHT'))}</Text>
                     <Text style={styles.summaryTextBold} wrap={false}>{formatMADFull(totals.subtotal)}</Text>
                   </View>
-                  <View style={styles.summaryRow}>
+                  <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
                     <Text style={styles.summaryText}>{String(t('documents.vat'))} {VAT_RATE * 100}%</Text>
                     <Text style={styles.summaryTextBold} wrap={false}>{formatMADFull(totals.vat)}</Text>
                   </View>
@@ -691,6 +686,8 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                 companyInfo.ice && `${String(t('pdf.ice'))}: ${companyInfo.ice}`,
                 companyInfo.ifNumber && `${String(t('pdf.if'))}: ${companyInfo.ifNumber}`,
                 companyInfo.rc && `${String(t('pdf.rc'))}: ${companyInfo.rc}`,
+                companyInfo.tp && `${String(t('pdf.tp'))}: ${companyInfo.tp}`,
+                companyInfo.patente && `${String(t('pdf.patente'))}: ${companyInfo.patente}`,
                 companyInfo.cnss && `${String(t('pdf.cnss'))}: ${companyInfo.cnss}`,
                 companyInfo.phone && `${String(t('pdf.phone'))}: ${companyInfo.phone}`,
                 companyInfo.email && `${String(t('common.email'))}: ${companyInfo.email}`

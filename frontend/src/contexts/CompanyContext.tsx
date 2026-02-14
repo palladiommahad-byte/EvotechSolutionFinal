@@ -11,6 +11,7 @@ export interface CompanyInfo {
   ifNumber: string;
   rc: string;
   tp: string;
+  patente: string;
   cnss: string;
   logo?: string | null;
   footerText?: string;
@@ -31,11 +32,12 @@ const defaultCompanyInfo: CompanyInfo = {
   email: 'contact@evotech.ma',
   phone: '+212 5 24 45 67 89',
   address: 'Zone Industrielle, Lot 123, Marrakech 40000, Morocco',
-  ice: '001234567890123',
-  ifNumber: '12345678',
-  rc: '123456 - Marrakech',
-  tp: '12345678',
-  cnss: '1234567',
+  ice: '',
+  ifNumber: '',
+  rc: '',
+  tp: '',
+  patente: '',
+  cnss: '',
   logo: null,
   footerText: 'Merci pour votre confiance. Paiement à 30 jours. TVA 20%.',
   autoNumberDocuments: true,
@@ -57,21 +59,22 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
 
     return {
-      name: dbSettings.name || defaultCompanyInfo.name,
-      legalForm: dbSettings.legal_form || defaultCompanyInfo.legalForm,
-      email: dbSettings.email || defaultCompanyInfo.email,
-      phone: dbSettings.phone || defaultCompanyInfo.phone,
-      address: dbSettings.address || defaultCompanyInfo.address,
-      ice: dbSettings.ice || defaultCompanyInfo.ice,
-      ifNumber: dbSettings.if_number || defaultCompanyInfo.ifNumber,
-      rc: dbSettings.rc || defaultCompanyInfo.rc,
-      tp: dbSettings.tp || defaultCompanyInfo.tp,
-      cnss: dbSettings.cnss || defaultCompanyInfo.cnss,
+      name: dbSettings.name ?? defaultCompanyInfo.name,
+      legalForm: dbSettings.legal_form ?? defaultCompanyInfo.legalForm,
+      email: dbSettings.email ?? defaultCompanyInfo.email,
+      phone: dbSettings.phone ?? defaultCompanyInfo.phone,
+      address: dbSettings.address ?? defaultCompanyInfo.address,
+      ice: dbSettings.ice ?? defaultCompanyInfo.ice,
+      ifNumber: dbSettings.if_number ?? defaultCompanyInfo.ifNumber,
+      rc: dbSettings.rc ?? defaultCompanyInfo.rc,
+      tp: dbSettings.tp ?? defaultCompanyInfo.tp,
+      patente: dbSettings.patente ?? defaultCompanyInfo.patente,
+      cnss: dbSettings.cnss ?? defaultCompanyInfo.cnss,
       logo: dbSettings.logo ?? defaultCompanyInfo.logo,
-      footerText: dbSettings.footer_text || defaultCompanyInfo.footerText,
+      footerText: dbSettings.footer_text ?? defaultCompanyInfo.footerText,
       autoNumberDocuments: dbSettings.auto_number_documents ?? defaultCompanyInfo.autoNumberDocuments,
-      pdfPrimaryColor: dbSettings.pdf_primary_color || defaultCompanyInfo.pdfPrimaryColor,
-      pdfTitleColor: dbSettings.pdf_title_color || defaultCompanyInfo.pdfTitleColor,
+      pdfPrimaryColor: dbSettings.pdf_primary_color ?? defaultCompanyInfo.pdfPrimaryColor,
+      pdfTitleColor: dbSettings.pdf_title_color ?? defaultCompanyInfo.pdfTitleColor,
     };
   }, [dbSettings]);
 
@@ -88,6 +91,7 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (info.ifNumber !== undefined) dbUpdate.if_number = info.ifNumber;
     if (info.rc !== undefined) dbUpdate.rc = info.rc;
     if (info.tp !== undefined) dbUpdate.tp = info.tp;
+    if (info.patente !== undefined) dbUpdate.patente = info.patente;
     if (info.cnss !== undefined) dbUpdate.cnss = info.cnss;
     if (info.logo !== undefined) dbUpdate.logo = info.logo;
     if (info.footerText !== undefined) dbUpdate.footer_text = info.footerText;

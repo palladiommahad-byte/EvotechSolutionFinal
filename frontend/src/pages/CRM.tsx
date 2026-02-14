@@ -74,7 +74,6 @@ const ContactForm = ({ type, contact, onSubmit, onCancel }: ContactFormProps) =>
             placeholder={t('crm.fullName')}
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
           />
         </div>
         <div className="space-y-2">
@@ -95,7 +94,6 @@ const ContactForm = ({ type, contact, onSubmit, onCancel }: ContactFormProps) =>
             placeholder="email@company.ma"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            required
           />
         </div>
         <div className="space-y-2">
@@ -105,7 +103,6 @@ const ContactForm = ({ type, contact, onSubmit, onCancel }: ContactFormProps) =>
             placeholder="+212 5 XX XX XX XX"
             value={formData.phone}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            required
           />
         </div>
         <div className="space-y-2">
@@ -115,7 +112,6 @@ const ContactForm = ({ type, contact, onSubmit, onCancel }: ContactFormProps) =>
             placeholder={t('common.city')}
             value={formData.city}
             onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-            required
           />
         </div>
         <div className="space-y-2">
@@ -142,6 +138,7 @@ const ContactForm = ({ type, contact, onSubmit, onCancel }: ContactFormProps) =>
                   maxLength={15}
                   value={formData.ice}
                   onChange={(e) => setFormData({ ...formData, ice: e.target.value })}
+                  required
                 />
               </div>
               <div className="space-y-2">

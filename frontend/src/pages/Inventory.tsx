@@ -327,7 +327,7 @@ export const Inventory = () => {
   };
 
   const handleSaveNewProduct = async () => {
-    if (!newProductData.name || !newProductData.sku || !newProductData.category) {
+    if (!newProductData.name || !newProductData.sku || !newProductData.category || !newProductData.price) {
       toast({
         title: t('common.error'),
         description: t('inventory.addValidProductData'),
@@ -500,7 +500,7 @@ export const Inventory = () => {
       {/* Filters */}
       <div className="card-elevated p-4">
         <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
+          <div className="relative w-[300px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder={t('inventory.searchPlaceholder')}
@@ -630,8 +630,9 @@ export const Inventory = () => {
             </Select>
             <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="default" size="icon" className="w-[42px]" title={t('inventory.addCategory')}>
+                <Button variant="default" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
                   <FolderPlus className="w-4 h-4" />
+                  {t('inventory.addCategory')}
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -1434,7 +1435,7 @@ export const Inventory = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="new-price">{t('inventory.unitPrice')} (DH)</Label>
+                <Label htmlFor="new-price">{t('inventory.unitPrice')} (DH) *</Label>
                 <Input
                   id="new-price"
                   type="number"
@@ -1514,7 +1515,7 @@ export const Inventory = () => {
             <Button
               className="btn-primary-gradient"
               onClick={handleSaveNewProduct}
-              disabled={!newProductData.name || !newProductData.sku || !newProductData.category || products.some(p => p.sku === newProductData.sku)}
+              disabled={!newProductData.name || !newProductData.sku || !newProductData.category || !newProductData.price || products.some(p => p.sku === newProductData.sku)}
             >
               <Plus className="w-4 h-4 mr-2" />
               {t('common.create')}

@@ -19,6 +19,7 @@ interface CompanyInfo {
   ifNumber: string;
   rc: string;
   tp: string;
+  patente: string;
   cnss: string;
   logo?: string | null;
   footerText?: string;
@@ -46,11 +47,12 @@ const defaultCompanyInfo: CompanyInfo = {
   email: 'contact@evotech.ma',
   phone: '+212 5 24 45 67 89',
   address: 'Zone Industrielle, Lot 123, Marrakech 40000, Morocco',
-  ice: '001234567890123',
-  ifNumber: '12345678',
-  rc: '123456 - Marrakech',
-  tp: '12345678',
-  cnss: '1234567',
+  ice: '',
+  ifNumber: '',
+  rc: '',
+  tp: '',
+  patente: '',
+  cnss: '',
   logo: null,
   footerText: 'Merci pour votre confiance. Paiement à 30 jours. TVA 20%.',
 };

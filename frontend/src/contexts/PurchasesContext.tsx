@@ -63,6 +63,7 @@ export interface PurchaseDocument {
     accountNumber: string;
   };
   warehouseId?: string;
+  delivery_note_id?: string; // Link to BL
   // Additional fields for internal use
   _internalId?: string; // database ID
 }
@@ -428,6 +429,7 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
         status: data.status as any,
         note: data.note,
         attachment_url: data.attachment_url,
+        delivery_note_id: data.delivery_note_id,
         items: data.items.map(item => ({
           product_id: item.productId && uuidRegex.test(item.productId) ? item.productId : null,
           description: item.description,

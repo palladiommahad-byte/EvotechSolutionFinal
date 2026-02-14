@@ -115,8 +115,25 @@
       "description": "Description",
       "quantity": "Quantité",
       "loading": "Chargement des mouvements...",
-      "noMovements": "Aucun mouvement de stock enregistré.",
-      "unknownProduct": "Produit inconnu"
+      "unknownProduct": "Produit inconnu",
+      "noMovements": "Aucun mouvement de stock enregistré."
+    },
+    "monitorStockLevels": "Surveiller les niveaux de stock",
+    "acrossAllWarehouses": "dans tous les entrepôts",
+    "at": "à",
+    "movementTypes": {
+      "in": "Entrée",
+      "out": "Sortie",
+      "purchase_received": "Réception Achat",
+      "sale": "Vente",
+      "adjustment": "Ajustement",
+      "adjustment_in": "Ajustement (Entrée)",
+      "adjustment_out": "Ajustement (Sortie)",
+      "transfer_in": "Transfert (Entrée)",
+      "transfer_out": "Transfert (Sortie)",
+      "correction": "Correction",
+      "initial": "Stock Initial",
+      "return": "Retour"
     }
   },
   "nav": {
@@ -254,6 +271,7 @@
   },
   "documents": {
     "invoice": "Facture",
+    "duplicateInvoiceFromBL": "Une facture ({{documentId}}) existe déjà pour ce Bon de Livraison.",
     "estimate": "Devis",
     "deliveryNote": "Bon de livraison",
     "purchaseOrder": "Bon de commande",
@@ -480,6 +498,7 @@
     "ifNumber": "Numéro IF",
     "rc": "RC",
     "tp": "TP",
+    "patente": "Patente",
     "cnss": "CNSS",
     "footerText": "Texte de pied de page",
     "moroccanBusinessIdentifiers": "Identifiants commerciaux marocains",
@@ -663,6 +682,8 @@
     "client": "Client",
     "ice": "ICE",
     "if": "IF",
+    "tp": "TP",
+    "patente": "Patente",
     "rc": "RC",
     "cnss": "CNSS",
     "phone": "Tél",

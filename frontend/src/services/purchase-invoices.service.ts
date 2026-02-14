@@ -95,6 +95,7 @@ export const purchaseInvoicesService = {
     status?: 'draft' | 'received' | 'paid' | 'overdue' | 'cancelled';
     note?: string;
     attachment_url?: string;
+    delivery_note_id?: string;
     items: Array<{ product_id?: string | null; description: string; quantity: number; unit_price: number }>;
   }): Promise<PurchaseInvoiceWithItems> {
     return await apiClient.post<PurchaseInvoiceWithItems>('/purchase-invoices', data);

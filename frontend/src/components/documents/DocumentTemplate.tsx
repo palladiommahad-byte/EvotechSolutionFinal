@@ -177,7 +177,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                       <img
                         src={companyInfo.logo}
                         alt={companyInfo.name}
-                        style={{ height: '60px', objectFit: 'contain', maxWidth: '120px' }}
+                        style={{ height: '72px', objectFit: 'contain', maxWidth: '144px' }}
                       />
                     </div>
                   )}
@@ -194,19 +194,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                     }}>
                       {companyInfo.name?.toUpperCase() || 'COMPANY NAME'}
                     </h1>
-                    {companyInfo.email && (
-                      <p style={{
-                        fontSize: '10px',
-                        color: '#6B7280',
-                        margin: '0',
-                        fontWeight: 500,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.03em',
-                        lineHeight: '1.5'
-                      }}>
-                        {companyInfo.email.split('@')[1]?.toUpperCase() || ''}
-                      </p>
-                    )}
+
                   </div>
                 </div>
               </div>
@@ -688,7 +676,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '6px 0',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+                    borderBottom: 'none'
                   }}>
                     <span style={{
                       fontSize: '10px',

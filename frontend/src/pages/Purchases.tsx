@@ -202,14 +202,45 @@ export const Purchases = () => {
           id: `${Date.now()}-${index}`,
           productId: item.productId,
           description: item.description,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
+          // Parse as number, handling formatted strings (e.g. "1,000.00")
+          // Parse as number, handling formatted strings (e.g. "1,000.00")
+          quantity: typeof (item.quantity as any) === 'string'
+            ? parseFloat((item.quantity as any).toString().replace(/,/g, '')) || 0
+            : Number(item.quantity) || 0,
+          unitPrice: typeof (item.unitPrice as any) === 'string'
+            ? parseFloat((item.unitPrice as any).toString().replace(/,/g, '')) || 0
+            : Number(item.unitPrice) || 0,
           total: item.total,
         }));
         setItems(newItems);
       }
     }
   }, [formReferenceBC, activeTab, purchaseOrders]);
+
+  // Auto-populate items when BL is selected in Invoice form
+  useEffect(() => {
+    if (formReferenceBL && activeTab === 'invoice') {
+      const selectedBL = deliveryNotes.find(bl => bl.id === formReferenceBL) || allDeliveryNotes.find(bl => bl.id === formReferenceBL);
+      if (selectedBL && selectedBL.items && selectedBL.items.length > 0) {
+        // Copy items from the selected delivery note
+        const newItems = selectedBL.items.map((item, index) => ({
+          id: `${Date.now()}-${index}`,
+          productId: item.productId,
+          description: item.description,
+          // Parse as number, handling formatted strings (e.g. "1,000.00")
+          // Parse as number, handling formatted strings (e.g. "1,000.00")
+          quantity: typeof (item.quantity as any) === 'string'
+            ? parseFloat((item.quantity as any).toString().replace(/,/g, '')) || 0
+            : Number(item.quantity) || 0,
+          unitPrice: typeof (item.unitPrice as any) === 'string'
+            ? parseFloat((item.unitPrice as any).toString().replace(/,/g, '')) || 0
+            : Number(item.unitPrice) || 0,
+          total: item.total,
+        }));
+        setItems(newItems);
+      }
+    }
+  }, [formReferenceBL, activeTab, deliveryNotes, allDeliveryNotes]);
 
   const toggleDocumentSelection = (docId: string) => {
     const newSelected = new Set(selectedDocuments);
@@ -662,8 +693,16 @@ export const Purchases = () => {
   const updateItem = (id: string, field: keyof PurchaseItem, value: string | number) => {
     setItems(items.map(item => {
       if (item.id === id) {
-        const updated = { ...item, [field]: value };
-        updated.total = updated.quantity * updated.unitPrice;
+        // Parse value if it is quantity or unitPrice
+        let parsedValue = value;
+        if (field === 'quantity' || field === 'unitPrice') {
+          // Remove any commas if they exist, then parse
+          const stringVal = value.toString().replace(/,/g, '');
+          parsedValue = parseFloat(stringVal) || 0;
+        }
+
+        const updated = { ...item, [field]: parsedValue };
+        updated.total = Number(updated.quantity) * Number(updated.unitPrice);
         return updated;
       }
       return item;
@@ -802,8 +841,14 @@ export const Purchases = () => {
           id: item.id,
           productId: item.productId,
           description: item.description,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
+          // Ensure strictly numbers are sent to backend
+          // Ensure strictly numbers are sent to backend
+          quantity: typeof (item.quantity as any) === 'string'
+            ? parseFloat((item.quantity as any).toString().replace(/,/g, '')) || 0
+            : Number(item.quantity) || 0,
+          unitPrice: typeof (item.unitPrice as any) === 'string'
+            ? parseFloat((item.unitPrice as any).toString().replace(/,/g, '')) || 0
+            : Number(item.unitPrice) || 0,
           total: item.total,
         })),
         total: documentTotal,
@@ -814,6 +859,7 @@ export const Purchases = () => {
         dueDate: formDueDate || undefined,
         note: formNote || undefined,
         warehouseId: formWarehouse || undefined,
+        delivery_note_id: documentType === 'invoice' && formReferenceBL ? formReferenceBL : undefined,
       };
 
       // Create in database (except statements which are mock)
@@ -857,9 +903,20 @@ export const Purchases = () => {
       setBlSearchQuery('');
       setFormReferenceBC('');
       setBcSearchQuery('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating document:', error);
-      // Error toast is handled by the context
+      // Try to extract message from API error response
+      let errorMessage = error.response?.data?.message || error.message || t('common.errorOccurred');
+
+      if (error.response?.data?.errorCode === 'DUPLICATE_INVOICE_FROM_BL') {
+        errorMessage = t('documents.duplicateInvoiceFromBL', { documentId: error.response.data.existingDocumentId });
+      }
+
+      toast({
+        title: t('common.error'),
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 

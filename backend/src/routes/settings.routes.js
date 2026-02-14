@@ -21,11 +21,11 @@ router.put('/company', asyncHandler(async (req, res) => {
     const existing = await query('SELECT id FROM company_settings LIMIT 1');
 
     if (existing.rows.length === 0) {
-        const { name, legal_form, email, phone, address, ice, if_number, rc, tp, cnss, logo, footer_text, auto_number_documents } = req.body;
+        const { name, legal_form, email, phone, address, ice, if_number, rc, tp, patente, cnss, logo, footer_text, auto_number_documents } = req.body;
         const result = await query(
-            `INSERT INTO company_settings (name, legal_form, email, phone, address, ice, if_number, rc, tp, cnss, logo, footer_text, auto_number_documents)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
-            [name || 'Company', legal_form, email, phone, address, ice, if_number, rc, tp, cnss, logo, footer_text, auto_number_documents !== undefined ? auto_number_documents : true]
+            `INSERT INTO company_settings (name, legal_form, email, phone, address, ice, if_number, rc, tp, patente, cnss, logo, footer_text, auto_number_documents)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+            [name || 'Company', legal_form, email, phone, address, ice, if_number, rc, tp, patente, cnss, logo, footer_text, auto_number_documents !== undefined ? auto_number_documents : true]
         );
         return res.status(201).json(result.rows[0]);
     }
@@ -33,7 +33,7 @@ router.put('/company', asyncHandler(async (req, res) => {
     // Build dynamic UPDATE query with only the fields present in the request body
     // This allows fields to be explicitly set to null (e.g., removing logo)
     // and avoids overwriting fields that were not sent
-    const allowedFields = ['name', 'legal_form', 'email', 'phone', 'address', 'ice', 'if_number', 'rc', 'tp', 'cnss', 'logo', 'footer_text', 'auto_number_documents', 'pdf_primary_color', 'pdf_title_color'];
+    const allowedFields = ['name', 'legal_form', 'email', 'phone', 'address', 'ice', 'if_number', 'rc', 'tp', 'patente', 'cnss', 'logo', 'footer_text', 'auto_number_documents', 'pdf_primary_color', 'pdf_title_color'];
     const updates = [];
     const params = [];
     let idx = 1;

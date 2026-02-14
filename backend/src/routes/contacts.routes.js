@@ -163,10 +163,17 @@ router.post('/', asyncHandler(async (req, res) => {
         status = 'active',
     } = req.body;
 
-    if (!name || !contact_type) {
+    if (!name && !company) {
         return res.status(400).json({
             error: 'Validation Error',
-            message: 'Name and contact_type are required',
+            message: 'Either Name or Company Name is required',
+        });
+    }
+
+    if (!ice) {
+        return res.status(400).json({
+            error: 'Validation Error',
+            message: 'ICE is required',
         });
     }
 
@@ -174,7 +181,7 @@ router.post('/', asyncHandler(async (req, res) => {
         `INSERT INTO contacts (name, company, email, phone, city, address, ice, if_number, rc, contact_type, status)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING *`,
-        [name, company, email, phone, city, address, ice, if_number || ifNumber, rc, contact_type, status]
+        [name || company, company, email, phone, city, address, ice, if_number || ifNumber, rc, contact_type, status]
     );
 
     const contact = result.rows[0];
@@ -207,6 +214,13 @@ router.put('/:id', asyncHandler(async (req, res) => {
         total_transactions,
         totalTransactions,
     } = req.body;
+
+    if (ice !== undefined && ice.trim() === '') {
+        return res.status(400).json({
+            error: 'Validation Error',
+            message: 'ICE cannot be empty',
+        });
+    }
 
     const result = await query(
         `UPDATE contacts 

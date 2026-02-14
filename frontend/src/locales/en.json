@@ -109,8 +109,25 @@
       "description": "Description",
       "quantity": "Quantity",
       "loading": "Loading movements...",
-      "noMovements": "No stock movements recorded yet.",
-      "unknownProduct": "Unknown Product"
+      "unknownProduct": "Unknown Product",
+      "noMovements": "No stock movements recorded yet."
+    },
+    "monitorStockLevels": "Monitor stock levels",
+    "acrossAllWarehouses": "across all warehouses",
+    "at": "at",
+    "movementTypes": {
+      "in": "In",
+      "out": "Out",
+      "purchase_received": "Purchase Received",
+      "sale": "Sale",
+      "adjustment": "Adjustment",
+      "adjustment_in": "Adjustment (In)",
+      "adjustment_out": "Adjustment (Out)",
+      "transfer_in": "Transfer (In)",
+      "transfer_out": "Transfer (Out)",
+      "correction": "Correction",
+      "initial": "Initial Stock",
+      "return": "Return"
     }
   },
   "unit": {
@@ -257,6 +274,7 @@
   },
   "documents": {
     "invoice": "Invoice",
+    "duplicateInvoiceFromBL": "An invoice ({{documentId}}) already exists for this Delivery Note.",
     "estimate": "Estimate",
     "deliveryNote": "Delivery Note",
     "purchaseOrder": "Purchase Order",
@@ -433,6 +451,7 @@
     "ifNumber": "IF Number",
     "rc": "RC",
     "tp": "TP",
+    "patente": "Patente",
     "cnss": "CNSS",
     "footerText": "Footer Text",
     "moroccanBusinessIdentifiers": "Moroccan Business Identifiers",
@@ -711,6 +730,8 @@
     "client": "Client",
     "ice": "ICE",
     "if": "IF",
+    "tp": "TP",
+    "patente": "Patente",
     "rc": "RC",
     "cnss": "CNSS",
     "phone": "Phone",

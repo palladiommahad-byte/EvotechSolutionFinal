@@ -130,6 +130,7 @@ export const Settings = () => {
         ifNumber: safeString(companyInfo?.ifNumber),
         rc: safeString(companyInfo?.rc),
         tp: safeString(companyInfo?.tp),
+        patente: safeString(companyInfo?.patente),
         cnss: safeString(companyInfo?.cnss),
         logo: companyInfo?.logo ? safeString(companyInfo.logo) : null,
         footerText: safeString(companyInfo?.footerText),
@@ -148,6 +149,7 @@ export const Settings = () => {
         ifNumber: '',
         rc: '',
         tp: '',
+        patente: '',
         cnss: '',
         logo: null,
         footerText: '',
@@ -258,6 +260,7 @@ export const Settings = () => {
     companyInfo?.ifNumber,
     companyInfo?.rc,
     companyInfo?.tp,
+    companyInfo?.patente,
     companyInfo?.cnss,
     companyInfo?.logo,
     companyInfo?.footerText,
@@ -277,6 +280,7 @@ export const Settings = () => {
         ifNumber: safeString(companyInfo.ifNumber),
         rc: safeString(companyInfo.rc),
         tp: safeString(companyInfo.tp),
+        patente: safeString(companyInfo.patente),
         cnss: safeString(companyInfo.cnss),
         logo: companyInfo.logo ? safeString(companyInfo.logo) : null,
         footerText: safeString(companyInfo.footerText),
@@ -955,6 +959,14 @@ export const Settings = () => {
                     id="tp"
                     value={formData.tp}
                     onChange={(e) => handleInputChange('tp', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="patente">{t('settings.patente')}</Label>
+                  <Input
+                    id="patente"
+                    value={formData.patente}
+                    onChange={(e) => handleInputChange('patente', e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">

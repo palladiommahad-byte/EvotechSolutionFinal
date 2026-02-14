@@ -20,6 +20,7 @@ export interface CompanySettings {
   if_number?: string;
   rc?: string;
   tp?: string;
+  patente?: string;
   cnss?: string;
   logo?: string | null;
   footer_text?: string;

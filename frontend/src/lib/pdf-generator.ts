@@ -14,6 +14,7 @@ interface CompanyInfo {
   ifNumber: string;
   rc: string;
   tp: string;
+  patente: string;
   cnss: string;
   logo?: string | null;
   footerText?: string;

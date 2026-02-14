@@ -113,7 +113,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
  * POST /api/purchase-invoices
  */
 router.post('/', asyncHandler(async (req, res) => {
-    let { document_id, supplier_id, date, due_date, subtotal, vat_rate = 20, vat_amount, total, payment_method, check_number, bank_account_id, status = 'draft', note, attachment_url, items } = req.body;
+    let { document_id, supplier_id, date, due_date, subtotal, vat_rate = 20, vat_amount, total, payment_method, check_number, bank_account_id, status = 'draft', note, attachment_url, items, delivery_note_id } = req.body;
 
     if (!supplier_id || !date || !items || items.length === 0) {
         return res.status(400).json({ error: 'Validation Error', message: 'supplier_id, date, and items are required' });
@@ -134,15 +134,34 @@ router.post('/', asyncHandler(async (req, res) => {
     try {
         await client.query('BEGIN');
 
+        // Check if invoice already exists for this delivery note (if provided)
+        if (delivery_note_id) {
+            const existingInvoiceResult = await client.query(
+                `SELECT id, document_id FROM purchase_invoices 
+                 WHERE delivery_note_id = $1 AND status != 'cancelled'`,
+                [delivery_note_id]
+            );
+
+            if (existingInvoiceResult.rows.length > 0) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({
+                    error: 'Duplicate Invoice',
+                    message: `An invoice (${existingInvoiceResult.rows[0].document_id}) already exists for this Delivery Note.`,
+                    errorCode: 'DUPLICATE_INVOICE_FROM_BL',
+                    existingDocumentId: existingInvoiceResult.rows[0].document_id
+                });
+            }
+        }
+
         const calculatedSubtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
         const calculatedVatAmount = calculatedSubtotal * (vat_rate / 100);
         const calculatedTotal = calculatedSubtotal + calculatedVatAmount;
 
         const invoiceResult = await client.query(
-            `INSERT INTO purchase_invoices (document_id, supplier_id, date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, bank_account_id, status, note, attachment_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            `INSERT INTO purchase_invoices (document_id, supplier_id, date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, bank_account_id, status, note, attachment_url, delivery_note_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING *`,
-            [document_id, supplier_id, date, due_date || null, subtotal || calculatedSubtotal, vat_rate, vat_amount || calculatedVatAmount, total || calculatedTotal, payment_method || null, check_number || null, bank_account_id || null, status, note || null, attachment_url || null]
+            [document_id, supplier_id, date, due_date || null, subtotal || calculatedSubtotal, vat_rate, vat_amount || calculatedVatAmount, total || calculatedTotal, payment_method || null, check_number || null, bank_account_id || null, status, note || null, attachment_url || null, delivery_note_id || null]
         );
 
         const invoice = invoiceResult.rows[0];
