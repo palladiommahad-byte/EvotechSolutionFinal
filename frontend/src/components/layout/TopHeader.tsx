@@ -62,7 +62,7 @@ export const TopHeader = () => {
       {/* Language Switcher & Date */}
       <div className="flex items-center gap-4">
         <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-muted/30 rounded-full border border-border/50">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <span className="text-xs font-bold text-green-600 uppercase tracking-wider">
             {format(new Date(), 'EEEE, d MMMM yyyy', {
               locale: i18n.language === 'fr' ? fr : enUS
             })}
