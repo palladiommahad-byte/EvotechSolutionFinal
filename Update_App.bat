@@ -1,5 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
+:: Updated on 2026-02-17 for git repair
 
 TITLE EvoTech Solution - Update Tool
 
