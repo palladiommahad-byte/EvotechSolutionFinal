@@ -52,6 +52,24 @@ IF %ERRORLEVEL% NEQ 0 (
 
 echo.
 echo [Step 2/3] Downloading latest updates from GitHub...
+
+:: Fix: Check if .git exists, otherwise initialize it (Fix for "not a git repository" error)
+IF NOT EXIST ".git" (
+    echo.
+    echo [WARNING] This folder is not a tracked Git repository.
+    echo [FIX] Initializing Git repository and connecting to remote...
+    git init
+    git remote add origin https://github.com/palladiommahad-byte/EvotechSolutionFinal.git
+    echo [OK] Repository initialized successfully.
+)
+
+:: Ensure remote origin is set (in case .git exists but remote is missing)
+git remote get-url origin >nul 2>&1
+IF %ERRORLEVEL% NEQ 0 (
+    echo [FIX] Remote 'origin' missing. Adding it...
+    git remote add origin https://github.com/palladiommahad-byte/EvotechSolutionFinal.git
+)
+
 :: Use fetch and reset hard to force update to remote state
 :: This avoids merge conflicts if local files were modified
 git fetch origin main
