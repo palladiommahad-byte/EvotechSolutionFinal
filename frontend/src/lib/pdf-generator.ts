@@ -959,3 +959,30 @@ export const generatePurchaseDeliveryNotePDF = async (document: {
     companyInfo: document.companyInfo,
   });
 };
+
+// Generate List PDF using new template system
+export const generateDocumentsListPDF = async (
+  documents: Array<{
+    date: string;
+    number: string;
+    tier: string;
+    itemsCount: number;
+    total: number;
+    status: string;
+  }>,
+  options: {
+    title: string;
+    companyInfo?: CompanyInfo;
+    filters?: { status?: string };
+  }
+) => {
+  const { generateListPDFFromTemplate } = await import('./pdf-template-generator');
+
+  await generateListPDFFromTemplate({
+    title: options.title,
+    documents,
+    filters: options.filters,
+    companyInfo: options.companyInfo,
+    language: i18n.language || 'en'
+  });
+};

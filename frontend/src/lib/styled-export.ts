@@ -26,7 +26,7 @@ export const exportStyledExcel = async (data: ExportData) => {
 
         // Format data for the backend
         const exportRows = data.items.map(item => ({
-            date: item.date instanceof Date ? format(item.date, 'dd/MM/yyyy') : new Date(item.date).toLocaleDateString('fr-FR'),
+            date: item.date instanceof Date ? item.date.toISOString() : item.date, // Send original date string (ISO) for backend processing
             entity: item.entity,
             number: item.number,
             total: item.total, // Format currency if needed, but backend often handles numbers better for Excel

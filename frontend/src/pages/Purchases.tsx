@@ -81,6 +81,7 @@ import {
   generatePurchaseInvoicePDF,
   generatePurchaseDeliveryNotePDF,
   generateStatementPDF,
+  generateDocumentsListPDF,
 } from '@/lib/pdf-generator';
 import {
   generateDocumentExcel,
@@ -626,14 +627,57 @@ export const Purchases = () => {
   };
 
   const handleBulkExportPDF = async () => {
-    const currentDocuments = getCurrentDocuments();
-    const documentsToExport = currentDocuments.filter(doc => selectedDocuments.has(doc.id));
-    for (let i = 0; i < documentsToExport.length; i++) {
-      await handleDownloadPDF(documentsToExport[i]);
-      // Small delay between exports
-      if (i < documentsToExport.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      const currentDocuments = getCurrentDocuments();
+      const documentsToExport = currentDocuments.filter(doc => selectedDocuments.has(doc.id));
+
+      if (documentsToExport.length === 0) {
+        toast({
+          title: t('common.error'),
+          description: t('documents.noDocumentsSelected'),
+          variant: "destructive",
+        });
+        return;
       }
+
+      // Get document title based on active tab
+      let titleKey = 'documents.allPurchaseOrders';
+      if (activeTab === 'delivery_note') titleKey = 'documents.allDeliveryNotes';
+      if (activeTab === 'invoice') titleKey = 'documents.allPurchaseInvoices';
+
+      // Map documents to the format expected by the generator
+      const formattedDocs = documentsToExport.map(doc => ({
+        date: doc.date || new Date().toISOString(),
+        number: doc.id || 'DOC-0000',
+        // Resolve supplier/client name
+        tier: doc.supplierData?.company || doc.supplierData?.name || doc.supplier || '-',
+        itemsCount: Array.isArray(doc.items) ? doc.items.length : (typeof doc.items === 'number' ? doc.items : 0),
+        total: doc.total || 0,
+        status: doc.status || 'pending' // Fallback to pending if status is missing to prevent crash
+      }));
+
+      // Generate the list PDF
+      await generateDocumentsListPDF(
+        formattedDocs,
+        {
+          title: t(titleKey),
+          companyInfo,
+          filters: { status: statusFilter !== 'all' ? statusFilter : undefined }
+        }
+      );
+
+      toast({
+        title: t('common.success'),
+        description: t('documents.exportSuccess'),
+        variant: "success",
+      });
+    } catch (error) {
+      console.error('Export Error:', error);
+      toast({
+        title: t('common.error'),
+        description: t('documents.exportFailed'),
+        variant: "destructive",
+      });
     }
   };
 
@@ -645,17 +689,31 @@ export const Purchases = () => {
     }, docType);
   };
 
-  const handleBulkExportExcel = () => {
+  const handleBulkExportExcel = async () => {
     const currentDocuments = getCurrentDocuments();
-    const documentsToExport = currentDocuments
-      .filter(doc => selectedDocuments.has(doc.id))
-      .map(doc => ({
-        ...doc,
-        items: Array.isArray(doc.items) ? doc.items.length : (typeof doc.items === 'number' ? doc.items : 0),
-      }));
-    if (documentsToExport.length > 0) {
-      generateBulkDocumentsExcel(documentsToExport as any, activeTab);
-    }
+    const documentsToExport = currentDocuments.filter(doc => selectedDocuments.has(doc.id));
+
+    if (documentsToExport.length === 0) return;
+
+    const titleMap: Record<string, string> = {
+      'purchase_order': t('documents.purchaseOrder'),
+      'delivery_note': t('documents.deliveryNote'),
+      'invoice': t('documents.purchaseInvoice')
+    };
+
+    await exportStyledExcel({
+      title: titleMap[activeTab] || 'Documents',
+      type: 'purchases',
+      items: documentsToExport.map(doc => ({
+        date: doc.date,
+        number: doc.id,
+        entity: doc.supplierData?.company || doc.supplierData?.name || doc.supplier || '',
+        total: doc.total,
+        paid: 0,
+        balance: 0,
+        status: doc.status
+      }))
+    });
   };
 
   const handleDownloadCSV = (doc: PurchaseDocument) => {

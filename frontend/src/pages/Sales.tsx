@@ -71,6 +71,7 @@ import {
   generateCreditNotePDF,
   generateStatementPDF,
   generatePrelevementPDF,
+  generateDocumentsListPDF,
 } from '@/lib/pdf-generator';
 import {
   generateDocumentExcel,
@@ -630,13 +631,64 @@ export const Sales = () => {
   };
 
   const handleBulkExportPDF = async () => {
-    const currentDocuments = getCurrentDocuments();
-    const documentsToExport = currentDocuments.filter(doc => selectedDocuments.has(doc.id));
-    for (let i = 0; i < documentsToExport.length; i++) {
-      await handleDownloadPDF(documentsToExport[i]);
-      // Small delay between exports
-      if (i < documentsToExport.length - 1) {
+    try {
+      const currentDocuments = getCurrentDocuments();
+      const documentsToExport = currentDocuments.filter(doc => selectedDocuments.has(doc.id));
+
+      if (documentsToExport.length === 0) {
+        toast({
+          title: t('common.error'),
+          description: t('documents.noDocumentsSelected'),
+          variant: "destructive",
+        });
+        return;
       }
+
+      // Title mapping
+      const titleKeys: Record<string, string> = {
+        'delivery_note': 'documents.allDeliveryNotes',
+        'divers': 'documents.allBo',
+        'invoice': 'documents.allInvoices',
+        'estimate': 'documents.allEstimates',
+        'credit_note': 'documents.allCreditNotes',
+        'prelevement': 'documents.allPrelevements',
+      };
+
+      const titleKey = titleKeys[activeTab] || 'documents.documentList';
+
+      // Map documents to the format expected by the generator
+      const formattedDocs = documentsToExport.map(doc => ({
+        date: doc.date || new Date().toISOString(),
+        number: doc.id || 'DOC-0000',
+        // Resolve client name using helper
+        tier: getClientDisplayName(doc),
+        itemsCount: Array.isArray(doc.items) ? doc.items.length : (typeof doc.items === 'number' ? doc.items : 0),
+        total: doc.total || 0,
+        status: doc.status || 'pending'
+      }));
+
+      // Generate the list PDF
+      await generateDocumentsListPDF(
+        formattedDocs,
+        {
+          title: t(titleKey, { defaultValue: 'Document List' }),
+          companyInfo,
+          filters: { status: statusFilter !== 'all' ? statusFilter : undefined }
+        }
+      );
+
+      toast({
+        title: t('common.success'),
+        description: t('documents.exportSuccess'),
+        variant: "success",
+      });
+    } catch (error) {
+      console.error('Export Error:', error);
+      toast({
+        title: t('common.error'),
+        description: t('documents.exportFailed'),
+        variant: "destructive",
+      });
     }
   };
 
@@ -658,22 +710,49 @@ export const Sales = () => {
     generateBulkDocumentsCSV(documentsToExport, documentType);
   };
 
-  const handleBulkExportExcel = () => {
-    const currentDocuments = getCurrentDocuments();
-    const documentsToExport = currentDocuments
-      .filter(doc => selectedDocuments.has(doc.id))
-      .map(doc => ({
-        id: doc.id,
-        client: doc.client,
-        supplier: (doc as any).supplier,
-        date: doc.date,
-        items: typeof doc.items === 'number' ? doc.items : (Array.isArray(doc.items) ? doc.items.length : 0),
-        total: doc.total,
-        paymentMethod: doc.paymentMethod as string,
-        status: doc.status,
-        type: doc.type
-      }));
-    generateBulkDocumentsExcel(documentsToExport, documentType);
+  const handleBulkExportExcel = async () => {
+    try {
+      const currentDocuments = getCurrentDocuments();
+      const documentsToExport = currentDocuments.filter(doc => selectedDocuments.has(doc.id));
+
+      if (documentsToExport.length === 0) return;
+
+      const titleMap: Record<string, string> = {
+        'delivery_note': t('documents.deliveryNote'),
+        'divers': t('documents.divers'),
+        'invoice': t('documents.invoice'),
+        'estimate': t('documents.estimate'),
+        'credit_note': t('documents.creditNote'),
+        'prelevement': t('documents.prelevement'),
+      };
+
+      await exportStyledExcel({
+        title: titleMap[activeTab] || 'Documents',
+        type: 'sales',
+        items: documentsToExport.map(doc => ({
+          date: doc.date,
+          number: doc.id,
+          entity: getClientDisplayName(doc),
+          total: doc.total,
+          paid: (doc as any).amount_paid || 0,
+          balance: doc.total - ((doc as any).amount_paid || 0),
+          status: doc.status
+        }))
+      });
+
+      toast({
+        title: t('common.success'),
+        description: t('documents.exportSuccess'),
+        variant: "success",
+      });
+    } catch (error) {
+      console.error('Export Error:', error);
+      toast({
+        title: t('common.error'),
+        description: t('documents.exportFailed'),
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDownloadExcel = (doc: SalesDocument) => {

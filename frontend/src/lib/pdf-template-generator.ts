@@ -385,5 +385,50 @@ export const createFallbackItems = (count: number, total: number): InvoiceItem[]
   }));
 };
 
+// Generate List PDF using @react-pdf/renderer
+import { DocumentsListPDFTemplate } from '@/components/documents/DocumentsListPDFTemplate';
+
+export const generateListPDFFromTemplate = async (
+  options: {
+    title: string;
+    documents: any[];
+    filters?: { status?: string };
+    companyInfo?: CompanyInfo;
+    language?: string;
+  }
+): Promise<void> => {
+  try {
+    const companyInfo = getCompanyInfo(options.companyInfo);
+    const currentLanguage = options.language || i18n.language || 'en';
+
+    console.log('Generating List PDF...');
+
+    const pdfDoc = React.createElement(DocumentsListPDFTemplate, {
+      title: options.title,
+      documents: options.documents,
+      filters: options.filters,
+      companyInfo: companyInfo as any,
+      language: currentLanguage,
+    });
+
+    const blob = await pdf(pdfDoc as any).toBlob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = `${options.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    console.log('List PDF downloaded successfully');
+
+  } catch (error) {
+    console.error('List PDF generation failed:', error);
+    throw error;
+  }
+};
+
 // Legacy export name for backward compatibility
 export const createMockItems = createFallbackItems;
