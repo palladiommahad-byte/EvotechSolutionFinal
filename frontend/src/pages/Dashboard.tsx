@@ -124,7 +124,7 @@ export const Dashboard = () => {
     <div className="space-y-6 pb-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-heading font-bold text-foreground">{t('dashboard.title')}</h1>
+        <h1 className="text-3xl font-heading font-bold text-primary">{t('dashboard.title')}</h1>
         <p className="text-muted-foreground mt-1">
           {t('dashboard.welcomeBack')} {isAllWarehouses ? t('dashboard.acrossAllWarehouses') : `${t('dashboard.atWarehouse')} ${warehouseInfo?.name}`}
         </p>

@@ -24,14 +24,13 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 
 export const DashboardWithData = () => {
   const { warehouseInfo, isAllWarehouses } = useWarehouse();
-  
+
   // Fetch real data from database
   const {
     kpis,
     salesComparison,
     earningsComparison,
     ordersComparison,
-    stockValue,
     isLoading,
   } = useDashboardData();
 
@@ -66,20 +65,24 @@ export const DashboardWithData = () => {
       };
     }
 
-    const totalSales = parseFloat(kpis.total_sales || '0');
-    const totalEarnings = parseFloat(kpis.total_earnings || '0');
-    const totalOrders = parseInt(kpis.total_orders || '0');
-
-    // Calculate percentage changes with type safety and missing data handling
+    // Helper to safely parse numbers
     const parseNumber = (val: any) => {
       if (typeof val === "number") return val;
       if (typeof val === "string") {
-        const n = parseFloat(val);
+        // Remove 'MAD' or other non-numeric chars if present, but keep dots
+        const cleanVal = val.replace(/[^0-9.-]/g, '');
+        const n = parseFloat(cleanVal);
         return isNaN(n) ? 0 : n;
       }
       return 0;
     };
 
+    const totalSales = parseNumber(kpis.total_sales);
+    const totalEarnings = parseNumber(kpis.total_earnings);
+    const totalOrders = parseNumber(kpis.total_orders); // Using parseNumber handles both int and float safely
+    const totalStockValue = parseNumber(kpis.total_stock_value);
+
+    // Calculate percentage changes
     const salesPrev = parseNumber(salesComparison?.previous);
     const salesCurr = parseNumber(salesComparison?.current);
     const salesChange = salesPrev > 0
@@ -91,15 +94,12 @@ export const DashboardWithData = () => {
     const earningsChange = earningsPrev > 0
       ? ((earningsCurr - earningsPrev) / earningsPrev * 100)
       : 0;
-    
+
     const ordersPrev = parseNumber(ordersComparison?.previous);
     const ordersCurr = parseNumber(ordersComparison?.current);
     const ordersChange = ordersPrev > 0
       ? ((ordersCurr - ordersPrev) / ordersPrev * 100)
       : 0;
-
-    // Parse stockValue to ensure it's a number
-    const parsedStockValue = parseNumber(stockValue);
 
     return {
       totalSales: {
@@ -120,19 +120,19 @@ export const DashboardWithData = () => {
         label: 'New Orders This Month'
       },
       totalStockValue: {
-        value: formatMAD(parsedStockValue),
-        numericValue: parsedStockValue,
+        value: formatMAD(totalStockValue),
+        numericValue: totalStockValue,
         change: 0,
         label: 'Total Inventory Value'
       }
     };
-  }, [kpis, salesComparison, earningsComparison, ordersComparison, stockValue, isLoading]);
+  }, [kpis, salesComparison, earningsComparison, ordersComparison, isLoading]);
 
   return (
     <div className="space-y-6 pb-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-heading font-bold text-foreground">Dashboard</h1>
+        <h1 className="text-3xl font-heading font-bold text-primary">Dashboard</h1>
         <p className="text-muted-foreground mt-1">
           Welcome back! Here's what's happening {isAllWarehouses ? 'across all warehouses' : `at ${warehouseInfo?.name}`}
         </p>
