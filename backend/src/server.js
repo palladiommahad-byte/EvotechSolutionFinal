@@ -23,6 +23,9 @@ const prelevementsRoutes = require('./routes/prelevements.routes');
 const { errorHandler } = require('./middleware/error.middleware');
 const { initCronJobs } = require('./services/cron-jobs');
 
+// Import auto-migration system
+const { runAutoMigrations } = require('./scripts/auto-migrate');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -84,16 +87,37 @@ app.use((req, res) => {
     });
 });
 
-// Start server
-app.listen(PORT, () => {
-    console.log('');
-    console.log('╔════════════════════════════════════════════════════════╗');
-    console.log('║        EvoTech Solution Backend API Server             ║');
-    console.log('╠════════════════════════════════════════════════════════╣');
-    console.log(`║  🚀 Server running on: http://localhost:${PORT}            ║`);
-    console.log(`║  📍 Health check:      http://localhost:${PORT}/api/health ║`);
-    console.log('╚════════════════════════════════════════════════════════╝');
-    console.log('');
-});
+// Start server with auto-migrations
+async function startServer() {
+    // Wait for database to be ready (Docker containers may start at different times)
+    const MAX_RETRIES = 10;
+    const RETRY_DELAY_MS = 3000;
+    
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            await runAutoMigrations();
+            break; // Success - proceed to start server
+        } catch (error) {
+            if (attempt === MAX_RETRIES) {
+                console.error('❌ Could not connect to database after multiple attempts.');
+                console.error('   The server will start anyway, but some features may not work.');
+                break;
+            }
+            console.log(`⏳ Database not ready yet (attempt ${attempt}/${MAX_RETRIES}). Retrying in ${RETRY_DELAY_MS / 1000}s...`);
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        }
+    }
 
-module.exports = app;
+    app.listen(PORT, () => {
+        console.log('');
+        console.log('╔════════════════════════════════════════════════════════╗');
+        console.log('║        EvoTech Solution Backend API Server             ║');
+        console.log('╠════════════════════════════════════════════════════════╣');
+        console.log(`║  🚀 Server running on: http://localhost:${PORT}            ║`);
+        console.log(`║  📍 Health check:      http://localhost:${PORT}/api/health ║`);
+        console.log('╚════════════════════════════════════════════════════════╝');
+        console.log('');
+    });
+}
+
+startServer();
