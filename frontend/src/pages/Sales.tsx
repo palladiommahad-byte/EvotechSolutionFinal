@@ -587,7 +587,7 @@ export const Sales = () => {
 
       switch (docType) {
         case 'invoice':
-          await generateInvoicePDF({ ...docWithItems as any, companyInfo });
+          await generateInvoicePDF({ ...docWithItems as any, companyInfo, linkedBLs: (docWithItems as any).linked_bls });
           break;
         case 'estimate':
           await generateEstimatePDF({ ...docWithItems as any, companyInfo });
@@ -656,6 +656,7 @@ export const Sales = () => {
         note: docWithItems.note,
         taxEnabled: docWithItems.taxEnabled,
         clientPoNumber: docWithItems.clientPoNumber,
+        linkedBLs: (docWithItems as any).linked_bls,
         companyInfo: companyInfo as any,
       });
 

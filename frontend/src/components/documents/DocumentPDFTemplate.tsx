@@ -20,6 +20,7 @@ interface DocumentPDFTemplateProps {
   note?: string;
   taxEnabled?: boolean;  // For BL/Divers: whether to show and compute VAT
   clientPoNumber?: string; // Bon de commande client reference
+  linkedBLs?: { document_id: string; date: string }[]; // Linked BLs for invoices
   companyInfo: CompanyInfo;
   language?: string;
 }
@@ -45,7 +46,7 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 12,
   },
   footer: {
     marginTop: 'auto',
@@ -61,14 +62,14 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 18,
+    alignItems: 'flex-start',
+    marginBottom: 12,
   },
   companyInfo: {
     flex: 1,
-    paddingRight: 40,
+    paddingRight: 16,
     flexDirection: 'row',
-    gap: 16,
+    gap: 12,
     alignItems: 'center',
   },
   logo: {
@@ -104,13 +105,13 @@ const styles = StyleSheet.create({
   },
   invoiceDetails: {
     backgroundColor: '#3b82f6',
-    padding: '10px 14px',
+    padding: '8px 14px',
     borderRadius: 6,
     width: 'auto',
     alignSelf: 'flex-end',
   },
   invoiceDetailRow: {
-    marginBottom: 5,
+    marginBottom: 2,
   },
   invoiceDetailLabel: {
     fontSize: 9,
@@ -125,20 +126,20 @@ const styles = StyleSheet.create({
   },
   invoiceToSection: {
     marginTop: 0,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   invoiceToLabel: {
     fontSize: 9,
     fontWeight: 700,
     color: '#374151',
-    marginBottom: 5,
+    marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.05,
     lineHeight: 1.3,
   },
   invoiceToBox: {
     backgroundColor: '#F9FAFB',
-    padding: '10px 12px',
+    padding: '8px 10px',
     borderRadius: 5,
     border: '1px solid #E5E7EB',
   },
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   table: {
-    marginBottom: 32,
+    marginBottom: 16,
     border: '1px solid #3b82f6',
     borderRadius: 4,
   },
@@ -237,7 +238,7 @@ const styles = StyleSheet.create({
     lineHeight: 1.3,
   },
   paymentMethod: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   sectionLabel: {
     fontSize: 11,
@@ -285,6 +286,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
   note,
   taxEnabled,
   clientPoNumber,
+  linkedBLs,
   companyInfo,
   language,
 }) => {
@@ -356,8 +358,8 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
 
     const prefix = prefixes[docType] || 'DOC';
 
-    // If ID already has a standard prefix (PREFIX-MM/YY/NNNN), return as is
-    if (id.match(/^[A-Z]{2,3}-\d{2}\/\d{2}\/\d{4}$/)) {
+    // If ID already starts with the expected prefix, return as is
+    if (id.toUpperCase().startsWith(prefix)) {
       return id;
     }
 
@@ -371,7 +373,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
     if (id.startsWith('PO-')) return id.replace('PO-', 'BC-');
     if (id.startsWith('PI-')) return id.replace('PI-', 'FA-');
 
-    // If ID already has any uppercase prefix, return as is
+    // If ID already has an uppercase prefix separated by a dash, return as is
     if (id.match(/^[A-Z]{2,4}-/)) {
       return id;
     }
@@ -389,18 +391,19 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerRow}>
-              {/* Company Info */}
+              {/* Company Info - Logo Only */}
               <View style={styles.companyInfo}>
-                {companyInfo.logo && companyInfo.logo.trim() && (
+                {companyInfo.logo && companyInfo.logo.trim() ? (
                   <Image
                     src={companyInfo.logo}
                     style={styles.logo}
                     cache={false}
                   />
+                ) : (
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.companyName, { color: titleColor }]}>{(companyInfo.name || 'COMPANY NAME').toUpperCase()}</Text>
+                  </View>
                 )}
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.companyName, { color: titleColor }]}>{(companyInfo.name || 'COMPANY NAME').toUpperCase()}</Text>
-                </View>
               </View>
 
               {/* Document Title */}
@@ -415,6 +418,14 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                       <Text style={styles.invoiceDetailValue}>{formattedDocumentId}</Text>
                     </Text>
                   </View>
+                  {companyInfo.footerText && (
+                    <View style={styles.invoiceDetailRow}>
+                      <Text>
+                        <Text style={styles.invoiceDetailLabel}>Lieu: </Text>
+                        <Text style={styles.invoiceDetailValue}>{companyInfo.footerText}</Text>
+                      </Text>
+                    </View>
+                  )}
                   <View>
                     <Text>
                       <Text style={styles.invoiceDetailLabel}>{String(t('common.date'))}: </Text>
@@ -422,6 +433,22 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                     </Text>
                   </View>
                 </View>
+
+                {/* Linked BL info — moved here as requested */}
+                {type === 'invoice' && linkedBLs && linkedBLs.length > 0 && (
+                  <View style={{ marginTop: 8, alignItems: 'flex-end', width: 'auto' }}>
+                    {linkedBLs.map((bl, idx) => (
+                      <View key={idx} style={{ alignItems: 'flex-end', marginBottom: 4 }}>
+                        <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#000', textTransform: 'uppercase' }}>
+                          {String(t('pdf.blNumber'))} : <Text style={{ color: primaryColor }}>{bl.document_id}</Text>
+                        </Text>
+                        <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#000', textTransform: 'uppercase' }}>
+                          {String(t('pdf.blDate'))} : <Text style={{ color: primaryColor }}>{formatDate(bl.date)}</Text>
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
             </View>
 
@@ -435,7 +462,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
               paddingLeft: 0,
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 16,
+              marginBottom: 12,
             }}>
               {/* Left Box - From (Sender) */}
               <View style={{ width: '40%', flexShrink: 0 }}>
@@ -449,22 +476,12 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                         <View>
                           <Text style={styles.clientName}>
                             {clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '-'}
+                            {(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 8, color: '#475569', fontWeight: 'normal' }}>   {String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
                           </Text>
-                          {clientData?.ice || supplierData?.ice ? (
-                            <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
-                              {String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}
-                            </Text>
-                          ) : null}
-                          {clientData?.phone || supplierData?.phone ? (
-                            <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
-                              {String(t('pdf.phone'))}: {clientData?.phone || supplierData?.phone}
-                            </Text>
-                          ) : null}
-                          {clientData?.address || supplierData?.address ? (
-                            <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
-                              {clientData?.address || supplierData?.address}
-                            </Text>
-                          ) : null}
+                          <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
+                            {(clientData?.phone || supplierData?.phone) ? <Text>{String(t('pdf.phone'))}: {clientData?.phone || supplierData?.phone}    </Text> : null}
+                            {(clientData?.address || supplierData?.address) ? <Text>{clientData?.address || supplierData?.address}</Text> : null}
+                          </Text>
                         </View>
                       ) : (
                         <Text style={styles.clientName}>{client || supplier || '-'}</Text>
@@ -475,22 +492,12 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                     <View>
                       <Text style={styles.clientName}>
                         {(companyInfo.name || 'COMPANY NAME').toUpperCase()}
+                        {companyInfo.ice ? <Text style={{ fontSize: 8, color: '#475569', fontWeight: 'normal' }}>   {String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
                       </Text>
-                      {companyInfo.ice && (
-                        <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
-                          {String(t('pdf.ice'))}: {companyInfo.ice}
-                        </Text>
-                      )}
-                      {companyInfo.phone && (
-                        <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
-                          {String(t('pdf.phone'))}: {companyInfo.phone}
-                        </Text>
-                      )}
-                      {companyInfo.address && (
-                        <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
-                          {companyInfo.address}
-                        </Text>
-                      )}
+                      <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
+                        {companyInfo.phone ? <Text>{String(t('pdf.phone'))}: {companyInfo.phone}    </Text> : null}
+                        {companyInfo.address ? <Text>{companyInfo.address}</Text> : null}
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -509,22 +516,12 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                     <View>
                       <Text style={styles.clientName}>
                         {(companyInfo.name || 'COMPANY NAME').toUpperCase()}
+                        {companyInfo.ice ? <Text style={{ fontSize: 8, color: '#475569', fontWeight: 'normal' }}>   {String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
                       </Text>
-                      {companyInfo.ice && (
-                        <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
-                          {String(t('pdf.ice'))}: {companyInfo.ice}
-                        </Text>
-                      )}
-                      {companyInfo.phone && (
-                        <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
-                          {String(t('pdf.phone'))}: {companyInfo.phone}
-                        </Text>
-                      )}
-                      {companyInfo.address && (
-                        <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
-                          {companyInfo.address}
-                        </Text>
-                      )}
+                      <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
+                        {companyInfo.phone ? <Text>{String(t('pdf.phone'))}: {companyInfo.phone}    </Text> : null}
+                        {companyInfo.address ? <Text>{companyInfo.address}</Text> : null}
+                      </Text>
                     </View>
                   ) : (
                     /* For Sales Invoice/Others: Recipient is Client/Supplier */
@@ -534,22 +531,12 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                         <View>
                           <Text style={styles.clientName}>
                             {clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '-'}
+                            {(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 8, color: '#475569', fontWeight: 'normal' }}>   {String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
                           </Text>
-                          {clientData?.ice || supplierData?.ice ? (
-                            <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
-                              {String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}
-                            </Text>
-                          ) : null}
-                          {clientData?.phone || supplierData?.phone ? (
-                            <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
-                              {String(t('pdf.phone'))}: {clientData?.phone || supplierData?.phone}
-                            </Text>
-                          ) : null}
-                          {clientData?.address || supplierData?.address ? (
-                            <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
-                              {clientData?.address || supplierData?.address}
-                            </Text>
-                          ) : null}
+                          <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
+                            {(clientData?.phone || supplierData?.phone) ? <Text>{String(t('pdf.phone'))}: {clientData?.phone || supplierData?.phone}    </Text> : null}
+                            {(clientData?.address || supplierData?.address) ? <Text>{clientData?.address || supplierData?.address}</Text> : null}
+                          </Text>
                         </View>
                       ) : (
                         <Text style={styles.clientName}>{client || supplier || '-'}</Text>

@@ -2,6 +2,7 @@ import React from 'react';
 import { useCompany } from '@/contexts/CompanyContext';
 import { formatMADFull, VAT_RATE, calculateInvoiceTotals } from '@/lib/moroccan-utils';
 import { InvoiceItem } from '@/lib/moroccan-utils';
+import { useTranslation } from 'react-i18next';
 import { UIContact } from '@/contexts/ContactsContext';
 
 interface DocumentTemplateProps {
@@ -17,6 +18,7 @@ interface DocumentTemplateProps {
   dueDate?: string;
   note?: string;
   clientPoNumber?: string;
+  linkedBLs?: { document_id: string; date: string }[];
 }
 
 export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
@@ -32,8 +34,10 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
   dueDate,
   note,
   clientPoNumber,
+  linkedBLs,
 }) => {
   const { companyInfo } = useCompany();
+  const { t } = useTranslation();
   const totals = calculateInvoiceTotals(items);
   // For purchase documents, the external contact is the supplier. For sales, it's the client.
   const isPurchaseSide = type === 'purchase_order' || type === 'purchase_invoice' || type === 'purchase_delivery_note';
@@ -168,13 +172,13 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
         {/* Main Content Wrapper */}
         <div style={{ flex: 1 }}>
           {/* Header Section */}
-          <div style={{ marginBottom: '42px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '36px' }}>
-              {/* Left: Logo and Company Info */}
-              <div style={{ flex: '1', paddingRight: '40px', display: 'flex', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', width: '100%' }}>
-                  {/* Logo */}
-                  {companyInfo.logo && (
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              {/* Left: Logo Only */}
+              <div style={{ flex: '1', paddingRight: '16px', display: 'flex', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+                  {/* Logo or Fallback Name */}
+                  {companyInfo.logo ? (
                     <div style={{ flexShrink: 0 }}>
                       <img
                         src={companyInfo.logo}
@@ -182,27 +186,26 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                         style={{ height: '72px', objectFit: 'contain', maxWidth: '144px' }}
                       />
                     </div>
+                  ) : (
+                    <div style={{ flex: '1' }}>
+                      <h1 style={{
+                        fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
+                        fontSize: '16px',
+                        fontWeight: 700,
+                        color: '#111827',
+                        margin: '0 0 6px 0',
+                        letterSpacing: '-0.01em',
+                        lineHeight: '1.3'
+                      }}>
+                        {companyInfo.name?.toUpperCase() || 'COMPANY NAME'}
+                      </h1>
+                    </div>
                   )}
-                  {/* Company Name and Details */}
-                  <div style={{ flex: '1' }}>
-                    <h1 style={{
-                      fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
-                      fontSize: '16px',
-                      fontWeight: 700,
-                      color: '#111827',
-                      margin: '0 0 6px 0',
-                      letterSpacing: '-0.01em',
-                      lineHeight: '1.3'
-                    }}>
-                      {companyInfo.name?.toUpperCase() || 'COMPANY NAME'}
-                    </h1>
-
-                  </div>
                 </div>
               </div>
 
               {/* Right: Document Title in Sky Blue */}
-              <div style={{ textAlign: 'right', display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
+              <div style={{ textAlign: 'right', display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'flex-start' }}>
                 <h2 style={{
                   fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
                   fontSize: getTitleFontSize(documentTitles[type].fr),
@@ -217,24 +220,46 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                 </h2>
                 <div style={{
                   backgroundColor: skyBlue,
-                  padding: '10px 14px',
+                  padding: '8px 14px',
                   borderRadius: '6px',
                   textAlign: 'left',
                   width: '100%',
                   boxSizing: 'border-box',
                   minWidth: '100%'
                 }}>
-                  <div style={{ fontSize: '9px', color: '#FFFFFF', lineHeight: '1.6' }}>
-                    <div style={{ marginBottom: '3px' }}>
-                      <span style={{ fontWeight: 600, letterSpacing: '0.01em' }}>Invoice No: </span>
+                  <div style={{ fontSize: '9px', color: '#FFFFFF', lineHeight: '1.4' }}>
+                    <div style={{ marginBottom: '1px' }}>
+                      <span style={{ fontWeight: 600, letterSpacing: '0.01em' }}>{String(t('pdf.documentNumber'))}: </span>
                       <span style={{ fontWeight: 700, color: '#FFFFFF' }}>{documentId}</span>
                     </div>
+                    {companyInfo.footerText && (
+                      <div style={{ marginBottom: '1px' }}>
+                        <span style={{ fontWeight: 600, letterSpacing: '0.01em' }}>Lieu: </span>
+                        <span style={{ fontWeight: 700, color: '#FFFFFF' }}>{companyInfo.footerText}</span>
+                      </div>
+                    )}
                     <div>
-                      <span style={{ fontWeight: 600, letterSpacing: '0.01em' }}>Date: </span>
+                      <span style={{ fontWeight: 600, letterSpacing: '0.01em' }}>{String(t('common.date'))}: </span>
                       <span style={{ fontWeight: 700, color: '#FFFFFF' }}>{formatDate(date)}</span>
                     </div>
                   </div>
                 </div>
+
+                {/* Linked BL info — moved here as requested */}
+                {type === 'invoice' && linkedBLs && linkedBLs.length > 0 && (
+                  <div style={{ marginTop: '8px', textAlign: 'right', width: '100%' }}>
+                    {linkedBLs.map((bl, idx) => (
+                      <div key={idx} style={{ marginBottom: '4px' }}>
+                        <div style={{ fontSize: '10px', fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>
+                          {String(t('pdf.blNumber'))} : <span style={{ color: skyBlue }}>{bl.document_id}</span>
+                        </div>
+                        <div style={{ fontSize: '10px', fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>
+                          {String(t('pdf.blDate'))} : <span style={{ color: skyBlue }}>{formatDate(bl.date)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -264,7 +289,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                 </h3>
                 <div style={{
                   backgroundColor: '#EFF6FF',
-                  padding: '10px 12px',
+                  padding: '8px 10px',
                   borderRadius: '5px',
                   border: `1px solid ${skyBlue}`
                 }}>
@@ -279,22 +304,12 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                         lineHeight: '1.3'
                       }}>
                         {contactName}
+                        {contactICE && <span style={{ fontSize: '8px', color: '#475569', fontWeight: 'normal' }}>   ICE: {contactICE}</span>}
                       </p>
-                      {contactICE && (
-                        <p style={{ fontSize: '8px', color: '#475569', margin: '0 0 2px 0', lineHeight: '1.3' }}>
-                          ICE: {contactICE}
-                        </p>
-                      )}
-                      {contactPhone && (
-                        <p style={{ fontSize: '8px', color: '#475569', margin: '0 0 2px 0', lineHeight: '1.3' }}>
-                          Tél: {contactPhone}
-                        </p>
-                      )}
-                      {contactAddress && (
-                        <p style={{ fontSize: '8px', color: '#475569', margin: '0', lineHeight: '1.3' }}>
-                          {contactAddress}
-                        </p>
-                      )}
+                      <p style={{ fontSize: '8px', color: '#475569', margin: '0', lineHeight: '1.3' }}>
+                        {contactPhone && <span>Tél: {contactPhone}    </span>}
+                        {contactAddress && <span>{contactAddress}</span>}
+                      </p>
                     </>
                   ) : (
                     // For Sales Docs: From is Company
@@ -307,22 +322,12 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                         lineHeight: '1.3'
                       }}>
                         {companyInfo.name || '-'}
+                        {companyInfo.ice && <span style={{ fontSize: '8px', color: '#475569', fontWeight: 'normal' }}>   ICE: {companyInfo.ice}</span>}
                       </p>
-                      {companyInfo.ice && (
-                        <p style={{ fontSize: '8px', color: '#475569', margin: '0 0 2px 0', lineHeight: '1.3' }}>
-                          ICE: {companyInfo.ice}
-                        </p>
-                      )}
-                      {companyInfo.phone && (
-                        <p style={{ fontSize: '8px', color: '#475569', margin: '0 0 2px 0', lineHeight: '1.3' }}>
-                          Tél: {companyInfo.phone}
-                        </p>
-                      )}
-                      {companyInfo.address && (
-                        <p style={{ fontSize: '8px', color: '#475569', margin: '0', lineHeight: '1.3' }}>
-                          {companyInfo.address}
-                        </p>
-                      )}
+                      <p style={{ fontSize: '8px', color: '#475569', margin: '0', lineHeight: '1.3' }}>
+                        {companyInfo.phone && <span>Tél: {companyInfo.phone}    </span>}
+                        {companyInfo.address && <span>{companyInfo.address}</span>}
+                      </p>
                     </>
                   )}
                 </div>
@@ -343,7 +348,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                 </h3>
                 <div style={{
                   backgroundColor: '#EFF6FF',
-                  padding: '10px 12px',
+                  padding: '8px 10px',
                   borderRadius: '5px',
                   border: `1px solid ${skyBlue}`
                 }}>
@@ -358,22 +363,12 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                         lineHeight: '1.3'
                       }}>
                         {companyInfo.name || '-'}
+                        {companyInfo.ice && <span style={{ fontSize: '8px', color: '#475569', fontWeight: 'normal' }}>   ICE: {companyInfo.ice}</span>}
                       </p>
-                      {companyInfo.ice && (
-                        <p style={{ fontSize: '8px', color: '#475569', margin: '0 0 2px 0', lineHeight: '1.3' }}>
-                          ICE: {companyInfo.ice}
-                        </p>
-                      )}
-                      {companyInfo.phone && (
-                        <p style={{ fontSize: '8px', color: '#475569', margin: '0 0 2px 0', lineHeight: '1.3' }}>
-                          Tél: {companyInfo.phone}
-                        </p>
-                      )}
-                      {companyInfo.address && (
-                        <p style={{ fontSize: '8px', color: '#475569', margin: '0', lineHeight: '1.3' }}>
-                          {companyInfo.address}
-                        </p>
-                      )}
+                      <p style={{ fontSize: '8px', color: '#475569', margin: '0', lineHeight: '1.3' }}>
+                        {companyInfo.phone && <span>Tél: {companyInfo.phone}    </span>}
+                        {companyInfo.address && <span>{companyInfo.address}</span>}
+                      </p>
                     </>
                   ) : (
                     // For Sales Docs: To is Client
@@ -386,22 +381,12 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                         lineHeight: '1.3'
                       }}>
                         {contactName}
+                        {contactICE && <span style={{ fontSize: '8px', color: '#475569', fontWeight: 'normal' }}>   ICE: {contactICE}</span>}
                       </p>
-                      {contactICE && (
-                        <p style={{ fontSize: '8px', color: '#475569', margin: '0 0 2px 0', lineHeight: '1.3' }}>
-                          ICE: {contactICE}
-                        </p>
-                      )}
-                      {contactPhone && (
-                        <p style={{ fontSize: '8px', color: '#475569', margin: '0 0 2px 0', lineHeight: '1.3' }}>
-                          Tél: {contactPhone}
-                        </p>
-                      )}
-                      {contactAddress && (
-                        <p style={{ fontSize: '8px', color: '#475569', margin: '0', lineHeight: '1.3' }}>
-                          {contactAddress}
-                        </p>
-                      )}
+                      <p style={{ fontSize: '8px', color: '#475569', margin: '0', lineHeight: '1.3' }}>
+                        {contactPhone && <span>Tél: {contactPhone}    </span>}
+                        {contactAddress && <span>{contactAddress}</span>}
+                      </p>
                     </>
                   )}
                 </div>
@@ -441,7 +426,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
           )}
 
           {/* Items Table */}
-          <div style={{ marginBottom: '32px', width: '100%', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ marginBottom: '16px', width: '100%', display: 'flex', justifyContent: 'center' }}>
             <table style={{
               width: '100%',
               borderCollapse: 'collapse',

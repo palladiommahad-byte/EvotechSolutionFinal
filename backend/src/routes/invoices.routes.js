@@ -55,7 +55,7 @@ router.get('/', asyncHandler(async (req, res) => {
 
     const invoicesResult = await query(sql, params);
 
-    // Get items for each invoice
+    // Get items and linked BLs for each invoice
     const invoices = await Promise.all(
         invoicesResult.rows.map(async (invoice) => {
             const itemsResult = await query(
@@ -63,9 +63,19 @@ router.get('/', asyncHandler(async (req, res) => {
                 [invoice.id]
             );
 
+            const linkedBLsResult = await query(
+                `SELECT dn.id, dn.document_id, dn.date
+                   FROM invoice_bls ib
+                   JOIN delivery_notes dn ON dn.id = ib.bl_id
+                  WHERE ib.invoice_id = $1
+                  ORDER BY dn.date ASC`,
+                [invoice.id]
+            );
+
             return {
                 ...invoice,
                 items: itemsResult.rows,
+                linked_bls: linkedBLsResult.rows,
                 client: invoice.client_name ? {
                     id: invoice.client_id,
                     name: invoice.client_name,
@@ -186,10 +196,19 @@ router.get('/document/:documentId', asyncHandler(async (req, res) => {
         'SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY created_at ASC',
         [result.rows[0].id]
     );
+    const linkedBLsResult = await query(
+        `SELECT dn.id, dn.document_id, dn.date, dn.billing_status
+           FROM invoice_bls ib
+           JOIN delivery_notes dn ON dn.id = ib.bl_id
+          WHERE ib.invoice_id = $1
+          ORDER BY dn.date ASC`,
+        [result.rows[0].id]
+    );
 
     res.json({
         ...invoice,
         items: itemsResult.rows,
+        linked_bls: linkedBLsResult.rows,
         client: invoice.client_name ? {
             id: invoice.client_id,
             name: invoice.client_name,

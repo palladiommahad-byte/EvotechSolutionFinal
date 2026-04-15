@@ -693,7 +693,9 @@
     "price": "PRIX",
     "tax": "TAXE",
     "total": "TOTAL",
-    "grandTotal": "TOTAL TTC"
+    "grandTotal": "TOTAL TTC",
+    "blNumber": "BL N°",
+    "blDate": "DATE BL"
   },
   "taxReports": {
     "title": "Rapports fiscaux",

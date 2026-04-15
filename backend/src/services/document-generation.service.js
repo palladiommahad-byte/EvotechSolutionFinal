@@ -135,7 +135,7 @@ async function generateInvoiceNumberSafe(pgClient, date = new Date()) {
     );
 
     const serial = String(nextSeq).padStart(4, '0');
-    return `FC-${currentMonthYear}/${serial}`;
+    return `FC${month}${year}/${serial}`;
 }
 
 module.exports = {

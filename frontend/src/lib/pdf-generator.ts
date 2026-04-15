@@ -42,6 +42,7 @@ export const generateInvoicePDF = async (document: {
   type?: string;
   dueDate?: string;
   note?: string;
+  linkedBLs?: { document_id: string; date: string }[];
   companyInfo?: CompanyInfo;
 }) => {
   const items: InvoiceItem[] = Array.isArray(document.items)
@@ -60,6 +61,7 @@ export const generateInvoicePDF = async (document: {
     paymentMethod: document.paymentMethod as 'cash' | 'check' | 'bank_transfer' | undefined,
     dueDate: document.dueDate,
     note: document.note,
+    linkedBLs: document.linkedBLs,
     language: i18n.language || 'en',
     companyInfo: document.companyInfo,
   });

@@ -1037,12 +1037,11 @@ export const Settings = () => {
               {/* Invoice Settings */}
               <div className="space-y-6">
                 <div>
-                  <Label className="mb-3 block">Invoice Footer Text</Label>
-                  <Textarea
-                    placeholder="Terms and conditions, payment information..."
+                  <Label className="mb-3 block">Documents place (City)</Label>
+                  <Input
+                    placeholder="e.g., Marrakech, Casablanca..."
                     value={formData.footerText || ''}
                     onChange={(e) => handleInputChange('footerText', e.target.value)}
-                    rows={4}
                   />
                 </div>
                 <div className="flex items-center justify-between p-4 bg-section rounded-lg">

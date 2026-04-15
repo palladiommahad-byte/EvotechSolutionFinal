@@ -65,6 +65,8 @@ export interface SalesDocument {
   paymentWarehouseId?: string; // For cash payments to warehouse
   warehouseId?: string; // For delivery notes and divers
   clientPoNumber?: string; // Bon de commande client (BL only)
+  /** Linked BLs for invoices created from Bons de Livraison */
+  linked_bls?: { id: string; document_id: string; date: string }[];
   // Additional fields for internal use
   _internalId?: string; // database ID
   /** Billing status for delivery notes: 'not_invoiced' | 'invoiced' (from migration 016) */
@@ -174,6 +176,7 @@ const invoiceToSalesDocument = (invoice: InvoiceWithItems): SalesDocument => {
     } : undefined,
     dueDate: invoice.due_date || undefined,
     note: invoice.note || undefined,
+    linked_bls: (invoice as any).linked_bls || undefined,
     _internalId: invoice.id,
   };
 };

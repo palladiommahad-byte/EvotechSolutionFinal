@@ -39,6 +39,7 @@ interface DocumentData {
   note?: string;
   taxEnabled?: boolean;  // For BL/Divers: whether to display and compute VAT
   clientPoNumber?: string; // Bon de commande client
+  linkedBLs?: { document_id: string; date: string }[]; // Linked BLs for invoices
   language?: string;
   companyInfo?: CompanyInfo; // Optional - should be provided from CompanyContext
 }
@@ -151,6 +152,7 @@ export const generatePDFFromTemplate = async (data: DocumentData): Promise<void>
       note: data.note,
       taxEnabled: data.taxEnabled,
       clientPoNumber: data.clientPoNumber,
+      linkedBLs: data.linkedBLs,
       companyInfo: companyInfo as any,
       language: currentLanguage,
     });
@@ -251,6 +253,7 @@ const generatePDFWithHtml2Canvas = async (data: DocumentData, companyInfo: any):
               dueDate: data.dueDate,
               note: data.note,
               clientPoNumber: data.clientPoNumber,
+              linkedBLs: data.linkedBLs,
             })
           }
         )
