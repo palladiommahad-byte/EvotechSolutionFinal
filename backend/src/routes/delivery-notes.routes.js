@@ -161,7 +161,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
  * Create a new delivery note
  */
 router.post('/', asyncHandler(async (req, res) => {
-    let { document_id, client_id, supplier_id, warehouse_id, date, document_type = 'delivery_note', note, client_po_number, items } = req.body;
+    let { document_id, client_id, supplier_id, warehouse_id, date, document_type = 'delivery_note', note, client_po_number, items, discount_type = 'fixed', discount_value = 0 } = req.body;
 
     if (!date || !items || items.length === 0) {
         return res.status(400).json({
@@ -185,13 +185,20 @@ router.post('/', asyncHandler(async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+        const initialSubtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+        let discountAmount = 0;
+        const dv = parseFloat(discount_value) || 0;
+        if (dv > 0) {
+            discountAmount = discount_type === 'percentage' ? (initialSubtotal * (dv / 100)) : dv;
+        }
+        discountAmount = Math.min(discountAmount, initialSubtotal);
+        const subtotal = initialSubtotal - discountAmount;
 
         const noteResult = await client.query(
-            `INSERT INTO delivery_notes (document_id, client_id, supplier_id, warehouse_id, date, subtotal, status, note, document_type, client_po_number)
-       VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7, $8, $9)
+            `INSERT INTO delivery_notes (document_id, client_id, supplier_id, warehouse_id, date, subtotal, status, note, document_type, client_po_number, discount_type, discount_value)
+       VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7, $8, $9, $10, $11)
        RETURNING *`,
-            [document_id, client_id || null, supplier_id || null, warehouse_id || null, date, subtotal, note || null, document_type, client_po_number || null]
+            [document_id, client_id || null, supplier_id || null, warehouse_id || null, date, subtotal, note || null, document_type, client_po_number || null, discount_type, dv]
         );
 
         const deliveryNote = noteResult.rows[0];
@@ -293,16 +300,41 @@ router.post('/', asyncHandler(async (req, res) => {
  */
 router.put('/:id', asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { date, status, note, client_po_number, items } = req.body;
+    const { date, status, note, client_po_number, items, discount_type, discount_value } = req.body;
 
     const client = await getClient();
 
     try {
         await client.query('BEGIN');
 
+        const existingNoteResult = await client.query('SELECT discount_type, discount_value FROM delivery_notes WHERE id = $1', [id]);
+        if (existingNoteResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Not Found', message: 'Delivery note not found' });
+        }
+        const existingNote = existingNoteResult.rows[0];
+
         let subtotal;
+        let newDiscountType = discount_type !== undefined ? discount_type : existingNote.discount_type || 'fixed';
+        let newDiscountValue = discount_value !== undefined ? parseFloat(discount_value) : parseFloat(existingNote.discount_value || 0);
+
         if (items && items.length > 0) {
-            subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+            const initialSubtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+            let discountAmount = 0;
+            if (newDiscountValue > 0) {
+                discountAmount = newDiscountType === 'percentage' ? (initialSubtotal * (newDiscountValue / 100)) : newDiscountValue;
+            }
+            discountAmount = Math.min(discountAmount, initialSubtotal);
+            subtotal = initialSubtotal - discountAmount;
+        } else if (discount_type !== undefined || discount_value !== undefined) {
+             const currentSubtotalQuery = await client.query('SELECT SUM(quantity * unit_price) as initial_subtotal FROM delivery_note_items WHERE delivery_note_id = $1', [id]);
+             const initialSubtotal = parseFloat(currentSubtotalQuery.rows[0].initial_subtotal) || 0;
+             let discountAmount = 0;
+             if (newDiscountValue > 0) {
+                 discountAmount = newDiscountType === 'percentage' ? (initialSubtotal * (newDiscountValue / 100)) : newDiscountValue;
+             }
+             discountAmount = Math.min(discountAmount, initialSubtotal);
+             subtotal = initialSubtotal - discountAmount;
         }
 
         const updates = [];
@@ -313,6 +345,8 @@ router.put('/:id', asyncHandler(async (req, res) => {
         if (status !== undefined) { updates.push(`status = $${paramIndex++} `); params.push(status); }
         if (note !== undefined) { updates.push(`note = $${paramIndex++} `); params.push(note); }
         if (client_po_number !== undefined) { updates.push(`client_po_number = $${paramIndex++} `); params.push(client_po_number || null); }
+        if (discount_type !== undefined) { updates.push(`discount_type = $${paramIndex++} `); params.push(discount_type); }
+        if (discount_value !== undefined) { updates.push(`discount_value = $${paramIndex++} `); params.push(discount_value); }
         if (subtotal !== undefined) { updates.push(`subtotal = $${paramIndex++} `); params.push(subtotal); }
         updates.push(`updated_at = NOW()`);
         params.push(id);

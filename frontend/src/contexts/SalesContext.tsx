@@ -66,13 +66,16 @@ export interface SalesDocument {
   warehouseId?: string; // For delivery notes and divers
   clientPoNumber?: string; // Bon de commande client (BL only)
   /** Linked BLs for invoices created from Bons de Livraison */
-  linked_bls?: { id: string; document_id: string; date: string }[];
+  linked_bls?: { id: string; document_id: string; date: string; items?: { id: string; description: string; quantity: number; unit?: string; unit_price: number; total: number }[] }[];
   // Additional fields for internal use
   _internalId?: string; // database ID
   /** Billing status for delivery notes: 'not_invoiced' | 'invoiced' (from migration 016) */
   billing_status?: 'not_invoiced' | 'invoiced';
   /** UUID of the linked invoice, if this BL has been invoiced */
   invoice_id?: string | null;
+  /** Global discount applied to the document */
+  discountType?: 'percentage' | 'fixed';
+  discountValue?: number;
 }
 
 interface SalesContextType {
@@ -178,6 +181,8 @@ const invoiceToSalesDocument = (invoice: InvoiceWithItems): SalesDocument => {
     note: invoice.note || undefined,
     linked_bls: (invoice as any).linked_bls || undefined,
     _internalId: invoice.id,
+    discountType: (invoice as any).discount_type as 'percentage' | 'fixed' | undefined,
+    discountValue: (invoice as any).discount_value ? Number((invoice as any).discount_value) : undefined,
   };
 };
 
@@ -217,6 +222,8 @@ const estimateToSalesDocument = (estimate: EstimateWithItems): SalesDocument => 
     type: 'estimate',
     note: estimate.note || undefined,
     _internalId: estimate.id,
+    discountType: (estimate as any).discount_type as 'percentage' | 'fixed' | undefined,
+    discountValue: (estimate as any).discount_value ? Number((estimate as any).discount_value) : undefined,
   };
 };
 
@@ -263,6 +270,8 @@ const deliveryNoteToSalesDocument = (deliveryNote: DeliveryNoteWithItems): Sales
     // Billing tracking fields (from migration 016)
     billing_status: deliveryNote.billing_status ?? 'not_invoiced',
     invoice_id: deliveryNote.invoice_id ?? null,
+    discountType: (deliveryNote as any).discount_type as 'percentage' | 'fixed' | undefined,
+    discountValue: (deliveryNote as any).discount_value ? Number((deliveryNote as any).discount_value) : undefined,
   };
 };
 
@@ -464,6 +473,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
         bank_account_id: data.bankAccountId,
         note: data.note,
         payment_warehouse_id: data.paymentWarehouseId,
+        discount_type: data.discountType,
+        discount_value: data.discountValue,
         items: data.items.map(item => ({
           product_id: item.productId && uuidRegex.test(item.productId) ? item.productId : null,
           description: item.description,
@@ -643,6 +654,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
         client_id: clientId,
         date: data.date,
         note: data.note,
+        discount_type: data.discountType,
+        discount_value: data.discountValue,
         items: data.items.map(item => ({
           product_id: item.productId && uuidRegex.test(item.productId) ? item.productId : null,
           description: item.description,
@@ -680,6 +693,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
         date: data.date,
         status: data.status ? mapEstimateStatus(data.status) : undefined,
         note: data.note,
+        discount_type: data.discountType,
+        discount_value: data.discountValue,
         items: data.items?.map(item => ({
           product_id: item.productId,
           description: item.description,
@@ -741,6 +756,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
         note: data.note,
         client_po_number: data.clientPoNumber,
         warehouse_id: data.warehouseId,
+        discount_type: data.discountType,
+        discount_value: data.discountValue,
         items: data.items.map(item => ({
           product_id: item.productId && uuidRegex.test(item.productId) ? item.productId : null,
           description: item.description,

@@ -89,6 +89,8 @@ export const estimatesService = {
     client_id: string;
     date: string;
     note?: string;
+    discount_type?: 'percentage' | 'fixed';
+    discount_value?: number;
     items: Array<{ product_id?: string; description: string; quantity: number; unit_price: number }>;
   }): Promise<EstimateWithItems> {
     return await apiClient.post<EstimateWithItems>('/estimates', estimate);
@@ -98,6 +100,8 @@ export const estimatesService = {
     date?: string;
     status?: Estimate['status'];
     note?: string;
+    discount_type?: 'percentage' | 'fixed';
+    discount_value?: number;
     items?: Array<{ product_id?: string; description: string; quantity: number; unit_price: number }>;
   }): Promise<EstimateWithItems> {
     return await apiClient.put<EstimateWithItems>(`/estimates/${id}`, estimate);

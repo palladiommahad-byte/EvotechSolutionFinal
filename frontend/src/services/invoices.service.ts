@@ -114,6 +114,8 @@ export const invoicesService = {
     bank_account_id?: string;
     payment_warehouse_id?: string;
     note?: string;
+    discount_type?: 'percentage' | 'fixed';
+    discount_value?: number;
     items: Array<{
       product_id?: string;
       description: string;
@@ -137,6 +139,8 @@ export const invoicesService = {
     status?: Invoice['status'];
     amount_paid?: number;
     note?: string;
+    discount_type?: 'percentage' | 'fixed';
+    discount_value?: number;
     items?: Array<{
       product_id?: string | null;
       description: string;
@@ -175,7 +179,7 @@ export const invoicesService = {
     check_number?: string;
     bank_account_id?: string;
     note?: string;
-  }): Promise<InvoiceWithItems & { linked_bls: { id: string; document_id: string; date: string }[] }> {
+  }): Promise<InvoiceWithItems & { linked_bls: { id: string; document_id: string; date: string; items?: { id: string; description: string; quantity: number; unit?: string; unit_price: number; total: number }[] }[] }> {
     return await apiClient.post('/invoices/from-bls', payload);
   },
 };

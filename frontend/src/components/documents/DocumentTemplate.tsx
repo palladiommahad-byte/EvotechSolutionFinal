@@ -18,7 +18,9 @@ interface DocumentTemplateProps {
   dueDate?: string;
   note?: string;
   clientPoNumber?: string;
-  linkedBLs?: { document_id: string; date: string }[];
+  linkedBLs?: { id?: string; document_id: string; date: string; items?: { id: string; description: string; quantity: number; unit?: string; unit_price: number; total: number }[] }[];
+  discountType?: 'percentage' | 'fixed';
+  discountValue?: number;
 }
 
 export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
@@ -35,10 +37,12 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
   note,
   clientPoNumber,
   linkedBLs,
+  discountType,
+  discountValue,
 }) => {
   const { companyInfo } = useCompany();
   const { t } = useTranslation();
-  const totals = calculateInvoiceTotals(items);
+  const totals = calculateInvoiceTotals(items, discountType, discountValue);
   // For purchase documents, the external contact is the supplier. For sales, it's the client.
   const isPurchaseSide = type === 'purchase_order' || type === 'purchase_invoice' || type === 'purchase_delivery_note';
   // Incoming docs (Invoice, Delivery Note) are From Supplier -> To Company.
@@ -227,13 +231,13 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                   boxSizing: 'border-box',
                   minWidth: '100%'
                 }}>
-                  <div style={{ fontSize: '9px', color: '#FFFFFF', lineHeight: '1.4' }}>
-                    <div style={{ marginBottom: '1px' }}>
+                  <div style={{ fontSize: '9px', color: '#FFFFFF', lineHeight: '1.2', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div>
                       <span style={{ fontWeight: 600, letterSpacing: '0.01em' }}>{String(t('pdf.documentNumber'))}: </span>
                       <span style={{ fontWeight: 700, color: '#FFFFFF' }}>{documentId}</span>
                     </div>
                     {companyInfo.footerText && (
-                      <div style={{ marginBottom: '1px' }}>
+                      <div>
                         <span style={{ fontWeight: 600, letterSpacing: '0.01em' }}>Lieu: </span>
                         <span style={{ fontWeight: 700, color: '#FFFFFF' }}>{companyInfo.footerText}</span>
                       </div>
@@ -245,21 +249,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                   </div>
                 </div>
 
-                {/* Linked BL info — moved here as requested */}
-                {type === 'invoice' && linkedBLs && linkedBLs.length > 0 && (
-                  <div style={{ marginTop: '8px', textAlign: 'right', width: '100%' }}>
-                    {linkedBLs.map((bl, idx) => (
-                      <div key={idx} style={{ marginBottom: '4px' }}>
-                        <div style={{ fontSize: '10px', fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>
-                          {String(t('pdf.blNumber'))} : <span style={{ color: skyBlue }}>{bl.document_id}</span>
-                        </div>
-                        <div style={{ fontSize: '10px', fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>
-                          {String(t('pdf.blDate'))} : <span style={{ color: skyBlue }}>{formatDate(bl.date)}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+
               </div>
             </div>
 
@@ -285,7 +275,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                   letterSpacing: '0.05em',
                   lineHeight: '1.3'
                 }}>
-                  From:
+                  {t('pdf.from', { defaultValue: 'DE' })}:
                 </h3>
                 <div style={{
                   backgroundColor: '#EFF6FF',
@@ -344,7 +334,9 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                   letterSpacing: '0.05em',
                   lineHeight: '1.3'
                 }}>
-                  {type === 'purchase_order' ? 'Supplier:' : 'Invoice To:'}
+                  {type === 'purchase_order' 
+                    ? `${t('pdf.supplier', { defaultValue: 'FOURNISSEUR' })}:` 
+                    : `${documentTitles[type].fr} À:`}
                 </h3>
                 <div style={{
                   backgroundColor: '#EFF6FF',
@@ -494,6 +486,22 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                   }}>
                     PRICE
                   </th>
+                  {((totals.discountAmount || 0) > 0) && (
+                    <th style={{
+                      padding: '6px 6px',
+                      textAlign: 'center',
+                      fontSize: '8px',
+                      fontWeight: 700,
+                      color: '#FFFFFF',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      lineHeight: '1.2',
+                      width: '12%',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      REMISE
+                    </th>
+                  )}
                   <th style={{
                     padding: '6px 6px',
                     textAlign: 'center',
@@ -525,93 +533,85 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {items.map((item, index) => {
-                  const itemTax = showVAT ? item.unitPrice * VAT_RATE : 0;
-                  const itemTotalAfterTax = showVAT ? (item.unitPrice + itemTax) * item.quantity : item.total;
+                {(() => {
+                  const colSpan = 6 + ((totals.discountAmount || 0) > 0 ? 1 : 0);
+                  const hasGroupedBLs = type === 'invoice' && linkedBLs && linkedBLs.length > 0 && linkedBLs.some(bl => bl.items && bl.items.length > 0);
 
-                  return (
-                    <tr
-                      key={item.id}
-                      style={{
-                        backgroundColor: index % 2 === 0 ? '#FFFFFF' : lightBlueGray,
-                      }}
-                    >
-                      <td style={{
-                        padding: '6px 8px',
-                        fontSize: '9px',
-                        color: '#374151',
-                        borderBottom: index < items.length - 1 ? '1px solid #E5E7EB' : 'none',
-                        lineHeight: '1.3',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {index + 1}
-                      </td>
-                      <td style={{
-                        padding: '6px 10px',
-                        fontSize: '9px',
-                        color: '#374151',
-                        borderBottom: index < items.length - 1 ? '1px solid #E5E7EB' : 'none',
-                        lineHeight: '1.3',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}>
-                        {item.description || '-'}
-                      </td>
-                      <td style={{
-                        padding: '6px 6px',
-                        fontSize: '9px',
-                        color: '#374151',
-                        textAlign: 'center',
-                        borderBottom: index < items.length - 1 ? '1px solid #E5E7EB' : 'none',
-                        lineHeight: '1.3',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {item.quantity}
-                      </td>
-                      <td style={{
-                        padding: '6px 6px',
-                        fontSize: '9px',
-                        color: '#374151',
-                        textAlign: 'center',
-                        borderBottom: index < items.length - 1 ? '1px solid #E5E7EB' : 'none',
-                        lineHeight: '1.3',
-                        fontVariantNumeric: 'tabular-nums',
-                        whiteSpace: 'nowrap',
-                        wordBreak: 'keep-all'
-                      }}>
-                        <span style={{ whiteSpace: 'nowrap' }}>{formatMADFull(item.unitPrice)}</span>
-                      </td>
-                      <td style={{
-                        padding: '6px 6px',
-                        fontSize: '9px',
-                        color: '#374151',
-                        textAlign: 'center',
-                        borderBottom: index < items.length - 1 ? '1px solid #E5E7EB' : 'none',
-                        lineHeight: '1.3',
-                        fontVariantNumeric: 'tabular-nums',
-                        whiteSpace: 'nowrap',
-                        wordBreak: 'keep-all'
-                      }}>
-                        <span style={{ whiteSpace: 'nowrap' }}>{showVAT ? formatMADFull(itemTax) : '-'}</span>
-                      </td>
-                      <td style={{
-                        padding: '6px 8px',
-                        fontSize: '9px',
-                        color: '#374151',
-                        textAlign: 'right',
-                        fontWeight: 600,
-                        borderBottom: index < items.length - 1 ? '1px solid #E5E7EB' : 'none',
-                        lineHeight: '1.3',
-                        fontVariantNumeric: 'tabular-nums',
-                        whiteSpace: 'nowrap',
-                        wordBreak: 'keep-all'
-                      }}>
-                        <span style={{ whiteSpace: 'nowrap' }}>{formatMADFull(itemTotalAfterTax)}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
+                  const renderItemRow = (item: { id?: string; description: string; quantity: number; unit?: string; unit_price?: number; unitPrice?: number; total: number }, rowIndex: number, isLast: boolean) => {
+                    const unitPrice = Number((item as any).unit_price ?? (item as any).unitPrice) || 0;
+                    const quantity = Number(item.quantity) || 0;
+                    const itemInitialHT = unitPrice * quantity;
+                    let discountForItem = 0;
+                    if ((totals.discountAmount || 0) > 0 && discountValue) {
+                      discountForItem = discountType === 'percentage'
+                        ? itemInitialHT * (discountValue / 100)
+                        : (totals.initialSubtotal ? (itemInitialHT / totals.initialSubtotal) * (totals.discountAmount || 0) : 0);
+                    }
+                    const itemNetHT = itemInitialHT - discountForItem;
+                    const itemTax = showVAT ? itemNetHT * VAT_RATE : 0;
+                    const itemTotalAfterTax = itemNetHT + itemTax;
+
+                    return (
+                      <tr key={item.id || rowIndex} style={{ backgroundColor: rowIndex % 2 === 0 ? '#FFFFFF' : lightBlueGray }}>
+                        <td style={{ padding: '6px 8px', fontSize: '9px', color: '#374151', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', whiteSpace: 'nowrap' }}>
+                          {rowIndex + 1}
+                        </td>
+                        <td style={{ padding: '6px 10px', fontSize: '9px', color: '#374151', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.description || '-'}
+                        </td>
+                        <td style={{ padding: '6px 6px', fontSize: '9px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', whiteSpace: 'nowrap' }}>
+                          {quantity}
+                        </td>
+                        <td style={{ padding: '6px 6px', fontSize: '9px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
+                          <span style={{ whiteSpace: 'nowrap' }}>{formatMADFull(unitPrice)}</span>
+                        </td>
+                        {((totals.discountAmount || 0) > 0) && (
+                          <td style={{ padding: '6px 6px', fontSize: '9px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
+                            <span style={{ whiteSpace: 'nowrap' }}>{formatMADFull(discountForItem)}</span>
+                          </td>
+                        )}
+                        <td style={{ padding: '6px 6px', fontSize: '9px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
+                          <span style={{ whiteSpace: 'nowrap' }}>{showVAT ? formatMADFull(itemTax) : '-'}</span>
+                        </td>
+                        <td style={{ padding: '6px 8px', fontSize: '9px', color: '#374151', textAlign: 'right', fontWeight: 600, borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
+                          <span style={{ whiteSpace: 'nowrap' }}>{formatMADFull(itemTotalAfterTax)}</span>
+                        </td>
+                      </tr>
+                    );
+                  };
+
+                  if (hasGroupedBLs) {
+                    // Grouped display: BL header row followed by its items
+                    const allGroupedItems = linkedBLs!.flatMap(bl => bl.items || []);
+                    let globalIndex = 0;
+                    return linkedBLs!.map((bl, blIdx) => {
+                      const blItems = bl.items || [];
+                      const d = new Date(bl.date);
+                      const shortDate = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear().toString().slice(2)}`;
+                      const startIndex = globalIndex;
+                      globalIndex += blItems.length;
+                      return (
+                        <React.Fragment key={bl.id || blIdx}>
+                          <tr>
+                            <td colSpan={colSpan} style={{ padding: '6px 10px', backgroundColor: '#EFF6FF', borderBottom: '1px solid #BFDBFE', borderTop: blIdx > 0 ? '2px solid #93C5FD' : undefined }}>
+                              <span style={{ fontSize: '9px', fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700, color: '#1D4ED8' }}>
+                                {bl.document_id} Du {shortDate}
+                              </span>
+                            </td>
+                          </tr>
+                          {blItems.map((item, itemIdx) => {
+                            const absIdx = startIndex + itemIdx;
+                            const isLast = absIdx === allGroupedItems.length - 1;
+                            return renderItemRow(item, absIdx, isLast);
+                          })}
+                        </React.Fragment>
+                      );
+                    });
+                  }
+
+                  // Default flat list (no BL grouping)
+                  return items.map((item, index) => renderItemRow(item, index, index === items.length - 1));
+                })()}
               </tbody>
             </table>
           </div>
@@ -669,7 +669,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '6px 0',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+                    borderBottom: '1px solid #FFFFFF'
                   }}>
                     <span style={{
                       fontSize: '12px',
@@ -721,7 +721,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                     alignItems: 'center',
                     padding: '8px 0 0 0',
                     marginTop: '5px',
-                    borderTop: '2px solid rgba(255, 255, 255, 0.3)'
+                    borderTop: '1px solid #FFFFFF'
                   }}>
                     <span style={{
                       fontSize: '12px',
@@ -751,7 +751,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                   alignItems: 'center',
                   padding: '8px 0 0 0',
                   marginTop: '5px',
-                  borderTop: '2px solid rgba(255, 255, 255, 0.3)'
+                  borderTop: '1px solid #FFFFFF'
                 }}>
                   <span style={{
                     fontSize: '14px',

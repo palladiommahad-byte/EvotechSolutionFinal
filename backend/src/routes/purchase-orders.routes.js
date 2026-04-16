@@ -95,7 +95,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
  * POST /api/purchase-orders
  */
 router.post('/', asyncHandler(async (req, res) => {
-    let { document_id, supplier_id, date, subtotal, status = 'draft', note, items } = req.body;
+    let { document_id, supplier_id, date, subtotal, status = 'draft', note, items, discount_type = 'fixed', discount_value = 0 } = req.body;
 
     if (!supplier_id || !date || !items || items.length === 0) {
         return res.status(400).json({ error: 'Validation Error', message: 'supplier_id, date, and items are required' });
@@ -116,13 +116,20 @@ router.post('/', asyncHandler(async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        const calculatedSubtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+        const initialSubtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+        let discountAmount = 0;
+        const dv = parseFloat(discount_value) || 0;
+        if (dv > 0) {
+            discountAmount = discount_type === 'percentage' ? (initialSubtotal * (dv / 100)) : dv;
+        }
+        discountAmount = Math.min(discountAmount, initialSubtotal);
+        const calculatedSubtotal = initialSubtotal - discountAmount;
 
         const orderResult = await client.query(
-            `INSERT INTO purchase_orders (document_id, supplier_id, date, subtotal, status, note)
-       VALUES ($1, $2, $3, $4, $5, $6)
+            `INSERT INTO purchase_orders (document_id, supplier_id, date, subtotal, status, note, discount_type, discount_value)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-            [document_id, supplier_id, date, subtotal || calculatedSubtotal, status, note || null]
+            [document_id, supplier_id, date, subtotal || calculatedSubtotal, status, note || null, discount_type, dv]
         );
 
         const order = orderResult.rows[0];
@@ -152,7 +159,7 @@ router.post('/', asyncHandler(async (req, res) => {
  */
 router.put('/:id', asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { date, subtotal, status, note, items } = req.body;
+    const { date, subtotal, status, note, items, discount_type, discount_value } = req.body;
 
     const client = await getClient();
 
@@ -161,7 +168,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
 
         // Get current order status before update
         const currentOrderResult = await client.query(
-            'SELECT status, document_id FROM purchase_orders WHERE id = $1',
+            'SELECT status, document_id, discount_type, discount_value FROM purchase_orders WHERE id = $1',
             [id]
         );
 
@@ -170,12 +177,31 @@ router.put('/:id', asyncHandler(async (req, res) => {
             return res.status(404).json({ error: 'Not Found', message: 'Purchase order not found' });
         }
 
+        const existingOrder = currentOrderResult.rows[0];
+        let newDiscountType = discount_type !== undefined ? discount_type : existingOrder.discount_type || 'fixed';
+        let newDiscountValue = discount_value !== undefined ? parseFloat(discount_value) : parseFloat(existingOrder.discount_value || 0);
+
         const previousStatus = currentOrderResult.rows[0].status;
         const documentId = currentOrderResult.rows[0].document_id;
 
         let calculatedSubtotal;
         if (items && items.length > 0) {
-            calculatedSubtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+            const initialSubtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+            let discountAmount = 0;
+            if (newDiscountValue > 0) {
+                discountAmount = newDiscountType === 'percentage' ? (initialSubtotal * (newDiscountValue / 100)) : newDiscountValue;
+            }
+            discountAmount = Math.min(discountAmount, initialSubtotal);
+            calculatedSubtotal = initialSubtotal - discountAmount;
+        } else if (discount_type !== undefined || discount_value !== undefined) {
+             const currentSubtotalQuery = await client.query('SELECT SUM(quantity * unit_price) as initial_subtotal FROM purchase_order_items WHERE purchase_order_id = $1', [id]);
+             const initialSubtotal = parseFloat(currentSubtotalQuery.rows[0].initial_subtotal) || 0;
+             let discountAmount = 0;
+             if (newDiscountValue > 0) {
+                 discountAmount = newDiscountType === 'percentage' ? (initialSubtotal * (newDiscountValue / 100)) : newDiscountValue;
+             }
+             discountAmount = Math.min(discountAmount, initialSubtotal);
+             calculatedSubtotal = initialSubtotal - discountAmount;
         }
 
         const updates = [];
@@ -183,9 +209,11 @@ router.put('/:id', asyncHandler(async (req, res) => {
         let paramIndex = 1;
 
         if (date !== undefined) { updates.push(`date = $${paramIndex++}`); params.push(date); }
-        if (subtotal !== undefined || calculatedSubtotal !== undefined) { updates.push(`subtotal = $${paramIndex++}`); params.push(subtotal || calculatedSubtotal); }
+        if (subtotal !== undefined || calculatedSubtotal !== undefined) { updates.push(`subtotal = $${paramIndex++}`); params.push(subtotal !== undefined ? subtotal : calculatedSubtotal); }
         if (status !== undefined) { updates.push(`status = $${paramIndex++}`); params.push(status); }
         if (note !== undefined) { updates.push(`note = $${paramIndex++}`); params.push(note); }
+        if (discount_type !== undefined) { updates.push(`discount_type = $${paramIndex++}`); params.push(discount_type); }
+        if (discount_value !== undefined) { updates.push(`discount_value = $${paramIndex++}`); params.push(discount_value); }
         updates.push(`updated_at = NOW()`);
         params.push(id);
 

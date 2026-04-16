@@ -127,6 +127,8 @@ export const Purchases = () => {
   const [items, setItems] = useState<PurchaseItem[]>([
     { id: '1', description: '', quantity: 1, unitPrice: 0, total: 0 },
   ]);
+  const [formDiscountType, setFormDiscountType] = useState<'percentage' | 'fixed'>('percentage');
+  const [formDiscountValue, setFormDiscountValue] = useState<number>(0);
   const [formSupplier, setFormSupplier] = useState('');
   const [formWarehouse, setFormWarehouse] = useState('');
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
@@ -792,7 +794,82 @@ export const Purchases = () => {
     }
   };
 
-  const totals = calculateInvoiceTotals(items);
+  const totals = calculateInvoiceTotals(items, formDiscountType, formDiscountValue);
+
+  const renderSummaryTotals = (titleHT: string, showTax: boolean) => (
+    <div className="space-y-3 overflow-visible">
+      <div className="space-y-2 py-2 border-b border-border">
+        {(totals.discountAmount || 0) > 0 && (
+        <div className="flex justify-between gap-4 overflow-visible">
+          <span className="text-muted-foreground flex-shrink-0">{titleHT} (Initial)</span>
+          <span className="font-medium break-words overflow-visible whitespace-normal text-right min-w-0">
+            <CurrencyDisplay amount={totals.initialSubtotal ?? totals.subtotal} />
+          </span>
+        </div>
+        )}
+        
+        <div className="flex justify-between items-center gap-2 overflow-visible">
+          <div className="flex items-center gap-2 flex-1">
+            <span className="text-muted-foreground text-sm font-medium">Remise:</span>
+            <Select value={formDiscountType} onValueChange={(val: any) => setFormDiscountType(val)}>
+              <SelectTrigger className="h-8 w-[80px] text-xs font-medium">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="percentage">%</SelectItem>
+                <SelectItem value="fixed">DH</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input 
+              type="number" 
+              min="0" 
+              value={formDiscountValue || ''} 
+              onChange={(e) => setFormDiscountValue(parseFloat(e.target.value) || 0)}
+              className="h-8 w-[80px] text-xs text-right font-medium"
+              placeholder="0"
+            />
+          </div>
+          {(totals.discountAmount || 0) > 0 && (
+            <span className="font-medium text-destructive break-words overflow-visible whitespace-normal text-right min-w-0">
+              -<CurrencyDisplay amount={totals.discountAmount || 0} />
+            </span>
+          )}
+        </div>
+
+        <div className="flex justify-between gap-4 pt-2 border-t border-border/10 overflow-visible">
+          <span className="text-muted-foreground font-medium flex-shrink-0">{titleHT} {((totals.discountAmount || 0) > 0) ? '(Net)' : ''}</span>
+          <span className="font-medium break-words overflow-visible whitespace-normal text-right min-w-0">
+            <CurrencyDisplay amount={totals.subtotal} />
+          </span>
+        </div>
+      </div>
+      
+      {showTax && (
+        <>
+          <div className="flex justify-between py-2 border-b border-border gap-4 overflow-visible">
+            <span className="text-muted-foreground flex-shrink-0">{t('purchases.vat')} ({VAT_RATE * 100}%)</span>
+            <span className="font-medium break-words overflow-visible whitespace-normal text-right min-w-0">
+              <CurrencyDisplay amount={totals.vat} />
+            </span>
+          </div>
+          <div className="flex justify-between py-3 text-lg gap-4 overflow-visible">
+            <span className="font-semibold text-foreground flex-shrink-0">{t('purchases.totalTTC')}</span>
+            <span className="font-heading font-bold text-primary break-words overflow-visible whitespace-normal text-right min-w-0">
+              <CurrencyDisplay amount={totals.total} />
+            </span>
+          </div>
+        </>
+      )}
+      {!showTax && (
+        <div className="flex justify-between py-3 text-lg gap-4 overflow-visible">
+          <span className="font-semibold text-foreground flex-shrink-0">{t('purchases.total')}</span>
+          <span className="font-heading font-bold text-primary break-words overflow-visible whitespace-normal text-right min-w-0">
+            <CurrencyDisplay amount={totals.subtotal} />
+          </span>
+        </div>
+      )}
+    </div>
+  );
 
   const handleCreateDocument = async () => {
     if (items.length === 0 || items.every(item => !item.description || item.quantity === 0 || item.unitPrice === 0)) {
@@ -952,6 +1029,8 @@ export const Purchases = () => {
       setFormBankAccount('');
       setFormDueDate('');
       setFormNote('');
+      setFormDiscountType('percentage');
+      setFormDiscountValue(0);
       setManualDocumentId('');
       setIsManualId(false);
       setSelectedFile(null);
@@ -1521,26 +1600,7 @@ export const Purchases = () => {
                       {getDocumentIcon()}
                       <h3 className="font-heading font-semibold text-foreground text-lg sm:text-base leading-tight">{t('documents.documentSummary', { documentType: getDocumentTitle() })}</h3>
                     </div>
-                    <div className="space-y-3 overflow-visible">
-                      <div className="flex justify-between py-2 border-b border-border gap-4 overflow-visible">
-                        <span className="text-muted-foreground flex-shrink-0">{t('documents.subtotalHT')}</span>
-                        <span className="font-medium break-words overflow-visible whitespace-normal text-right min-w-0">
-                          <CurrencyDisplay amount={totals.subtotal} />
-                        </span>
-                      </div>
-                      <div className="flex justify-between py-2 border-b border-border gap-4 overflow-visible">
-                        <span className="text-muted-foreground flex-shrink-0">{t('documents.vat')} ({VAT_RATE * 100}%)</span>
-                        <span className="font-medium break-words overflow-visible whitespace-normal text-right min-w-0">
-                          <CurrencyDisplay amount={totals.vat} />
-                        </span>
-                      </div>
-                      <div className="flex justify-between py-3 text-lg gap-4 overflow-visible">
-                        <span className="font-semibold text-foreground flex-shrink-0">{t('documents.totalTTC')}</span>
-                        <span className="font-heading font-bold text-primary break-words overflow-visible whitespace-normal text-right min-w-0">
-                          <CurrencyDisplay amount={totals.total} />
-                        </span>
-                      </div>
-                    </div>
+{renderSummaryTotals(t('documents.subtotalHT'), true)}
                     <div className="mt-6 space-y-2">
                       <Button className="w-full gap-2 btn-primary-gradient" onClick={handleCreateDocument}>
                         <Send className="w-4 h-4" />
@@ -2044,26 +2104,7 @@ export const Purchases = () => {
                       <Package className="w-5 h-5 text-primary" />
                       <h3 className="font-heading font-semibold text-foreground">{t('documents.documentSummary', { documentType: t('documents.deliveryNote') })}</h3>
                     </div>
-                    <div className="space-y-3 overflow-visible">
-                      <div className="flex justify-between py-2 border-b border-border gap-4 overflow-visible">
-                        <span className="text-muted-foreground flex-shrink-0">{t('documents.subtotalHT')}</span>
-                        <span className="font-medium break-words overflow-visible whitespace-normal text-right min-w-0">
-                          <CurrencyDisplay amount={totals.subtotal} />
-                        </span>
-                      </div>
-                      <div className="flex justify-between py-2 border-b border-border gap-4 overflow-visible">
-                        <span className="text-muted-foreground flex-shrink-0">{t('documents.vat')} ({VAT_RATE * 100}%)</span>
-                        <span className="font-medium break-words overflow-visible whitespace-normal text-right min-w-0">
-                          <CurrencyDisplay amount={totals.vat} />
-                        </span>
-                      </div>
-                      <div className="flex justify-between py-3 text-lg gap-4 overflow-visible">
-                        <span className="font-semibold text-foreground flex-shrink-0">{t('documents.totalTTC')}</span>
-                        <span className="font-heading font-bold text-primary break-words overflow-visible whitespace-normal text-right min-w-0">
-                          <CurrencyDisplay amount={totals.total} />
-                        </span>
-                      </div>
-                    </div>
+{renderSummaryTotals(t('documents.subtotalHT'), true)}
                     <div className="mt-6 space-y-2">
                       <Button className="w-full gap-2 btn-primary-gradient" onClick={handleCreateDocument}>
                         <Send className="w-4 h-4" />
@@ -2665,26 +2706,7 @@ export const Purchases = () => {
                       <Receipt className="w-5 h-5 text-primary" />
                       <h3 className="font-heading font-semibold text-foreground">{t('documents.documentSummary', { documentType: t('documents.purchaseInvoice') })}</h3>
                     </div>
-                    <div className="space-y-3 overflow-visible">
-                      <div className="flex justify-between py-2 border-b border-border gap-4 overflow-visible">
-                        <span className="text-muted-foreground flex-shrink-0">{t('documents.subtotalHT')}</span>
-                        <span className="font-medium break-words overflow-visible whitespace-normal text-right min-w-0">
-                          <CurrencyDisplay amount={totals.subtotal} />
-                        </span>
-                      </div>
-                      <div className="flex justify-between py-2 border-b border-border gap-4 overflow-visible">
-                        <span className="text-muted-foreground flex-shrink-0">{t('documents.vat')} ({VAT_RATE * 100}%)</span>
-                        <span className="font-medium break-words overflow-visible whitespace-normal text-right min-w-0">
-                          <CurrencyDisplay amount={totals.vat} />
-                        </span>
-                      </div>
-                      <div className="flex justify-between py-3 text-lg gap-4 overflow-visible">
-                        <span className="font-semibold text-foreground flex-shrink-0">{t('documents.totalTTC')}</span>
-                        <span className="font-heading font-bold text-primary break-words overflow-visible whitespace-normal text-right min-w-0">
-                          <CurrencyDisplay amount={totals.total} />
-                        </span>
-                      </div>
-                    </div>
+{renderSummaryTotals(t('documents.subtotalHT'), true)}
                     <div className="mt-6 space-y-2">
                       <Button className="w-full gap-2 btn-primary-gradient" onClick={handleCreateDocument}>
                         <Send className="w-4 h-4" />

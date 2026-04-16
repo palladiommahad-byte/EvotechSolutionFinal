@@ -129,27 +129,47 @@ export interface InvoiceItem {
   total: number;
 }
 
-export const calculateInvoiceTotals = (items: InvoiceItem[]) => {
-  // Calculate subtotal by summing all item totals, rounding each item total to 2 decimals
-  // ⚠️ node-postgres returns numeric columns as strings — always coerce to Number
-  const subtotal = roundTo2Decimals(
+export const calculateInvoiceTotals = (
+  items: InvoiceItem[],
+  discountType: 'percentage' | 'fixed' = 'fixed',
+  discountValue: number = 0
+) => {
+  // Calculate initial subtotal by summing all item totals
+  const initialSubtotal = roundTo2Decimals(
     items.reduce((sum, item) => {
       const qty   = Number(item.quantity)  || 0;
       const price = Number(item.unitPrice) || 0;
-      const stored = Number(item.total)   || 0;
-      // Use stored total if valid, otherwise recompute from quantity × unitPrice
+      const stored = Number(item.total)    || 0;
       const itemTotal = stored || roundTo2Decimals(qty * price);
       return sum + roundTo2Decimals(itemTotal);
     }, 0)
   );
 
-  // Calculate VAT from subtotal (already rounded to 2 decimals)
+  // Calculate discount amount
+  let discountAmount = 0;
+  if (discountValue > 0) {
+    if (discountType === 'percentage') {
+      discountAmount = roundTo2Decimals(initialSubtotal * (discountValue / 100));
+    } else {
+      discountAmount = roundTo2Decimals(discountValue);
+    }
+  }
+
+  // Ensure discount doesn't exceed initial subtotal
+  discountAmount = Math.min(discountAmount, initialSubtotal);
+
+  // Calculate subtotal after discount
+  const subtotal = roundTo2Decimals(initialSubtotal - discountAmount);
+
+  // Calculate VAT from subtotal after discount
   const vat = calculateVAT(subtotal);
 
   // Calculate total (subtotal + VAT), ensuring it's rounded
   const total = roundTo2Decimals(subtotal + vat);
 
   return {
+    initialSubtotal,
+    discountAmount,
     subtotal,
     vat,
     total,

@@ -20,9 +20,11 @@ interface DocumentPDFTemplateProps {
   note?: string;
   taxEnabled?: boolean;  // For BL/Divers: whether to show and compute VAT
   clientPoNumber?: string; // Bon de commande client reference
-  linkedBLs?: { document_id: string; date: string }[]; // Linked BLs for invoices
+  linkedBLs?: { id?: string; document_id: string; date: string; items?: { id: string; description: string; quantity: number; unit?: string; unit_price: number; total: number }[] }[]; // Linked BLs for invoices
   companyInfo: CompanyInfo;
   language?: string;
+  discountType?: 'percentage' | 'fixed';
+  discountValue?: number;
 }
 
 // Register Inter font if available (with error handling)
@@ -111,7 +113,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   invoiceDetailRow: {
-    marginBottom: 2,
+    marginBottom: 0,
   },
   invoiceDetailLabel: {
     fontSize: 9,
@@ -207,14 +209,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: '6px 0',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+    borderBottom: '1px solid #FFFFFF',
   },
   summaryTotal: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: '8px 0 0 0',
     marginTop: 5,
-    borderTop: '2px solid rgba(255, 255, 255, 0.3)',
+    borderTop: '1px solid #FFFFFF',
   },
   summaryText: {
     fontSize: 10,
@@ -289,6 +291,8 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
   linkedBLs,
   companyInfo,
   language,
+  discountType,
+  discountValue,
 }) => {
   // Get current language or use provided language
   const currentLang = language || i18n.language || 'en';
@@ -298,7 +302,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
   const primaryColor = companyInfo.pdfPrimaryColor || '#3b82f6';
   const titleColor = companyInfo.pdfTitleColor || '#3b82f6';
 
-  const totals = calculateInvoiceTotals(items);
+  const totals = calculateInvoiceTotals(items, discountType, discountValue);
   // showVAT rules:
   //   - invoice/estimate/credit_note/prelevement: always show VAT
   //   - delivery_note: show VAT UNLESS taxEnabled is explicitly false
@@ -434,21 +438,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                   </View>
                 </View>
 
-                {/* Linked BL info — moved here as requested */}
-                {type === 'invoice' && linkedBLs && linkedBLs.length > 0 && (
-                  <View style={{ marginTop: 8, alignItems: 'flex-end', width: 'auto' }}>
-                    {linkedBLs.map((bl, idx) => (
-                      <View key={idx} style={{ alignItems: 'flex-end', marginBottom: 4 }}>
-                        <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#000', textTransform: 'uppercase' }}>
-                          {String(t('pdf.blNumber'))} : <Text style={{ color: primaryColor }}>{bl.document_id}</Text>
-                        </Text>
-                        <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#000', textTransform: 'uppercase' }}>
-                          {String(t('pdf.blDate'))} : <Text style={{ color: primaryColor }}>{formatDate(bl.date)}</Text>
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
+
               </View>
             </View>
 
@@ -506,9 +496,9 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
               {/* Right Box - To (Recipient) */}
               <View style={{ width: '40%', flexShrink: 0 }}>
                 <Text style={[styles.invoiceToLabel, { color: primaryColor }]}>
-                  {type === 'purchase_order' ? String(t('pdf.supplier')) :
-                    type === 'purchase_invoice' || type === 'purchase_delivery_note' ? String(t('pdf.invoiceTo')) :
-                      String(t('pdf.invoiceTo'))}:
+                  {type === 'purchase_order' 
+                    ? `${String(t('pdf.supplier'))}:` 
+                    : (currentLang === 'en' ? `${documentTitles[type]} TO:` : `${documentTitles[type]} À:`)}
                 </Text>
                 <View style={[styles.invoiceToBox, { borderColor: primaryColor }]}>
                   {type === 'purchase_invoice' || type === 'purchase_delivery_note' ? (
@@ -588,79 +578,115 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
               <View style={[styles.tableHeaderCell, { flex: 0.5, width: '5%' }]}>
                 <Text>{String(t('pdf.no'))}</Text>
               </View>
-              <View style={[styles.tableHeaderCell, { flex: 3.5, width: '35%' }]}>
+              <View style={[styles.tableHeaderCell, { flex: 3.0, width: '30%' }]}>
                 <Text>{String(t('pdf.description'))}</Text>
               </View>
-              <View style={[styles.tableHeaderCell, { flex: 0.9, width: '9%', textAlign: 'center' }]}>
+              <View style={[styles.tableHeaderCell, { flex: 0.8, width: '8%', textAlign: 'center' }]}>
                 <Text>{String(t('pdf.qty'))}</Text>
               </View>
-              <View style={[styles.tableHeaderCell, { flex: 1, width: '10%', textAlign: 'center' }]}>
+              <View style={[styles.tableHeaderCell, { flex: 0.9, width: '9%', textAlign: 'center' }]}>
                 <Text>UNITÉ</Text>
               </View>
-              <View style={[styles.tableHeaderCell, { flex: 1.5, width: '15%', textAlign: 'center' }]}>
+              <View style={[styles.tableHeaderCell, { flex: 1.3, width: '13%', textAlign: 'center' }]}>
                 <Text>{String(t('pdf.price'))}</Text>
               </View>
+              {((totals.discountAmount || 0) > 0) && (
+                <View style={[styles.tableHeaderCell, { flex: 1.0, width: showVAT ? '10%' : '12%', textAlign: 'center' }]}>
+                  <Text>REMISE</Text>
+                </View>
+              )}
               {showVAT && (
-                <View style={[styles.tableHeaderCell, { flex: 1.2, width: '12%', textAlign: 'center' }]}>
+                <View style={[styles.tableHeaderCell, { flex: 1.0, width: ((totals.discountAmount || 0) > 0) ? '10%' : '12%', textAlign: 'center' }]}>
                   <Text>{String(t('pdf.tax'))}</Text>
                 </View>
               )}
-              <View style={[styles.tableHeaderCell, { flex: 1.6, width: showVAT ? '16%' : '28%', textAlign: 'right' }]}>
+              <View style={[styles.tableHeaderCell, { flex: 1.5, width: (showVAT && (totals.discountAmount || 0) > 0) ? '15%' : (showVAT || (totals.discountAmount || 0) > 0) ? '23%' : '35%', textAlign: 'right' }]}>
                 <Text>{String(t('pdf.total'))}</Text>
               </View>
             </View>
 
-            {/* Table Rows - Can break across pages */}
-            {items.map((item, index) => {
-              // ⚠️ node-postgres returns numeric columns as strings — always coerce to Number
-              const unitPrice  = Number(item.unitPrice)  || 0;
-              const quantity   = Number(item.quantity)   || 0;
-              const storedTotal = Number(item.total)     || 0;
+            {/* Table Rows - grouped by BL when available, otherwise flat */}
+            {(() => {
+              const hasGroupedBLs = type === 'invoice' && linkedBLs && linkedBLs.length > 0 && linkedBLs.some(bl => bl.items && bl.items.length > 0);
 
-              const itemTax = showVAT ? unitPrice * VAT_RATE : 0;
-              // For VAT docs: compute total including tax; otherwise use stored total (HT)
-              // Fallback: if stored total is 0, recompute from quantity × unitPrice
-              const itemTotalAfterTax = showVAT
-                ? (unitPrice + itemTax) * quantity
-                : (storedTotal || quantity * unitPrice);
+              const renderItemRow = (item: { id?: string; description: string; quantity: number; unit?: string; unit_price?: number; unitPrice?: number; total: number }, rowIndex: number) => {
+                const unitPrice = Number((item as any).unit_price ?? (item as any).unitPrice) || 0;
+                const quantity = Number(item.quantity) || 0;
+                const itemInitialHT = unitPrice * quantity;
+                let discountForThisItem = 0;
+                if ((totals.discountAmount || 0) > 0 && discountValue) {
+                  if (discountType === 'percentage') {
+                    discountForThisItem = itemInitialHT * (discountValue / 100);
+                  } else if (totals.initialSubtotal) {
+                    discountForThisItem = (itemInitialHT / totals.initialSubtotal) * (totals.discountAmount || 0);
+                  }
+                }
+                const itemNetHT = itemInitialHT - discountForThisItem;
+                const itemTaxAmount = showVAT ? itemNetHT * VAT_RATE : 0;
+                const itemTotalAfterTax = itemNetHT + itemTaxAmount;
 
-              return (
-                <View
-                  key={item.id}
-                  style={[
-                    styles.tableRow,
-                    index % 2 === 0 ? styles.rowEven : styles.rowOdd
-                  ]}
-                  wrap={false}
-                >
-                  <View style={[styles.tableCell, { flex: 0.5, width: '5%' }]}>
-                    <Text>{index + 1}</Text>
-                  </View>
-                  <View style={[styles.tableCell, { flex: 3.5, width: '35%' }]}>
-                    <Text>{item.description || '-'}</Text>
-                  </View>
-                  {/* QTÉ — number only */}
-                  <View style={[styles.tableCell, styles.tableCellCenter, { flex: 0.9, width: '9%' }]}>
-                    <Text>{quantity}</Text>
-                  </View>
-                  {/* UNITÉ — unit label (kg, litre, Piece…) */}
-                  <View style={[styles.tableCell, styles.tableCellCenter, { flex: 1, width: '10%' }]}>
-                    <Text>{item.unit || '-'}</Text>
-                  </View>
-                  <View style={[styles.tableCell, styles.tableCellCenter, { flex: 1.5, width: '15%' }]}>
-                    <Text wrap={false}>{formatMADFull(unitPrice)}</Text>
-                  </View>
-                  {showVAT && (
-                    <View style={[styles.tableCell, styles.tableCellCenter, { flex: 1.2, width: '12%' }]}>
-                      <Text wrap={false}>{formatMADFull(itemTax)}</Text>
+                return (
+                  <View
+                    key={item.id || rowIndex}
+                    style={[styles.tableRow, rowIndex % 2 === 0 ? styles.rowEven : styles.rowOdd]}
+                    wrap={false}
+                  >
+                    <View style={[styles.tableCell, { flex: 0.5, width: '5%' }]}>
+                      <Text>{rowIndex + 1}</Text>
                     </View>
-                  )}
-                  <View style={[styles.tableCell, styles.tableCellRight, styles.tableCellBold, { flex: 1.6, width: showVAT ? '16%' : '28%' }]}>
-                    <Text wrap={false}>{formatMADFull(itemTotalAfterTax)}</Text>
+                    <View style={[styles.tableCell, { flex: 3.0, width: '30%' }]}>
+                      <Text>{item.description || '-'}</Text>
+                    </View>
+                    <View style={[styles.tableCell, styles.tableCellCenter, { flex: 0.8, width: '8%' }]}>
+                      <Text>{quantity}</Text>
+                    </View>
+                    <View style={[styles.tableCell, styles.tableCellCenter, { flex: 0.9, width: '9%' }]}>
+                      <Text>{item.unit || '-'}</Text>
+                    </View>
+                    <View style={[styles.tableCell, styles.tableCellCenter, { flex: 1.3, width: '13%' }]}>
+                      <Text wrap={false}>{formatMADFull(unitPrice)}</Text>
+                    </View>
+                    {((totals.discountAmount || 0) > 0) && (
+                      <View style={[styles.tableCell, styles.tableCellCenter, { flex: 1.0, width: showVAT ? '10%' : '12%' }]}>
+                        <Text wrap={false}>{formatMADFull(discountForThisItem)}</Text>
+                      </View>
+                    )}
+                    {showVAT && (
+                      <View style={[styles.tableCell, styles.tableCellCenter, { flex: 1.0, width: ((totals.discountAmount || 0) > 0) ? '10%' : '12%' }]}>
+                        <Text wrap={false}>{formatMADFull(itemTaxAmount)}</Text>
+                      </View>
+                    )}
+                    <View style={[styles.tableCell, styles.tableCellRight, styles.tableCellBold, { flex: 1.5, width: (showVAT && (totals.discountAmount || 0) > 0) ? '15%' : (showVAT || (totals.discountAmount || 0) > 0) ? '23%' : '35%' }]}>
+                      <Text wrap={false}>{formatMADFull(itemTotalAfterTax)}</Text>
+                    </View>
                   </View>
-                </View>
-              );
-            })}
+                );
+              };
+
+              if (hasGroupedBLs) {
+                let globalIndex = 0;
+                return linkedBLs!.map((bl, blIdx) => {
+                  const blItems = bl.items || [];
+                  const d = new Date(bl.date);
+                  const shortDate = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear().toString().slice(2)}`;
+                  const startIndex = globalIndex;
+                  globalIndex += blItems.length;
+                  return (
+                    <React.Fragment key={bl.id || blIdx}>
+                      <View style={{ flexDirection: 'row', backgroundColor: '#EFF6FF', borderBottom: '1px solid #BFDBFE', borderTop: blIdx > 0 ? '2px solid #93C5FD' : undefined, padding: '5px 8px' }} wrap={false}>
+                        <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#1D4ED8' }}>
+                          {bl.document_id} Du {shortDate}
+                        </Text>
+                      </View>
+                      {blItems.map((item, itemIdx) => renderItemRow(item, startIndex + itemIdx))}
+                    </React.Fragment>
+                  );
+                });
+              }
+
+              // Default flat list
+              return items.map((item, index) => renderItemRow(item, index));
+            })()}
           </View>
 
           {/* Financial Summary - Keep together with table, with Note on Left */}
@@ -699,10 +725,24 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
 
             {/* Summary Box - Right Side - Always Right Aligned */}
             <View style={[styles.summaryBox, { backgroundColor: primaryColor }]} wrap={false}>
+              
+              {(totals.discountAmount || 0) > 0 && (
+                <>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryText}>{String(t('documents.subtotalHT'))} (Initial)</Text>
+                    <Text style={styles.summaryTextBold} wrap={false}>{formatMADFull(totals.initialSubtotal ?? totals.subtotal)}</Text>
+                  </View>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryText}>Remise {discountType === 'percentage' ? `(${discountValue}%)` : ''}</Text>
+                    <Text style={styles.summaryTextBold} wrap={false}>-{formatMADFull(totals.discountAmount || 0)}</Text>
+                  </View>
+                </>
+              )}
+
               {showVAT && (
                 <>
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryText}>{String(t('documents.subtotalHT'))}</Text>
+                    <Text style={styles.summaryText}>{String(t('documents.subtotalHT'))} {((totals.discountAmount || 0) > 0) ? '(Net)' : ''}</Text>
                     <Text style={styles.summaryTextBold} wrap={false}>{formatMADFull(totals.subtotal)}</Text>
                   </View>
                   <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
@@ -716,10 +756,18 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                 </>
               )}
               {!showVAT && (
-                <View style={styles.summaryTotal}>
-                  <Text style={styles.summaryTotalText}>{String(t('pdf.grandTotal'))}</Text>
-                  <Text style={styles.summaryTotalText} wrap={false}>{formatMADFull(totals.subtotal)}</Text>
-                </View>
+                <>
+                  {((totals.discountAmount || 0) > 0) && (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryText}>{String(t('documents.subtotalHT'))} (Net)</Text>
+                      <Text style={styles.summaryTextBold} wrap={false}>{formatMADFull(totals.subtotal)}</Text>
+                    </View>
+                  )}
+                  <View style={styles.summaryTotal}>
+                    <Text style={styles.summaryTotalText}>{String(t('pdf.grandTotal'))}</Text>
+                    <Text style={styles.summaryTotalText} wrap={false}>{formatMADFull(totals.subtotal)}</Text>
+                  </View>
+                </>
               )}
             </View>
           </View>

@@ -42,8 +42,10 @@ export const generateInvoicePDF = async (document: {
   type?: string;
   dueDate?: string;
   note?: string;
-  linkedBLs?: { document_id: string; date: string }[];
+  linkedBLs?: { id?: string; document_id: string; date: string; items?: { id: string; description: string; quantity: number; unit?: string; unit_price: number; total: number }[] }[];
   companyInfo?: CompanyInfo;
+  discountType?: 'percentage' | 'fixed';
+  discountValue?: number;
 }) => {
   const items: InvoiceItem[] = Array.isArray(document.items)
     ? document.items
@@ -64,6 +66,8 @@ export const generateInvoicePDF = async (document: {
     linkedBLs: document.linkedBLs,
     language: i18n.language || 'en',
     companyInfo: document.companyInfo,
+    discountType: document.discountType,
+    discountValue: document.discountValue,
   });
 };
 
@@ -282,6 +286,8 @@ export const generateDeliveryNotePDF = async (document: {
   taxEnabled?: boolean;
   clientPoNumber?: string;
   companyInfo?: CompanyInfo;
+  discountType?: 'percentage' | 'fixed';
+  discountValue?: number;
 }) => {
   const items: InvoiceItem[] = Array.isArray(document.items)
     ? document.items
@@ -302,6 +308,8 @@ export const generateDeliveryNotePDF = async (document: {
     clientPoNumber: document.clientPoNumber,
     language: i18n.language || 'en',
     companyInfo: document.companyInfo,
+    discountType: document.discountType,
+    discountValue: document.discountValue,
   });
 };
 
@@ -348,6 +356,8 @@ export const generateEstimatePDF = async (document: {
   dueDate?: string;
   note?: string;
   companyInfo?: CompanyInfo;
+  discountType?: 'percentage' | 'fixed';
+  discountValue?: number;
 }) => {
   const items: InvoiceItem[] = Array.isArray(document.items)
     ? document.items
@@ -366,6 +376,8 @@ export const generateEstimatePDF = async (document: {
     note: document.note,
     language: i18n.language || 'en',
     companyInfo: document.companyInfo,
+    discountType: document.discountType,
+    discountValue: document.discountValue,
   });
 };
 

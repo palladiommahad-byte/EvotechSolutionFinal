@@ -125,7 +125,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
  * Create a new estimate
  */
 router.post('/', asyncHandler(async (req, res) => {
-    let { document_id, client_id, date, note, items } = req.body;
+    let { document_id, client_id, date, note, items, discount_type = 'fixed', discount_value = 0 } = req.body;
 
     if (!client_id || !date || !items || items.length === 0) {
         return res.status(400).json({
@@ -149,16 +149,24 @@ router.post('/', asyncHandler(async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+        const initialSubtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+        let discountAmount = 0;
+        const dv = parseFloat(discount_value) || 0;
+        if (dv > 0) {
+            discountAmount = discount_type === 'percentage' ? (initialSubtotal * (dv / 100)) : dv;
+        }
+        discountAmount = Math.min(discountAmount, initialSubtotal);
+        const subtotal = initialSubtotal - discountAmount;
+
         const vatRate = 20.0;
         const vatAmount = subtotal * (vatRate / 100);
         const total = subtotal + vatAmount;
 
         const estimateResult = await client.query(
-            `INSERT INTO estimates (document_id, client_id, date, subtotal, vat_rate, vat_amount, total, status, note)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft', $8)
+            `INSERT INTO estimates (document_id, client_id, date, subtotal, vat_rate, vat_amount, total, status, note, discount_type, discount_value)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft', $8, $9, $10)
        RETURNING *`,
-            [document_id, client_id, date, subtotal, vatRate, vatAmount, total, note || null]
+            [document_id, client_id, date, subtotal, vatRate, vatAmount, total, note || null, discount_type, dv]
         );
 
         const estimate = estimateResult.rows[0];
@@ -190,18 +198,47 @@ router.post('/', asyncHandler(async (req, res) => {
  */
 router.put('/:id', asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { date, status, note, items } = req.body;
+    const { date, status, note, items, discount_type, discount_value } = req.body;
 
     const client = await getClient();
 
     try {
         await client.query('BEGIN');
 
+        const existingEstimateResult = await client.query('SELECT discount_type, discount_value FROM estimates WHERE id = $1', [id]);
+        if (existingEstimateResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Not Found', message: 'Estimate not found' });
+        }
+        const existingEstimate = existingEstimateResult.rows[0];
+
         let subtotal, vatAmount, total;
+        let newDiscountType = discount_type !== undefined ? discount_type : existingEstimate.discount_type || 'fixed';
+        let newDiscountValue = discount_value !== undefined ? parseFloat(discount_value) : parseFloat(existingEstimate.discount_value || 0);
+
         if (items && items.length > 0) {
-            subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+            const initialSubtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+            let discountAmount = 0;
+            if (newDiscountValue > 0) {
+                discountAmount = newDiscountType === 'percentage' ? (initialSubtotal * (newDiscountValue / 100)) : newDiscountValue;
+            }
+            discountAmount = Math.min(discountAmount, initialSubtotal);
+            subtotal = initialSubtotal - discountAmount;
+
             vatAmount = subtotal * 0.2;
             total = subtotal + vatAmount;
+        } else if (discount_type !== undefined || discount_value !== undefined) {
+             const currentSubtotalQuery = await client.query('SELECT SUM(quantity * unit_price) as initial_subtotal FROM estimate_items WHERE estimate_id = $1', [id]);
+             const initialSubtotal = parseFloat(currentSubtotalQuery.rows[0].initial_subtotal) || 0;
+             let discountAmount = 0;
+             if (newDiscountValue > 0) {
+                 discountAmount = newDiscountType === 'percentage' ? (initialSubtotal * (newDiscountValue / 100)) : newDiscountValue;
+             }
+             discountAmount = Math.min(discountAmount, initialSubtotal);
+             subtotal = initialSubtotal - discountAmount;
+             
+             vatAmount = subtotal * 0.2;
+             total = subtotal + vatAmount;
         }
 
         const updates = [];
@@ -211,6 +248,8 @@ router.put('/:id', asyncHandler(async (req, res) => {
         if (date !== undefined) { updates.push(`date = $${paramIndex++}`); params.push(date); }
         if (status !== undefined) { updates.push(`status = $${paramIndex++}`); params.push(status); }
         if (note !== undefined) { updates.push(`note = $${paramIndex++}`); params.push(note); }
+        if (discount_type !== undefined) { updates.push(`discount_type = $${paramIndex++}`); params.push(discount_type); }
+        if (discount_value !== undefined) { updates.push(`discount_value = $${paramIndex++}`); params.push(discount_value); }
         if (subtotal !== undefined) {
             updates.push(`subtotal = $${paramIndex++}`); params.push(subtotal);
             updates.push(`vat_amount = $${paramIndex++}`); params.push(vatAmount);

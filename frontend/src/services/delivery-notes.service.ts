@@ -115,6 +115,8 @@ export const deliveryNotesService = {
     document_type?: 'delivery_note' | 'divers';
     note?: string;
     client_po_number?: string;
+    discount_type?: 'percentage' | 'fixed';
+    discount_value?: number;
     items: Array<{ product_id?: string; description: string; quantity: number; unit_price: number; unit?: string | null }>;
   }): Promise<DeliveryNoteWithItems> {
     return await apiClient.post<DeliveryNoteWithItems>('/delivery-notes', deliveryNote);
@@ -124,6 +126,8 @@ export const deliveryNotesService = {
     date?: string;
     status?: DeliveryNote['status'];
     note?: string;
+    discount_type?: 'percentage' | 'fixed';
+    discount_value?: number;
     items?: Array<{ product_id?: string; description: string; quantity: number; unit_price: number }>;
   }): Promise<DeliveryNoteWithItems> {
     return await apiClient.put<DeliveryNoteWithItems>(`/delivery-notes/${id}`, deliveryNote);

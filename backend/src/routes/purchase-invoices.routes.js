@@ -113,7 +113,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
  * POST /api/purchase-invoices
  */
 router.post('/', asyncHandler(async (req, res) => {
-    let { document_id, supplier_id, date, due_date, subtotal, vat_rate = 20, vat_amount, total, payment_method, check_number, bank_account_id, status = 'draft', note, attachment_url, items, delivery_note_id } = req.body;
+    let { document_id, supplier_id, date, due_date, subtotal, vat_rate = 20, vat_amount, total, payment_method, check_number, bank_account_id, status = 'draft', note, attachment_url, items, delivery_note_id, discount_type = 'fixed', discount_value = 0 } = req.body;
 
     if (!supplier_id || !date || !items || items.length === 0) {
         return res.status(400).json({ error: 'Validation Error', message: 'supplier_id, date, and items are required' });
@@ -153,15 +153,23 @@ router.post('/', asyncHandler(async (req, res) => {
             }
         }
 
-        const calculatedSubtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+        const initialSubtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+        let discountAmount = 0;
+        const dv = parseFloat(discount_value) || 0;
+        if (dv > 0) {
+            discountAmount = discount_type === 'percentage' ? (initialSubtotal * (dv / 100)) : dv;
+        }
+        discountAmount = Math.min(discountAmount, initialSubtotal);
+        const calculatedSubtotal = initialSubtotal - discountAmount;
+        
         const calculatedVatAmount = calculatedSubtotal * (vat_rate / 100);
         const calculatedTotal = calculatedSubtotal + calculatedVatAmount;
 
         const invoiceResult = await client.query(
-            `INSERT INTO purchase_invoices (document_id, supplier_id, date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, bank_account_id, status, note, attachment_url, delivery_note_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            `INSERT INTO purchase_invoices (document_id, supplier_id, date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, bank_account_id, status, note, attachment_url, delivery_note_id, discount_type, discount_value)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        RETURNING *`,
-            [document_id, supplier_id, date, due_date || null, subtotal || calculatedSubtotal, vat_rate, vat_amount || calculatedVatAmount, total || calculatedTotal, payment_method || null, check_number || null, bank_account_id || null, status, note || null, attachment_url || null, delivery_note_id || null]
+            [document_id, supplier_id, date, due_date || null, subtotal || calculatedSubtotal, vat_rate, vat_amount || calculatedVatAmount, total || calculatedTotal, payment_method || null, check_number || null, bank_account_id || null, status, note || null, attachment_url || null, delivery_note_id || null, discount_type, dv]
         );
 
         const invoice = invoiceResult.rows[0];
@@ -191,7 +199,7 @@ router.post('/', asyncHandler(async (req, res) => {
  */
 router.put('/:id', asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, bank_account_id, status, note, attachment_url, items, amount_paid } = req.body;
+    const { date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, bank_account_id, status, note, attachment_url, items, amount_paid, discount_type, discount_value } = req.body;
 
     const client = await getClient();
 
@@ -244,6 +252,8 @@ router.put('/:id', asyncHandler(async (req, res) => {
         if (autoStatus !== undefined) { updates.push(`status = $${paramIndex++}`); params.push(autoStatus); }
         if (note !== undefined) { updates.push(`note = $${paramIndex++}`); params.push(note); }
         if (attachment_url !== undefined) { updates.push(`attachment_url = $${paramIndex++}`); params.push(attachment_url); }
+        if (discount_type !== undefined) { updates.push(`discount_type = $${paramIndex++}`); params.push(discount_type); }
+        if (discount_value !== undefined) { updates.push(`discount_value = $${paramIndex++}`); params.push(discount_value); }
         updates.push(`updated_at = NOW()`);
         params.push(id);
 

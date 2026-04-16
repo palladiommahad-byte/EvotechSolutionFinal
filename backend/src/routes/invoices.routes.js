@@ -63,14 +63,27 @@ router.get('/', asyncHandler(async (req, res) => {
                 [invoice.id]
             );
 
-            const linkedBLsResult = await query(
-                `SELECT dn.id, dn.document_id, dn.date
+            const linkedBLsRaw = await query(
+                `SELECT dn.id, dn.document_id, dn.date,
+                        dni.id as item_id, dni.description, dni.quantity,
+                        dni.unit, dni.unit_price, dni.total
                    FROM invoice_bls ib
                    JOIN delivery_notes dn ON dn.id = ib.bl_id
+                   LEFT JOIN delivery_note_items dni ON dni.delivery_note_id = dn.id
                   WHERE ib.invoice_id = $1
-                  ORDER BY dn.date ASC`,
+                  ORDER BY dn.date ASC, dni.created_at ASC`,
                 [invoice.id]
             );
+            const blMap = new Map();
+            for (const row of linkedBLsRaw.rows) {
+                if (!blMap.has(row.id)) {
+                    blMap.set(row.id, { id: row.id, document_id: row.document_id, date: row.date, items: [] });
+                }
+                if (row.item_id) {
+                    blMap.get(row.id).items.push({ id: row.item_id, description: row.description, quantity: row.quantity, unit: row.unit, unit_price: row.unit_price, total: row.total });
+                }
+            }
+            const linkedBLsResult = { rows: Array.from(blMap.values()) };
 
             return {
                 ...invoice,
@@ -129,14 +142,27 @@ router.get('/:id', asyncHandler(async (req, res) => {
         'SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY created_at ASC',
         [id]
     );
-    const linkedBLsResult = await query(
-        `SELECT dn.id, dn.document_id, dn.date, dn.billing_status
+    const linkedBLsRaw = await query(
+        `SELECT dn.id, dn.document_id, dn.date, dn.billing_status,
+                dni.id as item_id, dni.description, dni.quantity,
+                dni.unit, dni.unit_price, dni.total
            FROM invoice_bls ib
            JOIN delivery_notes dn ON dn.id = ib.bl_id
+           LEFT JOIN delivery_note_items dni ON dni.delivery_note_id = dn.id
           WHERE ib.invoice_id = $1
-          ORDER BY dn.date ASC`,
+          ORDER BY dn.date ASC, dni.created_at ASC`,
         [id]
     );
+    const blMap = new Map();
+    for (const row of linkedBLsRaw.rows) {
+        if (!blMap.has(row.id)) {
+            blMap.set(row.id, { id: row.id, document_id: row.document_id, date: row.date, billing_status: row.billing_status, items: [] });
+        }
+        if (row.item_id) {
+            blMap.get(row.id).items.push({ id: row.item_id, description: row.description, quantity: row.quantity, unit: row.unit, unit_price: row.unit_price, total: row.total });
+        }
+    }
+    const linkedBLsResult = { rows: Array.from(blMap.values()) };
 
     res.json({
         ...invoice,
@@ -244,6 +270,8 @@ router.post('/from-bls', asyncHandler(async (req, res) => {
         bank_account_id,
         payment_warehouse_id,
         note,
+        discount_type = 'fixed',
+        discount_value = 0,
     } = req.body;
 
     // ── Basic input validation ──────────────────────────────────────────────
@@ -268,6 +296,7 @@ router.post('/from-bls', asyncHandler(async (req, res) => {
         // ── Fetch all selected BLs with row-lock ───────────────────────────
         const blResult = await client.query(
             `SELECT dn.id, dn.document_id, dn.client_id, dn.billing_status, dn.document_type, dn.tax_enabled,
+                    dn.discount_type, dn.discount_value, 
                     c.name AS client_name, c.company AS client_company
                FROM delivery_notes dn
                LEFT JOIN contacts c ON dn.client_id = c.id
@@ -338,7 +367,7 @@ router.post('/from-bls', asyncHandler(async (req, res) => {
 
         // ── Fetch all line items from all BLs ─────────────────────────────
         const itemsResult = await client.query(
-            `SELECT product_id, description, quantity, unit, unit_price, total
+            `SELECT product_id, description, quantity, unit, unit_price, total, delivery_note_id
                FROM delivery_note_items
               WHERE delivery_note_id = ANY($1::uuid[])`,
             [bl_ids]
@@ -361,7 +390,46 @@ router.post('/from-bls', asyncHandler(async (req, res) => {
             computed_total: parseFloat(item.quantity) * parseFloat(item.unit_price),
         }));
 
-        const subtotal = allItemsWithTotals.reduce((sum, item) => sum + item.computed_total, 0);
+        const initialSubtotal = allItemsWithTotals.reduce((sum, item) => sum + item.computed_total, 0);
+
+        let mergedDiscountAmount = 0;
+        
+        // Compute discount from inherited BLs
+        for (const bl of bls) {
+            const blItems = allItemsWithTotals.filter(item => item.delivery_note_id === bl.id);
+            const blInitialSubtotal = blItems.reduce((sum, item) => sum + item.computed_total, 0);
+            
+            const blDiscountValue = parseFloat(bl.discount_value) || 0;
+            if (blDiscountValue > 0) {
+                let currentBlDiscount = 0;
+                if (bl.discount_type === 'percentage') {
+                    currentBlDiscount = blInitialSubtotal * (blDiscountValue / 100);
+                } else {
+                    currentBlDiscount = blDiscountValue;
+                }
+                mergedDiscountAmount += currentBlDiscount;
+            }
+        }
+
+        let finalDiscountType = discount_type;
+        let finalDiscountValue = parseFloat(discount_value) || 0;
+
+        // If no explicit discount provided from frontend, inherit merged BL discounts
+        if (finalDiscountValue === 0 && mergedDiscountAmount > 0) {
+            finalDiscountType = 'fixed';
+            finalDiscountValue = Number(mergedDiscountAmount.toFixed(2));
+        }
+
+        let discountAmount = 0;
+        if (finalDiscountValue > 0) {
+            discountAmount = finalDiscountType === 'percentage' 
+                ? (initialSubtotal * (finalDiscountValue / 100)) 
+                : finalDiscountValue;
+        }
+
+        discountAmount = Math.min(discountAmount, initialSubtotal);
+        const subtotal = initialSubtotal - discountAmount;
+
         const vatRate   = taxEnabled ? 20.0 : 0.0;
         const vatAmount = subtotal * (vatRate / 100);
         const total     = subtotal + vatAmount;
@@ -370,8 +438,8 @@ router.post('/from-bls', asyncHandler(async (req, res) => {
         const invoiceResult = await client.query(
             `INSERT INTO invoices
                (document_id, client_id, date, due_date, subtotal, vat_rate, vat_amount, total,
-                payment_method, check_number, bank_account_id, status, note)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'draft',$12)
+                payment_method, check_number, bank_account_id, status, note, discount_type, discount_value)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'draft',$12,$13,$14)
              RETURNING *`,
             [
                 document_id,
@@ -386,6 +454,8 @@ router.post('/from-bls', asyncHandler(async (req, res) => {
                 payment_method === 'check' ? check_number : null,
                 bank_account_id || null,
                 note || null,
+                finalDiscountType,
+                finalDiscountValue,
             ]
         );
         const invoice = invoiceResult.rows[0];
@@ -435,18 +505,31 @@ router.post('/from-bls', asyncHandler(async (req, res) => {
             'SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY created_at ASC',
             [invoice.id]
         );
-        const linkedBLs = await query(
-            `SELECT dn.id, dn.document_id, dn.date
+        const linkedBLsRaw2 = await query(
+            `SELECT dn.id, dn.document_id, dn.date,
+                    dni.id as item_id, dni.description, dni.quantity,
+                    dni.unit, dni.unit_price, dni.total
                FROM invoice_bls ib
                JOIN delivery_notes dn ON dn.id = ib.bl_id
-              WHERE ib.invoice_id = $1`,
+               LEFT JOIN delivery_note_items dni ON dni.delivery_note_id = dn.id
+              WHERE ib.invoice_id = $1
+              ORDER BY dn.date ASC, dni.created_at ASC`,
             [invoice.id]
         );
+        const blMap2 = new Map();
+        for (const row of linkedBLsRaw2.rows) {
+            if (!blMap2.has(row.id)) {
+                blMap2.set(row.id, { id: row.id, document_id: row.document_id, date: row.date, items: [] });
+            }
+            if (row.item_id) {
+                blMap2.get(row.id).items.push({ id: row.item_id, description: row.description, quantity: row.quantity, unit: row.unit, unit_price: row.unit_price, total: row.total });
+            }
+        }
 
         return res.status(201).json({
             ...invoice,
             items: finalItems.rows,
-            linked_bls: linkedBLs.rows,
+            linked_bls: Array.from(blMap2.values()),
             client_name: clientName,
         });
 
@@ -474,7 +557,9 @@ router.post('/', asyncHandler(async (req, res) => {
         payment_warehouse_id,
         note,
         items,
-        status = 'draft'
+        status = 'draft',
+        discount_type = 'fixed',
+        discount_value = 0,
     } = req.body;
 
     if (!client_id || !date || !items || items.length === 0) {
@@ -495,17 +580,26 @@ router.post('/', asyncHandler(async (req, res) => {
         }
 
         // Calculate totals
-        const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+        const initialSubtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+
+        let discountAmount = 0;
+        const dv = parseFloat(discount_value) || 0;
+        if (dv > 0) {
+            discountAmount = discount_type === 'percentage' ? (initialSubtotal * (dv / 100)) : dv;
+        }
+        discountAmount = Math.min(discountAmount, initialSubtotal);
+        const subtotal = initialSubtotal - discountAmount;
+
         const vatRate = 20.0;
         const vatAmount = subtotal * (vatRate / 100);
         const total = subtotal + vatAmount;
 
         // Insert invoice
         const invoiceResult = await client.query(
-            `INSERT INTO invoices (document_id, client_id, date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, bank_account_id, status, note)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            `INSERT INTO invoices (document_id, client_id, date, due_date, subtotal, vat_rate, vat_amount, total, payment_method, check_number, bank_account_id, status, note, discount_type, discount_value)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING *`,
-            [document_id, client_id, date, due_date || null, subtotal, vatRate, vatAmount, total, payment_method || null, payment_method === 'check' ? check_number : null, bank_account_id || null, status, note || null]
+            [document_id, client_id, date, due_date || null, subtotal, vatRate, vatAmount, total, payment_method || null, payment_method === 'check' ? check_number : null, bank_account_id || null, status, note || null, discount_type, dv]
         );
 
         const invoice = invoiceResult.rows[0];
@@ -594,7 +688,7 @@ router.post('/', asyncHandler(async (req, res) => {
  */
 router.put('/:id', asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { date, due_date, payment_method, check_number, bank_account_id, status, note, items, amount_paid } = req.body;
+    const { date, due_date, payment_method, check_number, bank_account_id, status, note, items, amount_paid, discount_type, discount_value } = req.body;
 
     const client = await getClient();
 
@@ -611,8 +705,32 @@ router.put('/:id', asyncHandler(async (req, res) => {
 
         // Calculate new totals if items provided
         let subtotal, vatAmount, total;
+        let newDiscountType = discount_type !== undefined ? discount_type : existingInvoice.discount_type || 'fixed';
+        let newDiscountValue = discount_value !== undefined ? parseFloat(discount_value) : parseFloat(existingInvoice.discount_value || 0);
+
         if (items && items.length > 0) {
-            subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+            const initialSubtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+            
+            let discountAmount = 0;
+            if (newDiscountValue > 0) {
+                discountAmount = newDiscountType === 'percentage' ? (initialSubtotal * (newDiscountValue / 100)) : newDiscountValue;
+            }
+            discountAmount = Math.min(discountAmount, initialSubtotal);
+            subtotal = initialSubtotal - discountAmount;
+
+            vatAmount = subtotal * 0.2;
+            total = subtotal + vatAmount;
+        } else if (discount_type !== undefined || discount_value !== undefined) {
+            const currentSubtotalQuery = await client.query('SELECT SUM(quantity * unit_price) as initial_subtotal FROM invoice_items WHERE invoice_id = $1', [id]);
+            const initialSubtotal = parseFloat(currentSubtotalQuery.rows[0].initial_subtotal) || 0;
+            
+            let discountAmount = 0;
+            if (newDiscountValue > 0) {
+                discountAmount = newDiscountType === 'percentage' ? (initialSubtotal * (newDiscountValue / 100)) : newDiscountValue;
+            }
+            discountAmount = Math.min(discountAmount, initialSubtotal);
+            subtotal = initialSubtotal - discountAmount;
+            
             vatAmount = subtotal * 0.2;
             total = subtotal + vatAmount;
         } else {
@@ -650,6 +768,8 @@ router.put('/:id', asyncHandler(async (req, res) => {
         if (calculatedStatus !== undefined) { updates.push(`status = $${paramIndex++}`); params.push(calculatedStatus); }
         if (note !== undefined) { updates.push(`note = $${paramIndex++}`); params.push(note); }
         if (amount_paid !== undefined) { updates.push(`amount_paid = $${paramIndex++}`); params.push(newAmountPaid); }
+        if (discount_type !== undefined) { updates.push(`discount_type = $${paramIndex++}`); params.push(discount_type); }
+        if (discount_value !== undefined) { updates.push(`discount_value = $${paramIndex++}`); params.push(discount_value); }
         if (subtotal !== undefined) {
             updates.push(`subtotal = $${paramIndex++}`); params.push(subtotal);
             updates.push(`vat_amount = $${paramIndex++}`); params.push(vatAmount);
