@@ -446,3 +446,36 @@ export const generateListPDFFromTemplate = async (
 
 // Legacy export name for backward compatibility
 export const createMockItems = createFallbackItems;
+
+// Generate PDF blob without downloading — used for printing
+export const generatePDFBlobFromTemplate = async (data: DocumentData): Promise<Blob> => {
+  if (!data.items || data.items.length === 0) {
+    throw new Error('Cannot generate PDF: items array is empty');
+  }
+
+  const companyInfo = getCompanyInfo(data.companyInfo);
+  const currentLanguage = data.language || i18n.language || 'en';
+
+  const pdfDoc = React.createElement(DocumentPDFTemplate, {
+    type: data.type,
+    documentId: data.documentId,
+    date: data.date,
+    client: data.client,
+    supplier: data.supplier,
+    clientData: data.clientData,
+    supplierData: data.supplierData,
+    items: data.items,
+    paymentMethod: data.paymentMethod,
+    dueDate: data.dueDate,
+    note: data.note,
+    taxEnabled: data.taxEnabled,
+    clientPoNumber: data.clientPoNumber,
+    linkedBLs: data.linkedBLs,
+    companyInfo: companyInfo as any,
+    discountType: data.discountType,
+    discountValue: data.discountValue,
+    language: currentLanguage,
+  });
+
+  return pdf(pdfDoc as any).toBlob();
+};

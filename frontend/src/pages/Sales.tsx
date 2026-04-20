@@ -73,6 +73,7 @@ import {
   generatePrelevementPDF,
   generateDocumentsListPDF,
 } from '@/lib/pdf-generator';
+import { generatePDFBlobFromTemplate, createFallbackItems } from '@/lib/pdf-template-generator';
 import {
   generateDocumentExcel,
   generateBulkDocumentsExcel,
@@ -620,55 +621,44 @@ export const Sales = () => {
     try {
       const docType = doc.type || activeTab;
 
-      // If clientData is missing, try to find it from CRM using client ID
       let docWithClientData = { ...doc };
       if (!docWithClientData.clientData && docWithClientData.client) {
-        // Try to find client by ID (client field stores the UUID)
         const foundClient = clients.find(c => c.id === docWithClientData.client);
         if (foundClient) {
           docWithClientData.clientData = foundClient;
         }
       }
 
-      // Prepare document data with items if available
-      const docWithItems = {
-        ...docWithClientData,
-        items: Array.isArray(docWithClientData.items) ? docWithClientData.items : [],
-      };
+      const rawItems = Array.isArray(docWithClientData.items) ? docWithClientData.items : [];
+      const items = rawItems.length > 0
+        ? rawItems
+        : createFallbackItems(
+            typeof docWithClientData.items === 'number' ? docWithClientData.items : 0,
+            docWithClientData.total
+          );
 
-      // Generate PDF using the same system as download
-      const { pdf } = await import('@react-pdf/renderer');
-      const React = await import('react');
-      const { DocumentPDFTemplate } = await import('@/components/documents/DocumentPDFTemplate');
+      // Map 'divers' to 'delivery_note' since they share the same template
+      const pdfType = docType === 'divers' ? 'delivery_note' : docType;
 
-      const items = Array.isArray(docWithItems.items)
-        ? docWithItems.items
-        : []; // Use actual items from document, no mock items
-
-      // Create PDF document using company info from context
-      const pdfDoc = React.createElement(DocumentPDFTemplate, {
-        type: docType as any,
-        documentId: docWithItems.id,
-        date: docWithItems.date,
-        client: docWithItems.client,
-        clientData: docWithItems.clientData,
-        items: items,
-        paymentMethod: docWithItems.paymentMethod as 'cash' | 'check' | 'bank_transfer' | undefined,
-        dueDate: docWithItems.dueDate,
-        note: docWithItems.note,
-        taxEnabled: docWithItems.taxEnabled,
-        clientPoNumber: docWithItems.clientPoNumber,
-        linkedBLs: (docWithItems as any).linked_bls,
+      const blob = await generatePDFBlobFromTemplate({
+        type: pdfType as any,
+        documentId: docWithClientData.id,
+        date: docWithClientData.date,
+        client: docWithClientData.client,
+        clientData: docWithClientData.clientData,
+        items,
+        paymentMethod: docWithClientData.paymentMethod as 'cash' | 'check' | 'bank_transfer' | undefined,
+        dueDate: docWithClientData.dueDate,
+        note: docWithClientData.note,
+        taxEnabled: docWithClientData.taxEnabled,
+        clientPoNumber: docWithClientData.clientPoNumber,
+        linkedBLs: (docWithClientData as any).linked_bls,
         companyInfo: companyInfo as any,
-        discountType: (docWithItems as any).discountType,
-        discountValue: (docWithItems as any).discountValue,
+        discountType: (docWithClientData as any).discountType,
+        discountValue: (docWithClientData as any).discountValue,
       });
 
-      // Generate PDF blob
-      const blob = await pdf(pdfDoc).toBlob();
       const url = URL.createObjectURL(blob);
-
-      // Open PDF in new window and trigger print dialog
       const printWindow = window.open(url, '_blank');
       if (printWindow) {
         printWindow.onload = () => {
@@ -681,7 +671,7 @@ export const Sales = () => {
         // Fallback: download if popup blocked
         const link = document.createElement('a');
         link.href = url;
-        link.download = `${docType}_${docWithItems.id}.pdf`;
+        link.download = `${pdfType}_${docWithClientData.id}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
