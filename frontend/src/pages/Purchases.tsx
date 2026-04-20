@@ -83,6 +83,7 @@ import {
   generateStatementPDF,
   generateDocumentsListPDF,
 } from '@/lib/pdf-generator';
+import { generatePDFBlobFromTemplate } from '@/lib/pdf-template-generator';
 import {
   generateDocumentExcel,
   generateBulkDocumentsExcel,
@@ -569,17 +570,17 @@ export const Purchases = () => {
         items: Array.isArray(docWithSupplierData.items) ? docWithSupplierData.items : [],
       };
 
-      // Generate PDF using the same system as download
-      const { pdf } = await import('@react-pdf/renderer');
-      const React = await import('react');
-      const { DocumentPDFTemplate } = await import('@/components/documents/DocumentPDFTemplate');
       const items = Array.isArray(docWithItems.items)
         ? docWithItems.items
         : []; // Use actual items from document, no mock items
 
       // Create PDF document using company info from context
-      const pdfDoc = React.createElement(DocumentPDFTemplate, {
-        type: docType as any,
+      let pdfType: string = docType;
+      if (docType === 'invoice') pdfType = 'purchase_invoice';
+      if (docType === 'delivery_note') pdfType = 'purchase_delivery_note';
+
+      const blob = await generatePDFBlobFromTemplate({
+        type: pdfType as any,
         documentId: docWithItems.id,
         date: docWithItems.date,
         supplier: docWithItems.supplier,
@@ -590,9 +591,6 @@ export const Purchases = () => {
         note: docWithItems.note,
         companyInfo: companyInfo as any,
       });
-
-      // Generate PDF blob
-      const blob = await pdf(React.createElement('div', null, pdfDoc)).toBlob();
       const url = URL.createObjectURL(blob);
 
       // Open PDF in new window and trigger print dialog

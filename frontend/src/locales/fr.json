@@ -695,7 +695,11 @@
     "total": "TOTAL",
     "grandTotal": "TOTAL TTC",
     "blNumber": "BL N°",
-    "blDate": "DATE BL"
+    "blDate": "DATE BL",
+    "purchaseInvoice": "FACTURE D'ACHAT",
+    "purchaseDeliveryNote": "BON DE RÉCEPTION",
+    "prelevement": "PRÉLÈVEMENT",
+    "divers": "DIVERS"
   },
   "taxReports": {
     "title": "Rapports fiscaux",

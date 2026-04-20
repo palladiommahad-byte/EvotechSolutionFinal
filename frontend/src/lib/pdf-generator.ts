@@ -273,6 +273,7 @@ export const generatePurchaseOrderPDF = async (document: {
 // Generate Delivery Note PDF using new template
 export const generateDeliveryNotePDF = async (document: {
   id: string;
+  type?: 'delivery_note' | 'divers';
   client?: string;
   supplier?: string;
   clientData?: any;
@@ -294,7 +295,7 @@ export const generateDeliveryNotePDF = async (document: {
     : createFallbackItems(document.items, document.total);
 
   await generatePDFFromTemplate({
-    type: 'delivery_note',
+    type: document.type || 'delivery_note',
     documentId: document.id,
     date: document.date,
     client: document.client,

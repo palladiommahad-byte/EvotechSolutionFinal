@@ -599,7 +599,7 @@ export const Sales = () => {
           await generateDeliveryNotePDF({ ...docWithItems as any, companyInfo });
           break;
         case 'divers':
-          await generateDeliveryNotePDF({ ...docWithItems as any, companyInfo }); // Use delivery note PDF format for divers
+          await generateDeliveryNotePDF({ ...docWithItems as any, type: 'divers', companyInfo });
           break;
         case 'prelevement':
           await generatePrelevementPDF({ ...docWithItems as any, companyInfo });
@@ -637,8 +637,8 @@ export const Sales = () => {
             docWithClientData.total
           );
 
-      // Map 'divers' to 'delivery_note' since they share the same template
-      const pdfType = docType === 'divers' ? 'delivery_note' : docType;
+      // Use docType directly as 'divers' is explicitly supported
+      const pdfType = docType;
 
       const blob = await generatePDFBlobFromTemplate({
         type: pdfType as any,
@@ -2855,7 +2855,7 @@ export const Sales = () => {
                         <TableHead>Date</TableHead>
                         <TableHead>Total</TableHead>
                         <TableHead className="text-center">Statut</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead className="text-center">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -2890,13 +2890,13 @@ export const Sales = () => {
                             <TableCell className="text-center">
                               {renderStatusSelect(doc)}
                             </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
+                            <TableCell className="w-[220px]">
+                              <div className="flex items-center justify-center gap-1">
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
-                                  onClick={() => setViewingDocument(doc)}
+                                  className="h-8 w-8"
+                                  onClick={() => handleViewDocument(doc)}
                                   title="View Details"
                                 >
                                   <Eye className="w-4 h-4" />
@@ -2904,7 +2904,34 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  className="h-8 w-8"
+                                  onClick={() => handleEditDocument(doc)}
+                                  title="Edit"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handleDownloadPDF(doc)}
+                                  title="Download PDF"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handlePrintPDF(doc)}
+                                  title="Print"
+                                >
+                                  <Printer className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
                                   onClick={() => handleDeleteDocument(doc)}
                                   title="Delete"
                                 >

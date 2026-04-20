@@ -743,7 +743,11 @@
     "total": "TOTAL",
     "grandTotal": "GRAND TOTAL",
     "blNumber": "BL NO",
-    "blDate": "BL DATE"
+    "blDate": "BL DATE",
+    "purchaseInvoice": "PURCHASE INVOICE",
+    "purchaseDeliveryNote": "PURCHASE DELIVERY NOTE",
+    "prelevement": "PRÉLÈVEMENT",
+    "divers": "DIVERS"
   },
   "taxReports": {
     "title": "Tax Reports",

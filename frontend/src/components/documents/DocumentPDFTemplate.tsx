@@ -7,7 +7,7 @@ import i18n from '@/i18n/config';
 import { amountToFrenchWords } from '@/lib/number-to-words';
 
 interface DocumentPDFTemplateProps {
-  type: 'invoice' | 'estimate' | 'delivery_note' | 'purchase_order' | 'credit_note' | 'statement' | 'purchase_invoice' | 'purchase_delivery_note' | 'prelevement';
+  type: 'invoice' | 'estimate' | 'delivery_note' | 'purchase_order' | 'credit_note' | 'statement' | 'purchase_invoice' | 'purchase_delivery_note' | 'prelevement' | 'divers';
   documentId: string;
   date: string;
   client?: string;
@@ -319,7 +319,8 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
     statement: String(t('pdf.statement')),
     purchase_invoice: String(t('pdf.purchaseInvoice')),
     purchase_delivery_note: String(t('pdf.deliveryNote')),
-    prelevement: 'AVANCE / PRÉLÈVEMENT', // Fallback until translation added
+    prelevement: 'PRÉLÈVEMENT', // Fallback until translation added
+    divers: 'DIVERS',
   };
 
   // Calculate font size based on text length - smaller for longer text
@@ -357,7 +358,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
       statement: 'RL',                  // Relevé
       purchase_invoice: 'FA',           // Facture d'Achat
       purchase_delivery_note: 'BL',     // Bon de Livraison
-      divers: 'BL',                     // Bon de Livraison Divers
+      divers: 'DIV',                    // Divers
     };
 
     const prefix = prefixes[docType] || 'DOC';
