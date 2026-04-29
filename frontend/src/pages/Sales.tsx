@@ -3132,7 +3132,16 @@ export const Sales = () => {
                                 className="w-full"
                               />
                             </div>
-                            <div className="col-span-4">
+                            <div className="col-span-2">
+                              <Label className="text-xs font-medium mb-1.5 block">Unité</Label>
+                              <Input
+                                placeholder="pcs, kg..."
+                                value={item.unit || ''}
+                                onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
+                                className="w-full"
+                              />
+                            </div>
+                            <div className="col-span-3">
                               <Label className="text-xs font-medium mb-1.5 block">Unit Price (MAD)</Label>
                               <Input
                                 type="number"
@@ -3143,7 +3152,7 @@ export const Sales = () => {
                                 className="w-full"
                               />
                             </div>
-                            <div className="col-span-4">
+                            <div className="col-span-3">
                               <Label className="text-xs font-medium mb-1.5 block">Total (MAD)</Label>
                               <Input value={formatMAD(item.total)} disabled className="w-full font-medium" />
                             </div>
@@ -3532,7 +3541,16 @@ export const Sales = () => {
                                 className="w-full"
                               />
                             </div>
-                            <div className="col-span-4">
+                            <div className="col-span-2">
+                              <Label className="text-xs font-medium mb-1.5 block">Unité</Label>
+                              <Input
+                                placeholder="pcs, kg..."
+                                value={item.unit || ''}
+                                onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
+                                className="w-full"
+                              />
+                            </div>
+                            <div className="col-span-3">
                               <Label className="text-xs font-medium mb-1.5 block">Unit Price (MAD)</Label>
                               <Input
                                 type="number"
@@ -3543,7 +3561,7 @@ export const Sales = () => {
                                 className="w-full"
                               />
                             </div>
-                            <div className="col-span-4">
+                            <div className="col-span-3">
                               <Label className="text-xs font-medium mb-1.5 block">Total (MAD)</Label>
                               <Input value={formatMAD(item.total)} disabled className="w-full font-medium" />
                             </div>

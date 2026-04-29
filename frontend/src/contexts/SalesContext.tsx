@@ -660,6 +660,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
           product_id: item.productId && uuidRegex.test(item.productId) ? item.productId : null,
           description: item.description,
           quantity: item.quantity,
+          unit: item.unit || undefined,
           unit_price: item.unitPrice,
         })),
       });
@@ -699,6 +700,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
           product_id: item.productId,
           description: item.description,
           quantity: item.quantity,
+          unit: item.unit || undefined,
           unit_price: item.unitPrice,
         })),
       });

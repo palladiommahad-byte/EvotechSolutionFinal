@@ -481,7 +481,21 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     lineHeight: '1.2',
-                    width: '16%',
+                    width: '8%',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    UNITÉ
+                  </th>
+                  <th style={{
+                    padding: '6px 6px',
+                    textAlign: 'center',
+                    fontSize: '8px',
+                    fontWeight: 700,
+                    color: '#FFFFFF',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    lineHeight: '1.2',
+                    width: '14%',
                     whiteSpace: 'nowrap'
                   }}>
                     PRICE
@@ -561,6 +575,9 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                         </td>
                         <td style={{ padding: '6px 6px', fontSize: '9px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', whiteSpace: 'nowrap' }}>
                           {quantity}
+                        </td>
+                        <td style={{ padding: '6px 6px', fontSize: '9px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', whiteSpace: 'nowrap' }}>
+                          {item.unit || '-'}
                         </td>
                         <td style={{ padding: '6px 6px', fontSize: '9px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
                           <span style={{ whiteSpace: 'nowrap' }}>{formatMADFull(unitPrice)}</span>

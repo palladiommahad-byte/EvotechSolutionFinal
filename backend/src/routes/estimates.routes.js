@@ -173,9 +173,9 @@ router.post('/', asyncHandler(async (req, res) => {
 
         for (const item of items) {
             await client.query(
-                `INSERT INTO estimate_items (estimate_id, product_id, description, quantity, unit_price, total)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-                [estimate.id, item.product_id || null, item.description, item.quantity, item.unit_price, item.quantity * item.unit_price]
+                `INSERT INTO estimate_items (estimate_id, product_id, description, quantity, unit, unit_price, total)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                [estimate.id, item.product_id || null, item.description, item.quantity, item.unit || null, item.unit_price, item.quantity * item.unit_price]
             );
         }
 
@@ -272,9 +272,9 @@ router.put('/:id', asyncHandler(async (req, res) => {
             await client.query('DELETE FROM estimate_items WHERE estimate_id = $1', [id]);
             for (const item of items) {
                 await client.query(
-                    `INSERT INTO estimate_items (estimate_id, product_id, description, quantity, unit_price, total)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-                    [id, item.product_id || null, item.description, item.quantity, item.unit_price, item.quantity * item.unit_price]
+                    `INSERT INTO estimate_items (estimate_id, product_id, description, quantity, unit, unit_price, total)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                    [id, item.product_id || null, item.description, item.quantity, item.unit || null, item.unit_price, item.quantity * item.unit_price]
                 );
             }
         }
