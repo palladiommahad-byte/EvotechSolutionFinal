@@ -38,23 +38,39 @@ try {
   console.warn('Failed to register Inter font:', error);
 }
 
-const styles = StyleSheet.create({
+const getLayoutScale = (itemCount: number): number => {
+  if (itemCount <= 8) return 1.0;
+  if (itemCount <= 12) return 0.88;
+  if (itemCount <= 16) return 0.78;
+  if (itemCount <= 20) return 0.70;
+  if (itemCount <= 25) return 0.62;
+  return 0.55;
+};
+
+const createStyles = (scale: number) => {
+  const s = (v: number) => Math.max(1, Math.round(v * scale));
+  return StyleSheet.create({
   page: {
-    padding: '10px 56px 48px 56px',
+    paddingTop: s(8),
+    paddingRight: 56,
+    paddingBottom: 42,
+    paddingLeft: 56,
     fontSize: 12,
     fontFamily: 'Helvetica',
     color: '#1F2937',
-    lineHeight: 1.6,
+    lineHeight: scale < 0.85 ? 1.2 : 1.6,
     flexDirection: 'column',
   },
   header: {
-    marginBottom: 12,
+    marginBottom: s(6),
   },
   footer: {
-    marginTop: 'auto',
-    paddingTop: 18,
+    position: 'absolute',
+    bottom: 16,
+    left: 56,
+    right: 56,
+    paddingTop: s(8),
     borderTop: '1px solid #E5E7EB',
-    width: '100%',
     alignItems: 'center',
   },
   contentWrapper: {
@@ -65,31 +81,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: s(8),
   },
   companyInfo: {
     flex: 1,
     paddingRight: 16,
     flexDirection: 'row',
-    gap: 12,
+    gap: s(8),
     alignItems: 'center',
   },
   logo: {
-    height: 72,
-    maxWidth: 144,
+    height: s(76),
+    maxWidth: s(152),
     flexShrink: 0,
   },
   companyName: {
-    fontSize: 16,
+    fontSize: s(14),
     fontWeight: 700,
     color: '#111827',
-    marginBottom: 6,
+    marginBottom: s(4),
     fontFamily: 'Helvetica-Bold',
     lineHeight: 1.3,
     letterSpacing: -0.01,
   },
   website: {
-    fontSize: 10,
+    fontSize: s(9),
     color: '#6B7280',
     textTransform: 'uppercase',
     marginBottom: 0,
@@ -97,17 +113,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.03,
   },
   documentTitle: {
-    fontSize: 28,
+    fontSize: s(26),
     fontWeight: 700,
     color: '#3b82f6',
-    marginBottom: 14,
+    marginBottom: s(10),
     letterSpacing: 0.03,
     lineHeight: 1,
     width: 'auto',
   },
   invoiceDetails: {
     backgroundColor: '#3b82f6',
-    padding: '8px 14px',
+    padding: `${s(5)}px ${s(11)}px`,
     borderRadius: 6,
     width: 'auto',
     alignSelf: 'flex-end',
@@ -116,44 +132,44 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   invoiceDetailLabel: {
-    fontSize: 9,
+    fontSize: s(8),
     fontWeight: 600,
     color: '#FFFFFF',
     letterSpacing: 0.01,
   },
   invoiceDetailValue: {
-    fontSize: 9,
+    fontSize: s(8),
     fontWeight: 700,
     color: '#FFFFFF',
   },
   invoiceToSection: {
     marginTop: 0,
-    marginBottom: 12,
+    marginBottom: s(8),
   },
   invoiceToLabel: {
-    fontSize: 9,
+    fontSize: s(8),
     fontWeight: 700,
     color: '#374151',
-    marginBottom: 4,
+    marginBottom: s(3),
     textTransform: 'uppercase',
     letterSpacing: 0.05,
     lineHeight: 1.3,
   },
   invoiceToBox: {
     backgroundColor: '#F9FAFB',
-    padding: '8px 10px',
+    padding: `${s(5)}px ${s(8)}px`,
     borderRadius: 5,
     border: '1px solid #E5E7EB',
   },
   clientName: {
-    fontSize: 9,
+    fontSize: s(8),
     fontWeight: 600,
     color: '#111827',
     lineHeight: 1.3,
-    marginBottom: 3,
+    marginBottom: s(2),
   },
   table: {
-    marginBottom: 16,
+    marginBottom: s(10),
     border: '1px solid #3b82f6',
     borderRadius: 4,
   },
@@ -162,8 +178,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   tableHeaderCell: {
-    padding: '6px 8px',
-    fontSize: 8,
+    padding: `${s(5)}px ${s(6)}px`,
+    fontSize: s(7),
     fontWeight: 700,
     color: '#FFFFFF',
     textTransform: 'uppercase',
@@ -175,10 +191,10 @@ const styles = StyleSheet.create({
     borderBottom: '1px solid #E5E7EB',
   },
   tableCell: {
-    padding: '6px 8px',
-    fontSize: 9,
+    padding: `${s(4)}px ${s(6)}px`,
+    fontSize: s(8),
     color: '#374151',
-    lineHeight: 1.3,
+    lineHeight: 1.2,
     flexWrap: 'nowrap',
   },
   tableCellCenter: {
@@ -198,81 +214,82 @@ const styles = StyleSheet.create({
   },
   summaryBox: {
     backgroundColor: '#3b82f6',
-    padding: '12px 18px',
+    padding: `${s(8)}px ${s(14)}px`,
     borderRadius: 6,
-    minWidth: 240,
+    minWidth: 220,
     marginBottom: 0,
-    marginTop: 10,
+    marginTop: s(6),
     marginLeft: 'auto',
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: '6px 0',
+    padding: `${s(4)}px 0`,
     borderBottom: '1px solid #FFFFFF',
   },
   summaryTotal: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: '8px 0 0 0',
-    marginTop: 5,
+    padding: `${s(5)}px 0 0 0`,
+    marginTop: s(3),
     borderTop: '1px solid #FFFFFF',
   },
   summaryText: {
-    fontSize: 10,
+    fontSize: s(9),
     color: '#FFFFFF',
     fontWeight: 500,
     letterSpacing: 0.01,
-    lineHeight: 1.4,
+    lineHeight: 1.3,
   },
   summaryTextBold: {
-    fontSize: 10,
+    fontSize: s(9),
     color: '#FFFFFF',
     fontWeight: 700,
     letterSpacing: 0.01,
-    lineHeight: 1.4,
+    lineHeight: 1.3,
   },
   summaryTotalText: {
-    fontSize: 12,
+    fontSize: s(11),
     color: '#FFFFFF',
     fontWeight: 700,
     letterSpacing: 0.02,
-    lineHeight: 1.3,
+    lineHeight: 1.2,
   },
   paymentMethod: {
-    marginBottom: 16,
+    marginBottom: s(10),
   },
   sectionLabel: {
-    fontSize: 11,
+    fontSize: s(10),
     fontWeight: 700,
     color: '#374151',
-    marginBottom: 8,
+    marginBottom: s(6),
     textTransform: 'uppercase',
     letterSpacing: 0.05,
     lineHeight: 1.4,
   },
   sectionText: {
-    fontSize: 12,
+    fontSize: s(11),
     color: '#374151',
     marginBottom: 0,
     fontWeight: 600,
     lineHeight: 1.5,
   },
   thankYou: {
-    fontSize: 12,
+    fontSize: s(11),
     color: '#374151',
     fontWeight: 500,
-    marginBottom: 24,
+    marginBottom: s(16),
     lineHeight: 1.6,
   },
   terms: {
-    fontSize: 10,
+    fontSize: s(9),
     color: '#6B7280',
     lineHeight: 1.7,
-    marginBottom: 32,
+    marginBottom: s(20),
     maxWidth: 600,
   },
-});
+  });
+};
 
 export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
   type,
@@ -309,6 +326,13 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
   //     (undefined/null/true all mean "show tax" — tax is ON by default)
   const showVAT = type === 'invoice' || type === 'estimate' || type === 'credit_note' || type === 'prelevement'
     || (type === 'delivery_note' && taxEnabled !== false);
+
+  // Auto-scale layout to fit everything on one page
+  const totalItemCount = (type === 'invoice' && linkedBLs && linkedBLs.length > 0)
+    ? linkedBLs.reduce((sum, bl) => sum + (bl.items?.length || 0), 0)
+    : items.length;
+  const scale = getLayoutScale(totalItemCount);
+  const styles = createStyles(scale);
 
   const documentTitles: Record<string, string> = {
     invoice: String(t('pdf.invoice')),
@@ -453,7 +477,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
               paddingLeft: 0,
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 12,
+              marginBottom: scale < 1 ? 6 : 12,
             }}>
               {/* Left Box - From (Sender) */}
               <View style={{ width: '40%', flexShrink: 0 }}>
@@ -674,8 +698,8 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                   globalIndex += blItems.length;
                   return (
                     <React.Fragment key={bl.id || blIdx}>
-                      <View style={{ flexDirection: 'row', backgroundColor: '#EFF6FF', borderBottom: '1px solid #BFDBFE', borderTop: blIdx > 0 ? '2px solid #93C5FD' : undefined, padding: '5px 8px' }} wrap={false}>
-                        <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#1D4ED8' }}>
+                      <View style={{ flexDirection: 'row', backgroundColor: '#EFF6FF', borderBottom: '1px solid #BFDBFE', borderTop: blIdx > 0 ? '2px solid #93C5FD' : undefined, padding: `${Math.max(2, Math.round(4*scale))}px ${Math.max(4, Math.round(8*scale))}px` }} wrap={false}>
+                        <Text style={{ fontSize: Math.max(7, Math.round(9*scale)), fontFamily: 'Helvetica-Bold', color: '#1D4ED8' }}>
                           {bl.document_id} Du {shortDate}
                         </Text>
                       </View>
@@ -691,7 +715,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
           </View>
 
           {/* Financial Summary - Keep together with table, with Note on Left */}
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'flex-start', gap: 20, marginBottom: 32, width: '100%' }} wrap={false}>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'flex-start', gap: 20, marginBottom: scale < 1 ? 8 : 32, width: '100%' }} wrap={false}>
             {/* Note Section - Left Side */}
             {note && note.trim() && (
               <View style={{
@@ -775,37 +799,37 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
 
           {/* Amount in Words for Invoices - Bottom Left Above Footer */}
           {type === 'invoice' && (
-            <View style={{ marginTop: 'auto', marginBottom: 15, paddingLeft: 8 }} wrap={false}>
-             <Text style={{ fontSize: 9, color: '#374151' }}>
+            <View style={{ marginTop: scale < 1 ? 4 : 'auto', marginBottom: scale < 1 ? 6 : 15, paddingLeft: 8 }} wrap={false}>
+             <Text style={{ fontSize: scale < 1 ? 8 : 9, color: '#374151' }}>
                Arrêté la présente facture à la somme de :
              </Text>
-             <Text style={{ fontSize: 11, fontWeight: 'bold', color: primaryColor, marginTop: 4 }}>
+             <Text style={{ fontSize: scale < 1 ? 9 : 11, fontWeight: 'bold', color: primaryColor, marginTop: 3 }}>
                {amountToFrenchWords(showVAT ? totals.total : totals.subtotal)}
              </Text>
             </View>
           )}
+        </View>
 
-          {/* Footer - Company Details - Single line - Always at bottom */}
-          <View style={[styles.footer, type === 'invoice' ? { marginTop: 0 } : {}]}>
-            <Text style={{
-              fontSize: 8,
-              color: '#6B7280',
-              lineHeight: 1.4,
-              textAlign: 'center',
-              fontWeight: 700,
-            }}>
-              {[
-                companyInfo.ice && `${String(t('pdf.ice'))}: ${companyInfo.ice}`,
-                companyInfo.ifNumber && `${String(t('pdf.if'))}: ${companyInfo.ifNumber}`,
-                companyInfo.rc && `${String(t('pdf.rc'))}: ${companyInfo.rc}`,
-                companyInfo.tp && `${String(t('pdf.tp'))}: ${companyInfo.tp}`,
-                companyInfo.patente && `${String(t('pdf.patente'))}: ${companyInfo.patente}`,
-                companyInfo.cnss && `${String(t('pdf.cnss'))}: ${companyInfo.cnss}`,
-                companyInfo.phone && `${String(t('pdf.phone'))}: ${companyInfo.phone}`,
-                companyInfo.email && `${String(t('common.email'))}: ${companyInfo.email}`
-              ].filter(Boolean).join(' | ')}
-            </Text>
-          </View>
+        {/* Footer - Company Details - Absolutely pinned to page bottom */}
+        <View style={styles.footer} fixed>
+          <Text style={{
+            fontSize: 8,
+            color: '#6B7280',
+            lineHeight: 1.4,
+            textAlign: 'center',
+            fontWeight: 700,
+          }}>
+            {[
+              companyInfo.ice && `${String(t('pdf.ice'))}: ${companyInfo.ice}`,
+              companyInfo.ifNumber && `${String(t('pdf.if'))}: ${companyInfo.ifNumber}`,
+              companyInfo.rc && `${String(t('pdf.rc'))}: ${companyInfo.rc}`,
+              companyInfo.tp && `${String(t('pdf.tp'))}: ${companyInfo.tp}`,
+              companyInfo.patente && `${String(t('pdf.patente'))}: ${companyInfo.patente}`,
+              companyInfo.cnss && `${String(t('pdf.cnss'))}: ${companyInfo.cnss}`,
+              companyInfo.phone && `${String(t('pdf.phone'))}: ${companyInfo.phone}`,
+              companyInfo.email && `${String(t('common.email'))}: ${companyInfo.email}`
+            ].filter(Boolean).join(' | ')}
+          </Text>
         </View>
       </Page>
     </Document>
