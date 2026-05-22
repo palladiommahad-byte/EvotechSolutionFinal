@@ -467,6 +467,59 @@ router.put('/:id', asyncHandler(async (req, res) => {
             }
         }
 
+        // 4. SYNC WITH INVOICE IF LINKED
+        if (updatedNote.invoice_id) {
+            // Re-fetch all items for all BLs linked to this invoice to rebuild the invoice items
+            const linkedBLsResult = await client.query('SELECT bl_id FROM invoice_bls WHERE invoice_id = $1', [updatedNote.invoice_id]);
+            const linkedBlIds = linkedBLsResult.rows.map(r => r.bl_id);
+            
+            if (linkedBlIds.length > 0) {
+                // Delete all existing invoice items
+                await client.query('DELETE FROM invoice_items WHERE invoice_id = $1', [updatedNote.invoice_id]);
+                
+                // Fetch all current items from the linked BLs
+                const allBlItems = await client.query(
+                    `SELECT product_id, description, quantity, unit, unit_price
+                     FROM delivery_note_items
+                     WHERE delivery_note_id = ANY($1::uuid[])`,
+                    [linkedBlIds]
+                );
+                
+                // Re-insert into invoice_items and compute new initial subtotal
+                let initialSubtotal = 0;
+                for (const item of allBlItems.rows) {
+                    const itemTotal = parseFloat(item.quantity) * parseFloat(item.unit_price);
+                    initialSubtotal += itemTotal;
+                    await client.query(
+                        `INSERT INTO invoice_items (invoice_id, product_id, description, quantity, unit, unit_price, total)
+                         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                        [updatedNote.invoice_id, item.product_id || null, item.description, item.quantity, item.unit || null, item.unit_price, itemTotal]
+                    );
+                }
+                
+                // Recalculate invoice totals based on its discount and tax rate
+                const invoiceRes = await client.query('SELECT discount_type, discount_value, vat_rate FROM invoices WHERE id = $1', [updatedNote.invoice_id]);
+                if (invoiceRes.rows.length > 0) {
+                    const inv = invoiceRes.rows[0];
+                    let discountAmount = 0;
+                    const dv = parseFloat(inv.discount_value) || 0;
+                    if (dv > 0) {
+                        discountAmount = inv.discount_type === 'percentage' ? (initialSubtotal * (dv / 100)) : dv;
+                    }
+                    discountAmount = Math.min(discountAmount, initialSubtotal);
+                    const subtotal = initialSubtotal - discountAmount;
+                    const vatRate = parseFloat(inv.vat_rate) || 20.0;
+                    const vatAmount = subtotal * (vatRate / 100);
+                    const total = subtotal + vatAmount;
+                    
+                    await client.query(
+                        `UPDATE invoices SET subtotal = $1, vat_amount = $2, total = $3, updated_at = NOW() WHERE id = $4`,
+                        [subtotal, vatAmount, total, updatedNote.invoice_id]
+                    );
+                }
+            }
+        }
+
         await client.query('COMMIT');
 
         const itemsResult = await query('SELECT * FROM delivery_note_items WHERE delivery_note_id = $1', [id]);
