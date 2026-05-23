@@ -407,7 +407,9 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const allDeliveryNotes: SalesDocument[] = useMemo(
-    () => deliveryNotesData.map(deliveryNoteToSalesDocument),
+    () => deliveryNotesData
+      .filter(dn => !dn.supplier_id) // Exclude purchase delivery notes
+      .map(deliveryNoteToSalesDocument),
     [deliveryNotesData]
   );
 

@@ -142,6 +142,7 @@ export const Purchases = () => {
   const [viewingDocument, setViewingDocument] = useState<PurchaseDocument | null>(null);
   const [editingDocument, setEditingDocument] = useState<PurchaseDocument | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<PurchaseDocument>>({});
+  const [editItems, setEditItems] = useState<any[]>([]);
   const [deletingDocument, setDeletingDocument] = useState<PurchaseDocument | null>(null);
   const [selectedStatementDocs, setSelectedStatementDocs] = useState<Set<string>>(new Set());
 
@@ -433,6 +434,49 @@ export const Purchases = () => {
     return supplier ? (supplier.company || supplier.name) : doc.supplier || t('common.unknownSupplier');
   };
 
+  const addEditItem = () => {
+    setEditItems([...editItems, { id: crypto.randomUUID(), description: '', quantity: 1, unitPrice: 0, total: 0 }]);
+  };
+
+  const removeEditItem = (id: string) => {
+    if (editItems.length > 1) {
+      setEditItems(editItems.filter(item => item.id !== id));
+    }
+  };
+
+  const updateEditItem = (id: string, field: string, value: any) => {
+    setEditItems(editItems.map(item => {
+      if (item.id === id) {
+        const updated = { ...item, [field]: value };
+        if (field === 'quantity' || field === 'unitPrice') {
+          updated.total = (parseFloat(updated.quantity) || 0) * (parseFloat(updated.unitPrice) || 0);
+        }
+        return updated;
+      }
+      return item;
+    }));
+  };
+
+  const handleEditProductSelect = (id: string, product: any) => {
+    setEditItems(editItems.map(item => {
+      if (item.id === id) {
+        const qty = parseFloat(item.quantity) || 1;
+        const updated = {
+          ...item,
+          productId: product.id,
+          description: product.name,
+          unitPrice: product.purchasePrice || product.price || 0,
+          quantity: qty,
+        };
+        updated.total = qty * updated.unitPrice;
+        return updated;
+      }
+      return item;
+    }));
+  };
+
+  const editItemsSubtotal = editItems.reduce((sum, item) => sum + (item.total || 0), 0);
+
   const handleEditDocument = (doc: PurchaseDocument) => {
     setEditingDocument(doc);
     setEditFormData({
@@ -441,6 +485,12 @@ export const Purchases = () => {
       status: doc.status,
       paymentMethod: doc.paymentMethod,
     });
+    setEditItems(
+      (doc.items || []).map((item: any) => ({
+        ...item,
+        id: item.id || crypto.randomUUID(),
+      }))
+    );
     toast({
       title: "Document Loaded",
       description: "Document details loaded for editing.",
@@ -454,6 +504,7 @@ export const Purchases = () => {
     try {
       const updateData: Partial<PurchaseDocument> = {
         ...editFormData,
+        items: editItems,
       };
 
       // Update in database (except statements which are mock)
@@ -946,13 +997,9 @@ export const Purchases = () => {
       });
     }
 
-    // Calculate total based on document type
+    // Calculate total based on document type — always include TVA 20% for all types
     let documentTotal: number;
-    if (documentType === 'invoice') {
-      documentTotal = totals.total; // Includes VAT
-    } else {
-      documentTotal = totals.subtotal; // No VAT for purchase orders and delivery notes
-    }
+    documentTotal = totals.total; // Always includes TVA 20%
 
     try {
       const newDocumentData: any = {
@@ -1084,7 +1131,7 @@ export const Purchases = () => {
       } : undefined,
       date: formDate,
       items: items,
-      total: documentType === 'invoice' ? totals.total : totals.subtotal,
+      total: totals.total, // Always includes TVA 20%
       status: 'draft',
       type: documentType,
       paymentMethod: documentType === 'invoice' ? formPaymentMethod : undefined,
@@ -1762,6 +1809,15 @@ export const Purchases = () => {
                                   title={t('documents.downloadPDF')}
                                 >
                                   <Download className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handlePrintPDF(order)}
+                                  title={t('common.print', { defaultValue: 'Print' })}
+                                >
+                                  <Printer className="w-4 h-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
@@ -3480,8 +3536,8 @@ export const Purchases = () => {
       </Dialog>
 
       {/* Edit Document Dialog */}
-      <Dialog open={!!editingDocument} onOpenChange={() => setEditingDocument(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={!!editingDocument} onOpenChange={(open) => { if (!open) { setEditingDocument(null); setEditFormData({}); setEditItems([]); } }}>
+        <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
           {editingDocument && (
             <>
               <DialogHeader>
@@ -3552,7 +3608,7 @@ export const Purchases = () => {
                           value={editFormData.amount_paid !== undefined ? editFormData.amount_paid : (editingDocument as any).amount_paid || 0}
                           onChange={(e) => {
                             const amountPaid = parseFloat(e.target.value) || 0;
-                            const total = editingDocument.total;
+                            const total = editItemsSubtotal || editingDocument.total;
                             let autoStatus = editFormData.status || editingDocument.status;
 
                             if (amountPaid >= total) autoStatus = 'paid';
@@ -3572,7 +3628,7 @@ export const Purchases = () => {
                         <div className="p-2 bg-muted rounded-md">
                           <CurrencyDisplay
                             amount={
-                              editingDocument.total -
+                              (editItemsSubtotal || editingDocument.total) -
                               (editFormData.amount_paid !== undefined
                                 ? editFormData.amount_paid
                                 : (editingDocument as any).amount_paid || 0)
@@ -3583,11 +3639,115 @@ export const Purchases = () => {
                     </>
                   )}
                 </div>
+
+                {/* ── Items Editor ───────────────────────────────────────── */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-foreground flex items-center gap-2">
+                      <Package className="w-4 h-4 text-primary" />
+                      Articles ({editItems.length})
+                    </h4>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={addEditItem}
+                      className="gap-2 h-8 text-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Ajouter un article
+                    </Button>
+                  </div>
+
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <div className="grid bg-muted/50 border-b border-border text-xs font-semibold text-muted-foreground uppercase tracking-wide px-3 py-2"
+                      style={{ gridTemplateColumns: '1fr 80px 110px 110px' }}>
+                      <div>Description</div>
+                      <div className="text-center">Qté</div>
+                      <div className="text-right">Prix unit.</div>
+                      <div className="text-right">Total HT</div>
+                    </div>
+                    <div className="divide-y divide-border">
+                      {editItems.map((item, idx) => (
+                        <div key={item.id} className="hover:bg-muted/10 transition-colors">
+                          <div className="flex items-center gap-2 px-2 pt-2 pb-1">
+                            <div className="flex-1">
+                              <ProductSearch
+                                products={products}
+                                value={item.productId}
+                                onSelect={(product) => handleEditProductSelect(item.id, product)}
+                                placeholder="🔍 Rechercher un produit du stock..."
+                              />
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => removeEditItem(item.id)}
+                              disabled={editItems.length <= 1}
+                              title="Supprimer l'article"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <div
+                            className="grid items-center pb-2"
+                            style={{ gridTemplateColumns: '1fr 80px 110px 110px' }}
+                          >
+                            <div className="px-2">
+                              <Input
+                                className="h-8 text-sm border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary/40 placeholder:text-muted-foreground/50"
+                                placeholder={`Description article ${idx + 1}`}
+                                value={item.description}
+                                onChange={(e) => updateEditItem(item.id, 'description', e.target.value)}
+                              />
+                            </div>
+                            <div className="px-2">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="1"
+                                className="h-8 text-sm text-center border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary/40"
+                                value={item.quantity}
+                                onChange={(e) => updateEditItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                              />
+                            </div>
+                            <div className="px-2">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                className="h-8 text-sm text-right border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary/40"
+                                value={item.unitPrice}
+                                onChange={(e) => updateEditItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                              />
+                            </div>
+                            <div className="px-3 text-right">
+                              <span className="text-sm font-semibold text-foreground">{formatMAD(item.total)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="bg-muted/30 border-t border-border px-3 py-2 flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">
+                        {editItems.length} article{editItems.length > 1 ? 's' : ''}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-muted-foreground">Sous-total HT :</span>
+                        <span className="text-sm font-bold text-foreground">
+                          {formatMAD(editItemsSubtotal)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => {
                   setEditingDocument(null);
                   setEditFormData({});
+                  setEditItems([]);
                 }}>Cancel</Button>
                 <Button className="btn-primary-gradient" onClick={handleSaveDocument}>Save Changes</Button>
               </DialogFooter>

@@ -50,7 +50,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
   const isIncomingPurchaseDoc = type === 'purchase_invoice' || type === 'purchase_delivery_note';
 
   const contactData = isPurchaseSide ? supplierData : clientData;
-  const showVAT = type === 'invoice' || type === 'estimate' || type === 'purchase_invoice' || type === 'prelevement';
+  const showVAT = type === 'invoice' || type === 'estimate' || type === 'purchase_invoice' || type === 'prelevement' || type === 'purchase_order' || type === 'purchase_delivery_note';
   const contactName = contactData?.company || contactData?.name || client || supplier || '-';
   const contactICE = contactData?.ice;
   const contactPhone = contactData?.phone;
@@ -528,7 +528,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                     width: '14%',
                     whiteSpace: 'nowrap'
                   }}>
-                    TAX
+                    TVA
                   </th>
                   <th style={{
                     padding: '6px 8px',
@@ -588,10 +588,10 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                           </td>
                         )}
                         <td style={{ padding: '6px 6px', fontSize: '9px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
-                          <span style={{ whiteSpace: 'nowrap' }}>{showVAT ? formatMADFull(itemTax) : '-'}</span>
+                          <span style={{ whiteSpace: 'nowrap' }}>{showVAT ? `${Math.round(VAT_RATE * 100)}%` : '-'}</span>
                         </td>
                         <td style={{ padding: '6px 8px', fontSize: '9px', color: '#374151', textAlign: 'right', fontWeight: 600, borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
-                          <span style={{ whiteSpace: 'nowrap' }}>{formatMADFull(itemTotalAfterTax)}</span>
+                          <span style={{ whiteSpace: 'nowrap' }}>{formatMADFull(itemNetHT)}</span>
                         </td>
                       </tr>
                     );
@@ -762,32 +762,50 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                 </>
               )}
               {!showVAT && (
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '8px 0 0 0',
-                  marginTop: '5px',
-                  borderTop: '1px solid #FFFFFF'
-                }}>
-                  <span style={{
-                    fontSize: '14px',
-                    fontWeight: 700,
-                    letterSpacing: '0.02em',
-                    lineHeight: '1.4'
+                <>
+                  {((totals.discountAmount || 0) > 0) && (
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '6px 0',
+                      borderBottom: '1px solid #FFFFFF'
+                    }}>
+                      <span style={{ fontSize: '12px', fontWeight: 500 }}>
+                        {String(t('documents.subtotalHT'))} (Net)
+                      </span>
+                      <span style={{ fontSize: '12px', fontWeight: 700 }}>
+                        {formatMADFull(totals.subtotal)}
+                      </span>
+                    </div>
+                  )}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px 0 0 0',
+                    marginTop: '5px',
+                    borderTop: ((totals.discountAmount || 0) > 0) ? 'none' : '1px solid #FFFFFF'
                   }}>
-                    GRAND TOTAL
-                  </span>
-                  <span style={{
-                    fontSize: '14px',
-                    fontWeight: 700,
-                    letterSpacing: '0.02em',
-                    lineHeight: '1.4',
-                    fontVariantNumeric: 'tabular-nums'
-                  }}>
-                    {formatMADFull(totals.subtotal)}
-                  </span>
-                </div>
+                    <span style={{
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      letterSpacing: '0.02em',
+                      lineHeight: '1.4'
+                    }}>
+                      GRAND TOTAL
+                    </span>
+                    <span style={{
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      letterSpacing: '0.02em',
+                      lineHeight: '1.4',
+                      fontVariantNumeric: 'tabular-nums'
+                    }}>
+                      {formatMADFull(totals.subtotal)}
+                    </span>
+                  </div>
+                </>
               )}
             </div>
           </div>

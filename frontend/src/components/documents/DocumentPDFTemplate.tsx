@@ -325,6 +325,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
   //   - delivery_note: show VAT UNLESS taxEnabled is explicitly false
   //     (undefined/null/true all mean "show tax" — tax is ON by default)
   const showVAT = type === 'invoice' || type === 'estimate' || type === 'credit_note' || type === 'prelevement'
+    || type === 'purchase_order' || type === 'purchase_delivery_note'
     || (type === 'delivery_note' && taxEnabled !== false);
 
   // Auto-scale layout to fit everything on one page
@@ -622,7 +623,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
               )}
               {showVAT && (
                 <View style={[styles.tableHeaderCell, { flex: 1.0, width: ((totals.discountAmount || 0) > 0) ? '10%' : '12%', textAlign: 'center' }]}>
-                  <Text>{String(t('pdf.tax'))}</Text>
+                  <Text>TVA</Text>
                 </View>
               )}
               <View style={[styles.tableHeaderCell, { flex: 1.5, width: (showVAT && (totals.discountAmount || 0) > 0) ? '15%' : (showVAT || (totals.discountAmount || 0) > 0) ? '23%' : '35%', textAlign: 'right' }]}>
@@ -678,11 +679,11 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                     )}
                     {showVAT && (
                       <View style={[styles.tableCell, styles.tableCellCenter, { flex: 1.0, width: ((totals.discountAmount || 0) > 0) ? '10%' : '12%' }]}>
-                        <Text wrap={false}>{formatMADFull(itemTaxAmount)}</Text>
+                        <Text wrap={false}>{showVAT ? `${Math.round(VAT_RATE * 100)}%` : '-'}</Text>
                       </View>
                     )}
                     <View style={[styles.tableCell, styles.tableCellRight, styles.tableCellBold, { flex: 1.5, width: (showVAT && (totals.discountAmount || 0) > 0) ? '15%' : (showVAT || (totals.discountAmount || 0) > 0) ? '23%' : '35%' }]}>
-                      <Text wrap={false}>{formatMADFull(itemTotalAfterTax)}</Text>
+                      <Text wrap={false}>{formatMADFull(itemNetHT)}</Text>
                     </View>
                   </View>
                 );
@@ -794,6 +795,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                   </View>
                 </>
               )}
+              {/* For purchase_order and purchase_delivery_note: always show HT subtotal + TVA breakdown even though showVAT was added above — handled by showVAT block */}
             </View>
           </View>
 
