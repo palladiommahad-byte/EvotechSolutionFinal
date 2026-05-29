@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, TrendingUp, FileText, Download, Users, Package, Receipt, FileCheck, Calculator, Trash2, Send, FileX, Eye, Edit, Check, FileSpreadsheet, ChevronDown, Printer, CheckSquare, ArrowRightLeft } from 'lucide-react';
+import { Plus, Search, TrendingUp, FileText, Download, Users, Package, Receipt, FileCheck, Calculator, Trash2, Send, FileX, Eye, Edit, Check, FileSpreadsheet, ChevronDown, Printer, CheckSquare, ArrowRightLeft, Copy } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -158,6 +158,7 @@ export const Sales = () => {
 
   const [viewingDocument, setViewingDocument] = useState<SalesDocument | null>(null);
   const [editingDocument, setEditingDocument] = useState<SalesDocument | null>(null);
+  const [isDuplicating, setIsDuplicating] = useState<boolean>(false);
   const [editFormData, setEditFormData] = useState<Partial<SalesDocument>>({});
   const [editItems, setEditItems] = useState<SalesItem[]>([]);
   const [deletingDocument, setDeletingDocument] = useState<SalesDocument | null>(null);
@@ -388,6 +389,45 @@ export const Sales = () => {
     }
   };
 
+  const handleBulkDuplicate = async () => {
+    if (selectedDocuments.size === 0) return;
+
+    if (selectedDocuments.size > 1) {
+      toast({
+        title: 'Sélection multiple',
+        description: 'Veuillez sélectionner un seul document à dupliquer pour pouvoir le modifier.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const doc = getCurrentDocuments().find(d => selectedDocuments.has(d.id));
+    if (!doc) return;
+
+    setIsDuplicating(true);
+    setEditingDocument(doc);
+
+    const docItems = Array.isArray(doc.items) && doc.items.length > 0
+      ? doc.items.map(item => ({
+          ...item,
+          id: crypto.randomUUID(),
+          quantity: parseFloat(String(item.quantity)) || 0,
+          unitPrice: parseFloat(String(item.unitPrice || item.unit_price)) || 0,
+          total: parseFloat(String(item.total)) || 0,
+        }))
+      : [{ id: `new-${Date.now()}`, description: '', quantity: 1, unitPrice: 0, total: 0 }];
+
+    setEditItems(docItems);
+    setEditFormData({
+      client: doc.client,
+      date: new Date().toISOString().split('T')[0],
+      status: doc.type === 'invoice' || doc.type === 'estimate' ? 'draft' : 'pending',
+      paymentMethod: doc.paymentMethod,
+      taxEnabled: doc.taxEnabled,
+      amount_paid: 0,
+    });
+  };
+
   const handleBulkDelete = async () => {
     if (selectedDocuments.size === 0) return;
 
@@ -590,28 +630,76 @@ export const Sales = () => {
       }
 
       // Update in database (except statements which are mock)
-      switch (editingDocument.type) {
-        case 'delivery_note':
-          await updateDeliveryNote(editingDocument.id, updateData);
-          break;
-        case 'divers':
-          await updateDivers(editingDocument.id, updateData);
-          break;
-        case 'invoice':
-          await updateInvoice(editingDocument.id, updateData);
-          break;
-        case 'estimate':
-          await updateEstimate(editingDocument.id, updateData);
-          break;
-        case 'credit_note':
-          await updateCreditNote(editingDocument.id, updateData);
-          break;
-        case 'statement':
-          // Statements feature not implemented
-          break;
+      if (isDuplicating) {
+        const createData: Omit<SalesDocument, 'id' | 'type'> = {
+          ...editingDocument,
+          ...updateData,
+          documentId: '',
+          status: updateData.status || 'draft',
+          invoice_id: null,
+          linked_bls: [],
+          billing_status: 'not_invoiced',
+        };
+
+        if (!updateData.amount_paid) (createData as any).amount_paid = 0;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete (createData as any)._internalId;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete (createData as any).id;
+
+        switch (editingDocument.type) {
+          case 'delivery_note':
+            await createDeliveryNote(createData);
+            break;
+          case 'divers':
+            await createDivers(createData);
+            break;
+          case 'invoice':
+            await createInvoice(createData);
+            break;
+          case 'estimate':
+            await createEstimate(createData);
+            break;
+          case 'credit_note':
+            await createCreditNote(createData);
+            break;
+          case 'prelevement':
+            await createPrelevement(createData);
+            break;
+        }
+
+        toast({
+          title: t('documents.documentsDuplicated') || 'Document Duplicated',
+          description: t('documents.duplicatedSuccessfully') || 'Successfully duplicated the document.',
+          variant: 'success',
+        });
+        setSelectedDocuments(new Set());
+      } else {
+        switch (editingDocument.type) {
+          case 'delivery_note':
+            await updateDeliveryNote(editingDocument.id, updateData);
+            break;
+          case 'divers':
+            await updateDivers(editingDocument.id, updateData);
+            break;
+          case 'invoice':
+            await updateInvoice(editingDocument.id, updateData);
+            break;
+          case 'estimate':
+            await updateEstimate(editingDocument.id, updateData);
+            break;
+          case 'credit_note':
+            await updateCreditNote(editingDocument.id, updateData);
+            break;
+          case 'statement':
+            // Statements feature not implemented
+            break;
+        }
       }
 
       setEditingDocument(null);
+      setIsDuplicating(false);
       setEditFormData({});
       setEditItems([]);
     } catch (error) {
@@ -2090,6 +2178,10 @@ export const Sales = () => {
                         <Receipt className="w-4 h-4" />
                         Créer Facture
                       </Button>
+                      <Button variant="outline" size="sm" onClick={handleBulkDuplicate} className="gap-2">
+                        <Copy className="w-4 h-4" />
+                        Duplicate Selected
+                      </Button>
                       <Button variant="outline" size="sm" onClick={handleBulkDelete} className="gap-2">
                         <Trash2 className="w-4 h-4" />
                         Delete Selected
@@ -2651,6 +2743,10 @@ export const Sales = () => {
                       {selectedDocuments.size} document{selectedDocuments.size > 1 ? 's' : ''} selected
                     </span>
                     <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleBulkDuplicate} className="gap-2">
+                        <Copy className="w-4 h-4" />
+                        Duplicate Selected
+                      </Button>
                       <Button variant="outline" size="sm" onClick={handleBulkDelete} className="gap-2">
                         <Trash2 className="w-4 h-4" />
                         Delete Selected
@@ -2868,6 +2964,10 @@ export const Sales = () => {
                       {selectedDocuments.size} document{selectedDocuments.size > 1 ? 's' : ''} selected
                     </span>
                     <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleBulkDuplicate} className="gap-2">
+                        <Copy className="w-4 h-4" />
+                        Duplicate Selected
+                      </Button>
                       <Button variant="outline" size="sm" onClick={handleBulkDelete} className="gap-2">
                         <Trash2 className="w-4 h-4" />
                         Delete Selected
@@ -3309,6 +3409,10 @@ export const Sales = () => {
                       {selectedDocuments.size} document{selectedDocuments.size > 1 ? 's' : ''} selected
                     </span>
                     <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleBulkDuplicate} className="gap-2">
+                        <Copy className="w-4 h-4" />
+                        Duplicate Selected
+                      </Button>
                       <Button variant="outline" size="sm" onClick={handleBulkDelete} className="gap-2">
                         <Trash2 className="w-4 h-4" />
                         Delete Selected
@@ -3719,6 +3823,10 @@ export const Sales = () => {
                       {selectedDocuments.size} document{selectedDocuments.size > 1 ? 's' : ''} selected
                     </span>
                     <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleBulkDuplicate} className="gap-2">
+                        <Copy className="w-4 h-4" />
+                        Duplicate Selected
+                      </Button>
                       <Button variant="outline" size="sm" onClick={handleBulkDelete} className="gap-2">
                         <Trash2 className="w-4 h-4" />
                         Delete Selected
@@ -4117,6 +4225,10 @@ export const Sales = () => {
                       {selectedDocuments.size} document{selectedDocuments.size > 1 ? 's' : ''} selected
                     </span>
                     <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleBulkDuplicate} className="gap-2">
+                        <Copy className="w-4 h-4" />
+                        Duplicate Selected
+                      </Button>
                       <Button variant="outline" size="sm" onClick={handleBulkDelete} className="gap-2">
                         <Trash2 className="w-4 h-4" />
                         Delete Selected
@@ -4855,16 +4967,16 @@ export const Sales = () => {
       </Dialog >
 
       {/* Edit Document Dialog */}
-      <Dialog open={!!editingDocument} onOpenChange={(open) => { if (!open) { setEditingDocument(null); setEditFormData({}); setEditItems([]); } }}>
+      <Dialog open={!!editingDocument} onOpenChange={(open) => { if (!open) { setEditingDocument(null); setIsDuplicating(false); setEditFormData({}); setEditItems([]); } }}>
         <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
           {editingDocument && (
             <>
               <DialogHeader className="pb-2 border-b border-border">
                 <DialogTitle className="flex items-center gap-2 text-lg">
-                  <Edit className="w-5 h-5 text-primary" />
-                  Modifier {getDocumentTitle()}
+                  {isDuplicating ? <Copy className="w-5 h-5 text-primary" /> : <Edit className="w-5 h-5 text-primary" />}
+                  {isDuplicating ? 'Dupliquer' : 'Modifier'} {getDocumentTitle()}
                 </DialogTitle>
-                <DialogDescription className="font-mono text-sm">Document #{editingDocument.id}</DialogDescription>
+                <DialogDescription className="font-mono text-sm">{isDuplicating ? 'Nouveau Document' : `Document #${editingDocument.id}`}</DialogDescription>
               </DialogHeader>
 
               <div className="space-y-6 py-4">
@@ -5112,6 +5224,7 @@ export const Sales = () => {
               <DialogFooter className="border-t border-border pt-4 mt-2">
                 <Button variant="outline" onClick={() => {
                   setEditingDocument(null);
+                  setIsDuplicating(false);
                   setEditFormData({});
                   setEditItems([]);
                 }}>

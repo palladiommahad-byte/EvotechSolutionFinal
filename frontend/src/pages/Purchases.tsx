@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, ShoppingCart, FileText, Download, Package, Receipt, FileCheck, Calculator, Trash2, Send, Eye, Edit, Check, FileSpreadsheet, ChevronDown, Printer, TrendingUp, CheckSquare, FileX, Upload, Image as ImageIcon, FilePlus, Paperclip, ChevronsUpDown, X } from 'lucide-react';
+import { Plus, Search, ShoppingCart, FileText, Download, Package, Receipt, FileCheck, Calculator, Trash2, Send, Eye, Edit, Check, FileSpreadsheet, ChevronDown, Printer, TrendingUp, CheckSquare, FileX, Upload, Image as ImageIcon, FilePlus, Paperclip, ChevronsUpDown, X, Copy } from 'lucide-react';
 import { exportStyledExcel } from '@/lib/styled-export';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -141,6 +141,7 @@ export const Purchases = () => {
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
   const [viewingDocument, setViewingDocument] = useState<PurchaseDocument | null>(null);
   const [editingDocument, setEditingDocument] = useState<PurchaseDocument | null>(null);
+  const [isDuplicating, setIsDuplicating] = useState<boolean>(false);
   const [editFormData, setEditFormData] = useState<Partial<PurchaseDocument>>({});
   const [editItems, setEditItems] = useState<any[]>([]);
   const [deletingDocument, setDeletingDocument] = useState<PurchaseDocument | null>(null);
@@ -341,6 +342,42 @@ export const Purchases = () => {
       // Error toast is handled by the context
     }
   };
+  const handleBulkDuplicate = async () => {
+    if (selectedDocuments.size === 0) return;
+
+    if (selectedDocuments.size > 1) {
+      toast({
+        title: 'Multiple Selection',
+        description: 'Please select only one document to duplicate at a time.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const doc = getCurrentDocuments().find(d => selectedDocuments.has(d.id));
+    if (!doc) return;
+
+    setIsDuplicating(true);
+    setEditingDocument(doc);
+
+    const docItems = Array.isArray(doc.items) && doc.items.length > 0
+      ? doc.items.map(item => ({
+          ...item,
+          id: crypto.randomUUID(),
+          quantity: parseFloat(String(item.quantity)) || 0,
+          unitPrice: parseFloat(String(item.unitPrice || item.unit_price)) || 0,
+          total: parseFloat(String(item.total)) || 0,
+        }))
+      : [{ id: `new-${Date.now()}`, description: '', quantity: 1, unitPrice: 0, total: 0 }];
+
+    setEditItems(docItems);
+    setEditFormData({
+      supplier: doc.supplier,
+      date: new Date().toISOString().split('T')[0],
+      status: doc.type === 'invoice' || doc.type === 'purchase_order' ? 'draft' : 'pending',
+      amount_paid: 0,
+    });
+  };;
 
   const handleBulkDelete = async () => {
     if (selectedDocuments.size === 0) return;
@@ -508,23 +545,58 @@ export const Purchases = () => {
       };
 
       // Update in database (except statements which are mock)
-      switch (editingDocument.type) {
-        case 'purchase_order':
-          await updatePurchaseOrder(editingDocument.id, updateData);
-          break;
-        case 'delivery_note':
-          await updateDeliveryNote(editingDocument.id, updateData);
-          break;
-        case 'invoice':
-          await updatePurchaseInvoice(editingDocument.id, updateData);
-          break;
-        case 'statement':
-          // Statements feature not implemented
-          break;
-          break;
+      if (isDuplicating) {
+        const createData: Omit<PurchaseDocument, 'id' | 'type'> = {
+          ...editingDocument,
+          ...updateData,
+          documentId: '', // Auto-generate
+          status: updateData.status || 'draft',
+          delivery_note_id: undefined,
+          amount_paid: updateData.amount_paid || 0,
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete (createData as any)._internalId;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete (createData as any).id;
+
+        switch (editingDocument.type) {
+          case 'purchase_order':
+            await createPurchaseOrder(createData);
+            break;
+          case 'delivery_note':
+            await createDeliveryNote(createData);
+            break;
+          case 'invoice':
+            await createPurchaseInvoice(createData);
+            break;
+        }
+
+        toast({
+          title: 'Document Duplicated',
+          description: 'Successfully duplicated the document.',
+          variant: 'success',
+        });
+        setSelectedDocuments(new Set());
+      } else {
+        switch (editingDocument.type) {
+          case 'purchase_order':
+            await updatePurchaseOrder(editingDocument.id, updateData);
+            break;
+          case 'delivery_note':
+            await updateDeliveryNote(editingDocument.id, updateData);
+            break;
+          case 'invoice':
+            await updatePurchaseInvoice(editingDocument.id, updateData);
+            break;
+          case 'statement':
+            // Statements feature not implemented
+            break;
+        }
       }
 
       setEditingDocument(null);
+      setIsDuplicating(false);
       setEditFormData({});
     } catch (error) {
       console.error('Error updating document:', error);
@@ -1695,6 +1767,10 @@ export const Purchases = () => {
                       {t('documents.documentsSelected', { count: selectedDocuments.size })}
                     </span>
                     <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleBulkDuplicate} className="gap-2">
+                        <Copy className="w-4 h-4" />
+                        {t('documents.duplicateSelected') || 'Duplicate Selected'}
+                      </Button>
                       <Button variant="outline" size="sm" onClick={handleBulkDelete} className="gap-2">
                         <Trash2 className="w-4 h-4" />
                         {t('documents.deleteSelected')}
@@ -2206,6 +2282,10 @@ export const Purchases = () => {
                       {t('documents.documentsSelected', { count: selectedDocuments.size })}
                     </span>
                     <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleBulkDuplicate} className="gap-2">
+                        <Copy className="w-4 h-4" />
+                        {t('documents.duplicateSelected') || 'Duplicate Selected'}
+                      </Button>
                       <Button variant="outline" size="sm" onClick={handleBulkDelete} className="gap-2">
                         <Trash2 className="w-4 h-4" />
                         {t('documents.deleteSelected')}
@@ -2809,6 +2889,10 @@ export const Purchases = () => {
                       {t('documents.documentsSelected', { count: selectedDocuments.size })}
                     </span>
                     <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleBulkDuplicate} className="gap-2">
+                        <Copy className="w-4 h-4" />
+                        {t('documents.duplicateSelected') || 'Duplicate Selected'}
+                      </Button>
                       <Button variant="outline" size="sm" onClick={handleBulkDelete} className="gap-2">
                         <Trash2 className="w-4 h-4" />
                         {t('documents.deleteSelected')}
@@ -3536,13 +3620,16 @@ export const Purchases = () => {
       </Dialog>
 
       {/* Edit Document Dialog */}
-      <Dialog open={!!editingDocument} onOpenChange={(open) => { if (!open) { setEditingDocument(null); setEditFormData({}); setEditItems([]); } }}>
+      <Dialog open={!!editingDocument} onOpenChange={(open) => { if (!open) { setEditingDocument(null); setIsDuplicating(false); setEditFormData({}); setEditItems([]); } }}>
         <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
           {editingDocument && (
             <>
               <DialogHeader>
-                <DialogTitle>Edit {getDocumentTitle()}</DialogTitle>
-                <DialogDescription>Document #{editingDocument.id}</DialogDescription>
+                <DialogTitle className="flex items-center gap-2">
+                  {isDuplicating ? <Copy className="w-5 h-5 text-primary" /> : <Edit className="w-5 h-5 text-primary" />}
+                  {isDuplicating ? 'Duplicate' : 'Edit'} {getDocumentTitle()}
+                </DialogTitle>
+                <DialogDescription>{isDuplicating ? 'New Document' : `Document #${editingDocument.id}`}</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -3746,6 +3833,7 @@ export const Purchases = () => {
               <DialogFooter>
                 <Button variant="outline" onClick={() => {
                   setEditingDocument(null);
+                  setIsDuplicating(false);
                   setEditFormData({});
                   setEditItems([]);
                 }}>Cancel</Button>
