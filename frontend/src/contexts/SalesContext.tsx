@@ -625,6 +625,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['sales', 'deliveryNotes'] });
       toast({ title: 'Invoice deleted successfully', variant: 'success' });
     },
     onError: (error: Error) => {

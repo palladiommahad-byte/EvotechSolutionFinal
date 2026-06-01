@@ -998,12 +998,6 @@ router.delete('/:id', asyncHandler(async (req, res) => {
         }
 
         await client.query('DELETE FROM invoice_items WHERE invoice_id = $1', [id]);
-        const result = await client.query('DELETE FROM invoices WHERE id = $1 RETURNING id', [id]);
-        await client.query('COMMIT');
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Not Found', message: 'Invoice not found' });
-        }
 
         // Also unlink any BLs that were attached to this invoice
         await client.query(
@@ -1016,6 +1010,15 @@ router.delete('/:id', asyncHandler(async (req, res) => {
         );
         // Delete pivot rows
         await client.query('DELETE FROM invoice_bls WHERE invoice_id = $1', [id]);
+
+        const result = await client.query('DELETE FROM invoices WHERE id = $1 RETURNING id', [id]);
+        
+        if (result.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Not Found', message: 'Invoice not found' });
+        }
+
+        await client.query('COMMIT');
 
         res.status(204).send();
     } catch (error) {

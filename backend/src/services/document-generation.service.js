@@ -80,27 +80,16 @@ async function generateDocumentNumber(type, date = new Date()) {
     return `${baseId}${serial}`;
 }
 
-/**
- * Generates a safe, unique invoice number using a row-locked sequence table.
- * This is the ONLY correct way to generate invoice numbers in this system.
- *
- * MUST be called inside an active database transaction (pass the pg client).
- * Uses SELECT ... FOR UPDATE to prevent race conditions under concurrent requests.
- *
- * @param {object} pgClient - An active pg transaction client (from getClient())
- * @param {Date}   date     - The invoice date (used to determine month/year portion)
- * @returns {Promise<string>} e.g. "FC-04/26/0001"
- */
 async function generateInvoiceNumberSafe(pgClient, date = new Date()) {
     const d = new Date(date);
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year  = String(d.getFullYear()).slice(-2); // YY
-    const currentMonthYear = `${month}/${year}`;
+    const baseId = `FC-${month}/${year}/`;
 
-    // Row-lock the invoice sequence row. No other concurrent transaction can
-    // read or update this row until our transaction commits or rolls back.
+    // Row-lock the invoice sequence row to act as a global mutex for invoice generation.
+    // This prevents race conditions when generating invoices concurrently.
     const seqResult = await pgClient.query(
-        `SELECT last_month_year, last_seq
+        `SELECT 1
            FROM document_sequences
           WHERE doc_type = 'invoice'
           FOR UPDATE`,
@@ -114,28 +103,29 @@ async function generateInvoiceNumberSafe(pgClient, date = new Date()) {
         );
     }
 
-    const row = seqResult.rows[0];
-    let nextSeq;
-
-    if (row.last_month_year === currentMonthYear) {
-        // Same month/year → just increment
-        nextSeq = row.last_seq + 1;
-    } else {
-        // New month → reset counter from 1
-        nextSeq = 1;
-    }
-
-    // Persist the new sequence state
-    await pgClient.query(
-        `UPDATE document_sequences
-            SET last_month_year = $1,
-                last_seq        = $2
-          WHERE doc_type = 'invoice'`,
-        [currentMonthYear, nextSeq]
+    // Now safely determine the max ID for this specific month/year
+    const result = await pgClient.query(
+        `SELECT document_id FROM invoices 
+         WHERE document_id LIKE $1 
+         ORDER BY document_id DESC LIMIT 1`,
+        [`${baseId}%`]
     );
 
+    let nextSeq = 1;
+    if (result.rows.length > 0) {
+        const lastId = result.rows[0].document_id;
+        const parts = lastId.split('/');
+        if (parts.length === 3) {
+            const serialPart = parts[2]; // NNNN
+            const lastSerial = parseInt(serialPart, 10);
+            if (!isNaN(lastSerial)) {
+                nextSeq = lastSerial + 1;
+            }
+        }
+    }
+
     const serial = String(nextSeq).padStart(4, '0');
-    return `FC${month}${year}/${serial}`;
+    return `${baseId}${serial}`;
 }
 
 module.exports = {
