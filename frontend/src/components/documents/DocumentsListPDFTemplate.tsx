@@ -34,7 +34,7 @@ try {
 const styles = StyleSheet.create({
     page: {
         padding: '10px 40px 40px 40px',
-        fontSize: 10,
+        fontSize: 13,
         fontFamily: 'Helvetica',
         color: '#1F2937',
         lineHeight: 1.5,
@@ -61,14 +61,14 @@ const styles = StyleSheet.create({
         objectFit: 'contain',
     },
     companyName: {
-        fontSize: 14,
+        fontSize: 18,
         fontWeight: 700,
         color: '#111827',
         fontFamily: 'Helvetica-Bold',
         marginBottom: 4,
     },
     reportTitle: {
-        fontSize: 20,
+        fontSize: 25,
         fontWeight: 700,
         color: '#3b82f6',
         textAlign: 'right',
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
     },
     metaText: {
-        fontSize: 9,
+        fontSize: 11,
         color: '#6B7280',
     },
     table: {
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     },
     tableHeaderCell: {
         color: '#FFFFFF',
-        fontSize: 9,
+        fontSize: 11,
         fontWeight: 700,
         fontFamily: 'Helvetica-Bold',
         textTransform: 'uppercase',
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#F9FAFB',
     },
     tableCell: {
-        fontSize: 9,
+        fontSize: 11,
         color: '#374151',
     },
     // Column Widths
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     statusBadge: {
         padding: '2px 6px',
         borderRadius: 4,
-        fontSize: 8,
+        fontSize: 10,
         fontWeight: 700,
         textAlign: 'center',
     },
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     footerText: {
-        fontSize: 8,
+        fontSize: 10,
         color: '#9CA3AF',
         textAlign: 'center',
     },
@@ -172,10 +172,10 @@ const styles = StyleSheet.create({
     summaryLabel: {
         fontWeight: 700,
         fontFamily: 'Helvetica-Bold',
-        fontSize: 9,
+        fontSize: 11,
     },
     summaryValue: {
-        fontSize: 9,
+        fontSize: 11,
     }
 });
 
@@ -222,8 +222,8 @@ export const DocumentsListPDFTemplate: React.FC<DocumentsListPDFTemplateProps> =
                         )}
                         <View>
                             <Text style={styles.companyName}>{(companyInfo.name || 'COMPANY NAME').toUpperCase()}</Text>
-                            <Text style={{ fontSize: 9, color: '#6B7280' }}>{companyInfo.email}</Text>
-                            <Text style={{ fontSize: 9, color: '#6B7280' }}>{companyInfo.phone}</Text>
+                            <Text style={{ fontSize: 11, color: '#6B7280' }}>{companyInfo.email}</Text>
+                            <Text style={{ fontSize: 11, color: '#6B7280' }}>{companyInfo.phone}</Text>
                         </View>
                     </View>
 

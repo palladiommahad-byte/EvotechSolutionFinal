@@ -55,7 +55,7 @@ const createStyles = (scale: number) => {
     paddingRight: 56,
     paddingBottom: 42,
     paddingLeft: 56,
-    fontSize: 12,
+    fontSize: 15,
     fontFamily: 'Helvetica',
     color: '#1F2937',
     lineHeight: scale < 0.85 ? 1.2 : 1.6,
@@ -96,7 +96,7 @@ const createStyles = (scale: number) => {
     flexShrink: 0,
   },
   companyName: {
-    fontSize: s(14),
+    fontSize: s(18),
     fontWeight: 700,
     color: '#111827',
     marginBottom: s(4),
@@ -105,7 +105,7 @@ const createStyles = (scale: number) => {
     letterSpacing: -0.01,
   },
   website: {
-    fontSize: s(9),
+    fontSize: s(11),
     color: '#6B7280',
     textTransform: 'uppercase',
     marginBottom: 0,
@@ -113,7 +113,7 @@ const createStyles = (scale: number) => {
     letterSpacing: 0.03,
   },
   documentTitle: {
-    fontSize: s(26),
+    fontSize: s(33),
     fontWeight: 700,
     color: '#3b82f6',
     marginBottom: s(10),
@@ -132,13 +132,13 @@ const createStyles = (scale: number) => {
     marginBottom: 0,
   },
   invoiceDetailLabel: {
-    fontSize: s(8),
+    fontSize: s(10),
     fontWeight: 600,
     color: '#FFFFFF',
     letterSpacing: 0.01,
   },
   invoiceDetailValue: {
-    fontSize: s(8),
+    fontSize: s(10),
     fontWeight: 700,
     color: '#FFFFFF',
   },
@@ -147,7 +147,7 @@ const createStyles = (scale: number) => {
     marginBottom: s(8),
   },
   invoiceToLabel: {
-    fontSize: s(8),
+    fontSize: s(10),
     fontWeight: 700,
     color: '#374151',
     marginBottom: s(3),
@@ -162,7 +162,7 @@ const createStyles = (scale: number) => {
     border: '1px solid #E5E7EB',
   },
   clientName: {
-    fontSize: s(8),
+    fontSize: s(15),
     fontWeight: 600,
     color: '#111827',
     lineHeight: 1.3,
@@ -179,7 +179,7 @@ const createStyles = (scale: number) => {
   },
   tableHeaderCell: {
     padding: `${s(5)}px ${s(6)}px`,
-    fontSize: s(7),
+    fontSize: s(9),
     fontWeight: 700,
     color: '#FFFFFF',
     textTransform: 'uppercase',
@@ -192,7 +192,7 @@ const createStyles = (scale: number) => {
   },
   tableCell: {
     padding: `${s(4)}px ${s(6)}px`,
-    fontSize: s(8),
+    fontSize: s(10),
     color: '#374151',
     lineHeight: 1.2,
     flexWrap: 'nowrap',
@@ -235,21 +235,21 @@ const createStyles = (scale: number) => {
     borderTop: '1px solid #FFFFFF',
   },
   summaryText: {
-    fontSize: s(9),
+    fontSize: s(11),
     color: '#FFFFFF',
     fontWeight: 500,
     letterSpacing: 0.01,
     lineHeight: 1.3,
   },
   summaryTextBold: {
-    fontSize: s(9),
+    fontSize: s(11),
     color: '#FFFFFF',
     fontWeight: 700,
     letterSpacing: 0.01,
     lineHeight: 1.3,
   },
   summaryTotalText: {
-    fontSize: s(11),
+    fontSize: s(14),
     color: '#FFFFFF',
     fontWeight: 700,
     letterSpacing: 0.02,
@@ -259,7 +259,7 @@ const createStyles = (scale: number) => {
     marginBottom: s(10),
   },
   sectionLabel: {
-    fontSize: s(10),
+    fontSize: s(13),
     fontWeight: 700,
     color: '#374151',
     marginBottom: s(6),
@@ -268,21 +268,21 @@ const createStyles = (scale: number) => {
     lineHeight: 1.4,
   },
   sectionText: {
-    fontSize: s(11),
+    fontSize: s(14),
     color: '#374151',
     marginBottom: 0,
     fontWeight: 600,
     lineHeight: 1.5,
   },
   thankYou: {
-    fontSize: s(11),
+    fontSize: s(14),
     color: '#374151',
     fontWeight: 500,
     marginBottom: s(16),
     lineHeight: 1.6,
   },
   terms: {
-    fontSize: s(9),
+    fontSize: s(11),
     color: '#6B7280',
     lineHeight: 1.7,
     marginBottom: s(20),
@@ -351,10 +351,10 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
   // Calculate font size based on text length - smaller for longer text
   const getTitleFontSize = (text: string): number => {
     const length = text.length;
-    if (length <= 8) return 28;      // Short: INVOICE (7), DEVIS (5)
-    if (length <= 15) return 24;     // Medium: BON DE COMMANDE (15)
-    if (length <= 18) return 20;     // Long: BON DE LIVRAISON (17)
-    return 18;                        // Very long: fallback
+    if (length <= 8) return 35;      // Short: INVOICE (7), DEVIS (5)
+    if (length <= 15) return 30;     // Medium: BON DE COMMANDE (15)
+    if (length <= 18) return 25;     // Long: BON DE LIVRAISON (17)
+    return 23;                        // Very long: fallback
   };
 
   const paymentMethodText: Record<string, string> = {
@@ -491,10 +491,10 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                       {(clientData || supplierData) ? (
                         <View>
                           <Text style={styles.clientName}>
-                            {clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '-'}
-                            {(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 8, color: '#475569', fontWeight: 'normal' }}>   {String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
-                          </Text>
-                          <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
+  {clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '-'}
+</Text>
+{(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
+                          <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
                             {(clientData?.phone || supplierData?.phone) ? <Text>{String(t('pdf.phone'))}: {clientData?.phone || supplierData?.phone}    </Text> : null}
                             {(clientData?.address || supplierData?.address) ? <Text>{clientData?.address || supplierData?.address}</Text> : null}
                           </Text>
@@ -507,10 +507,10 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                     /* For Sales Invoice/Others: Sender is Company (Us) */
                     <View>
                       <Text style={styles.clientName}>
-                        {(companyInfo.name || 'COMPANY NAME').toUpperCase()}
-                        {companyInfo.ice ? <Text style={{ fontSize: 8, color: '#475569', fontWeight: 'normal' }}>   {String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
-                      </Text>
-                      <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
+  {(companyInfo.name || 'COMPANY NAME').toUpperCase()}
+</Text>
+{companyInfo.ice ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
+                      <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
                         {companyInfo.phone ? <Text>{String(t('pdf.phone'))}: {companyInfo.phone}    </Text> : null}
                         {companyInfo.address ? <Text>{companyInfo.address}</Text> : null}
                       </Text>
@@ -531,10 +531,10 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                     /* For Purchase Invoice/Delivery Note: Recipient is Company (Us) */
                     <View>
                       <Text style={styles.clientName}>
-                        {(companyInfo.name || 'COMPANY NAME').toUpperCase()}
-                        {companyInfo.ice ? <Text style={{ fontSize: 8, color: '#475569', fontWeight: 'normal' }}>   {String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
-                      </Text>
-                      <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
+  {(companyInfo.name || 'COMPANY NAME').toUpperCase()}
+</Text>
+{companyInfo.ice ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
+                      <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
                         {companyInfo.phone ? <Text>{String(t('pdf.phone'))}: {companyInfo.phone}    </Text> : null}
                         {companyInfo.address ? <Text>{companyInfo.address}</Text> : null}
                       </Text>
@@ -546,10 +546,10 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                       {(clientData || supplierData) ? (
                         <View>
                           <Text style={styles.clientName}>
-                            {clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '-'}
-                            {(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 8, color: '#475569', fontWeight: 'normal' }}>   {String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
-                          </Text>
-                          <Text style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>
+  {clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '-'}
+</Text>
+{(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
+                          <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
                             {(clientData?.phone || supplierData?.phone) ? <Text>{String(t('pdf.phone'))}: {clientData?.phone || supplierData?.phone}    </Text> : null}
                             {(clientData?.address || supplierData?.address) ? <Text>{clientData?.address || supplierData?.address}</Text> : null}
                           </Text>
@@ -577,7 +577,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
               wrap={false}
             >
               <Text style={{
-                fontSize: 9,
+                fontSize: 11,
                 fontFamily: 'Helvetica-Bold',
                 color: primaryColor,
                 marginRight: 6,
@@ -587,7 +587,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                 Bon de commande client :
               </Text>
               <Text style={{
-                fontSize: 10,
+                fontSize: 13,
                 fontFamily: 'Helvetica-Bold',
                 color: primaryColor,
                 letterSpacing: 0.02,
@@ -730,7 +730,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                 marginRight: 'auto',
               }}>
                 <Text style={{
-                  fontSize: 9,
+                  fontSize: 11,
                   fontWeight: 700,
                   color: '#374151',
                   marginBottom: 6,
@@ -740,7 +740,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                   {String(t('common.notes'))}
                 </Text>
                 <Text style={{
-                  fontSize: 10,
+                  fontSize: 13,
                   color: '#6B7280',
                   lineHeight: 1.5,
                 }}>
@@ -815,7 +815,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
         {/* Footer - Company Details - Absolutely pinned to page bottom */}
         <View style={styles.footer} fixed>
           <Text style={{
-            fontSize: 8,
+            fontSize: 10,
             color: '#6B7280',
             lineHeight: 1.4,
             textAlign: 'center',

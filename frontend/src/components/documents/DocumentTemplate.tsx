@@ -69,10 +69,10 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
   // Calculate font size based on text length - smaller for longer text
   const getTitleFontSize = (text: string): string => {
     const length = text.length;
-    if (length <= 8) return '28px';      // Short: INVOICE (7), DEVIS (5)
-    if (length <= 15) return '24px';     // Medium: BON DE COMMANDE (15)
-    if (length <= 18) return '20px';     // Long: BON DE LIVRAISON (17)
-    return '18px';                        // Very long: fallback
+    if (length <= 8) return '35px';      // Short: INVOICE (7), DEVIS (5)
+    if (length <= 15) return '30px';     // Medium: BON DE COMMANDE (15)
+    if (length <= 18) return '25px';     // Long: BON DE LIVRAISON (17)
+    return '23px';                        // Very long: fallback
   };
 
   const getDocumentLabel = () => {
@@ -194,7 +194,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                     <div style={{ flex: '1' }}>
                       <h1 style={{
                         fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
-                        fontSize: '16px',
+                        fontSize: '20px',
                         fontWeight: 700,
                         color: '#111827',
                         margin: '0 0 6px 0',
@@ -231,7 +231,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                   boxSizing: 'border-box',
                   minWidth: '100%'
                 }}>
-                  <div style={{ fontSize: '9px', color: '#FFFFFF', lineHeight: '1.2', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ fontSize: '11px', color: '#FFFFFF', lineHeight: '1.2', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <div>
                       <span style={{ fontWeight: 600, letterSpacing: '0.01em' }}>{String(t('pdf.documentNumber'))}: </span>
                       <span style={{ fontWeight: 700, color: '#FFFFFF' }}>{documentId}</span>
@@ -267,7 +267,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
               {/* Company Info Box - Left (40%) */}
               <div style={{ flex: '0 0 40%' }}>
                 <h3 style={{
-                  fontSize: '9px',
+                  fontSize: '11px',
                   fontWeight: 700,
                   color: '#374151',
                   marginBottom: '5px',
@@ -287,16 +287,16 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                     // For Purchase Invoices/Delivery Notes: From is Supplier
                     <>
                       <p style={{
-                        fontSize: '9px',
-                        fontWeight: 600,
-                        color: '#111827',
-                        margin: '0 0 3px 0',
-                        lineHeight: '1.3'
-                      }}>
-                        {contactName}
-                        {contactICE && <span style={{ fontSize: '8px', color: '#475569', fontWeight: 'normal' }}>   ICE: {contactICE}</span>}
-                      </p>
-                      <p style={{ fontSize: '8px', color: '#475569', margin: '0', lineHeight: '1.3' }}>
+  fontSize: '15px',
+  fontWeight: 600,
+  color: '#111827',
+  margin: '0',
+  lineHeight: '1.3'
+}}>
+  {contactName}
+</p>
+{contactICE && <p style={{ fontSize: '10px', color: '#475569', fontWeight: 'normal', margin: '0 0 3px 0' }}>ICE: {contactICE}</p>}
+                      <p style={{ fontSize: '10px', color: '#475569', margin: '0', lineHeight: '1.3' }}>
                         {contactPhone && <span>Tél: {contactPhone}    </span>}
                         {contactAddress && <span>{contactAddress}</span>}
                       </p>
@@ -305,16 +305,16 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                     // For Sales Docs: From is Company
                     <>
                       <p style={{
-                        fontSize: '9px',
-                        fontWeight: 600,
-                        color: '#111827',
-                        margin: '0 0 3px 0',
-                        lineHeight: '1.3'
-                      }}>
-                        {companyInfo.name || '-'}
-                        {companyInfo.ice && <span style={{ fontSize: '8px', color: '#475569', fontWeight: 'normal' }}>   ICE: {companyInfo.ice}</span>}
-                      </p>
-                      <p style={{ fontSize: '8px', color: '#475569', margin: '0', lineHeight: '1.3' }}>
+  fontSize: '15px',
+  fontWeight: 600,
+  color: '#111827',
+  margin: '0',
+  lineHeight: '1.3'
+}}>
+  {companyInfo.name || '-'}
+</p>
+{companyInfo.ice && <p style={{ fontSize: '10px', color: '#475569', fontWeight: 'normal', margin: '0 0 3px 0' }}>ICE: {companyInfo.ice}</p>}
+                      <p style={{ fontSize: '10px', color: '#475569', margin: '0', lineHeight: '1.3' }}>
                         {companyInfo.phone && <span>Tél: {companyInfo.phone}    </span>}
                         {companyInfo.address && <span>{companyInfo.address}</span>}
                       </p>
@@ -326,7 +326,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
               {/* Invoice To Box - Right (40%) */}
               <div style={{ flex: '0 0 40%' }}>
                 <h3 style={{
-                  fontSize: '9px',
+                  fontSize: '11px',
                   fontWeight: 700,
                   color: '#374151',
                   marginBottom: '5px',
@@ -348,16 +348,16 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                     // For Purchase Invoices/DN: To is Company
                     <>
                       <p style={{
-                        fontSize: '9px',
-                        fontWeight: 600,
-                        color: '#111827',
-                        margin: '0 0 3px 0',
-                        lineHeight: '1.3'
-                      }}>
-                        {companyInfo.name || '-'}
-                        {companyInfo.ice && <span style={{ fontSize: '8px', color: '#475569', fontWeight: 'normal' }}>   ICE: {companyInfo.ice}</span>}
-                      </p>
-                      <p style={{ fontSize: '8px', color: '#475569', margin: '0', lineHeight: '1.3' }}>
+  fontSize: '15px',
+  fontWeight: 600,
+  color: '#111827',
+  margin: '0',
+  lineHeight: '1.3'
+}}>
+  {companyInfo.name || '-'}
+</p>
+{companyInfo.ice && <p style={{ fontSize: '10px', color: '#475569', fontWeight: 'normal', margin: '0 0 3px 0' }}>ICE: {companyInfo.ice}</p>}
+                      <p style={{ fontSize: '10px', color: '#475569', margin: '0', lineHeight: '1.3' }}>
                         {companyInfo.phone && <span>Tél: {companyInfo.phone}    </span>}
                         {companyInfo.address && <span>{companyInfo.address}</span>}
                       </p>
@@ -366,16 +366,16 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                     // For Sales Docs: To is Client
                     <>
                       <p style={{
-                        fontSize: '9px',
-                        fontWeight: 600,
-                        color: '#111827',
-                        margin: '0 0 3px 0',
-                        lineHeight: '1.3'
-                      }}>
-                        {contactName}
-                        {contactICE && <span style={{ fontSize: '8px', color: '#475569', fontWeight: 'normal' }}>   ICE: {contactICE}</span>}
-                      </p>
-                      <p style={{ fontSize: '8px', color: '#475569', margin: '0', lineHeight: '1.3' }}>
+  fontSize: '15px',
+  fontWeight: 600,
+  color: '#111827',
+  margin: '0',
+  lineHeight: '1.3'
+}}>
+  {contactName}
+</p>
+{contactICE && <p style={{ fontSize: '10px', color: '#475569', fontWeight: 'normal', margin: '0 0 3px 0' }}>ICE: {contactICE}</p>}
+                      <p style={{ fontSize: '10px', color: '#475569', margin: '0', lineHeight: '1.3' }}>
                         {contactPhone && <span>Tél: {contactPhone}    </span>}
                         {contactAddress && <span>{contactAddress}</span>}
                       </p>
@@ -395,7 +395,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
               padding: '4px 0',
             }}>
               <span style={{
-                fontSize: '11px',
+                fontSize: '14px',
                 fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
                 fontWeight: 700,
                 color: skyBlue,
@@ -406,7 +406,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                 Bon de commande client :
               </span>
               <span style={{
-                fontSize: '12px',
+                fontSize: '15px',
                 fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
                 fontWeight: 700,
                 color: skyBlue,
@@ -433,7 +433,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                   <th style={{
                     padding: '6px 8px',
                     textAlign: 'left',
-                    fontSize: '8px',
+                    fontSize: '10px',
                     fontWeight: 700,
                     color: '#FFFFFF',
                     textTransform: 'uppercase',
@@ -447,7 +447,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                   <th style={{
                     padding: '6px 10px',
                     textAlign: 'left',
-                    fontSize: '8px',
+                    fontSize: '10px',
                     fontWeight: 700,
                     color: '#FFFFFF',
                     textTransform: 'uppercase',
@@ -461,7 +461,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                   <th style={{
                     padding: '6px 6px',
                     textAlign: 'center',
-                    fontSize: '8px',
+                    fontSize: '10px',
                     fontWeight: 700,
                     color: '#FFFFFF',
                     textTransform: 'uppercase',
@@ -475,7 +475,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                   <th style={{
                     padding: '6px 6px',
                     textAlign: 'center',
-                    fontSize: '8px',
+                    fontSize: '10px',
                     fontWeight: 700,
                     color: '#FFFFFF',
                     textTransform: 'uppercase',
@@ -489,7 +489,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                   <th style={{
                     padding: '6px 6px',
                     textAlign: 'center',
-                    fontSize: '8px',
+                    fontSize: '10px',
                     fontWeight: 700,
                     color: '#FFFFFF',
                     textTransform: 'uppercase',
@@ -504,7 +504,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                     <th style={{
                       padding: '6px 6px',
                       textAlign: 'center',
-                      fontSize: '8px',
+                      fontSize: '10px',
                       fontWeight: 700,
                       color: '#FFFFFF',
                       textTransform: 'uppercase',
@@ -519,7 +519,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                   <th style={{
                     padding: '6px 6px',
                     textAlign: 'center',
-                    fontSize: '8px',
+                    fontSize: '10px',
                     fontWeight: 700,
                     color: '#FFFFFF',
                     textTransform: 'uppercase',
@@ -533,7 +533,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                   <th style={{
                     padding: '6px 8px',
                     textAlign: 'right',
-                    fontSize: '8px',
+                    fontSize: '10px',
                     fontWeight: 700,
                     color: '#FFFFFF',
                     textTransform: 'uppercase',
@@ -567,30 +567,30 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
 
                     return (
                       <tr key={item.id || rowIndex} style={{ backgroundColor: rowIndex % 2 === 0 ? '#FFFFFF' : lightBlueGray }}>
-                        <td style={{ padding: '6px 8px', fontSize: '9px', color: '#374151', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '6px 8px', fontSize: '11px', color: '#374151', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', whiteSpace: 'nowrap' }}>
                           {rowIndex + 1}
                         </td>
-                        <td style={{ padding: '6px 10px', fontSize: '9px', color: '#374151', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <td style={{ padding: '6px 10px', fontSize: '11px', color: '#374151', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {item.description || '-'}
                         </td>
-                        <td style={{ padding: '6px 6px', fontSize: '9px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '6px 6px', fontSize: '11px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', whiteSpace: 'nowrap' }}>
                           {quantity}
                         </td>
-                        <td style={{ padding: '6px 6px', fontSize: '9px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '6px 6px', fontSize: '11px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', whiteSpace: 'nowrap' }}>
                           {item.unit || '-'}
                         </td>
-                        <td style={{ padding: '6px 6px', fontSize: '9px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
+                        <td style={{ padding: '6px 6px', fontSize: '11px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
                           <span style={{ whiteSpace: 'nowrap' }}>{formatMADFull(unitPrice)}</span>
                         </td>
                         {((totals.discountAmount || 0) > 0) && (
-                          <td style={{ padding: '6px 6px', fontSize: '9px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
+                          <td style={{ padding: '6px 6px', fontSize: '11px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
                             <span style={{ whiteSpace: 'nowrap' }}>{formatMADFull(discountForItem)}</span>
                           </td>
                         )}
-                        <td style={{ padding: '6px 6px', fontSize: '9px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
+                        <td style={{ padding: '6px 6px', fontSize: '11px', color: '#374151', textAlign: 'center', borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
                           <span style={{ whiteSpace: 'nowrap' }}>{showVAT ? `${Math.round(VAT_RATE * 100)}%` : '-'}</span>
                         </td>
-                        <td style={{ padding: '6px 8px', fontSize: '9px', color: '#374151', textAlign: 'right', fontWeight: 600, borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
+                        <td style={{ padding: '6px 8px', fontSize: '11px', color: '#374151', textAlign: 'right', fontWeight: 600, borderBottom: isLast ? 'none' : '1px solid #E5E7EB', lineHeight: '1.3', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
                           <span style={{ whiteSpace: 'nowrap' }}>{formatMADFull(itemNetHT)}</span>
                         </td>
                       </tr>
@@ -611,7 +611,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                         <React.Fragment key={bl.id || blIdx}>
                           <tr>
                             <td colSpan={colSpan} style={{ padding: '6px 10px', backgroundColor: '#EFF6FF', borderBottom: '1px solid #BFDBFE', borderTop: blIdx > 0 ? '2px solid #93C5FD' : undefined }}>
-                              <span style={{ fontSize: '9px', fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700, color: '#1D4ED8' }}>
+                              <span style={{ fontSize: '11px', fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700, color: '#1D4ED8' }}>
                                 {bl.document_id} Du {shortDate}
                               </span>
                             </td>
@@ -648,7 +648,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                 marginRight: 'auto'
               }}>
                 <div style={{
-                  fontSize: '9px',
+                  fontSize: '11px',
                   fontWeight: 700,
                   color: '#374151',
                   marginBottom: '6px',
@@ -658,7 +658,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                   Note
                 </div>
                 <div style={{
-                  fontSize: '10px',
+                  fontSize: '13px',
                   color: '#6B7280',
                   lineHeight: '1.5',
                   whiteSpace: 'pre-wrap',
@@ -689,7 +689,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                     borderBottom: '1px solid #FFFFFF'
                   }}>
                     <span style={{
-                      fontSize: '12px',
+                      fontSize: '15px',
                       fontWeight: 500,
                       letterSpacing: '0.01em',
                       lineHeight: '1.5'
@@ -697,7 +697,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                       Sub Total
                     </span>
                     <span style={{
-                      fontSize: '12px',
+                      fontSize: '15px',
                       fontWeight: 700,
                       letterSpacing: '0.01em',
                       lineHeight: '1.5',
@@ -714,7 +714,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                     borderBottom: 'none'
                   }}>
                     <span style={{
-                      fontSize: '10px',
+                      fontSize: '13px',
                       fontWeight: 500,
                       letterSpacing: '0.01em',
                       lineHeight: '1.4'
@@ -722,7 +722,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                       Tax {VAT_RATE * 100}{'%'}
                     </span>
                     <span style={{
-                      fontSize: '10px',
+                      fontSize: '13px',
                       fontWeight: 700,
                       letterSpacing: '0.01em',
                       lineHeight: '1.4',
@@ -741,7 +741,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                     borderTop: '1px solid #FFFFFF'
                   }}>
                     <span style={{
-                      fontSize: '12px',
+                      fontSize: '15px',
                       fontWeight: 700,
                       letterSpacing: '0.02em',
                       lineHeight: '1.3'
@@ -749,7 +749,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                       GRAND TOTAL
                     </span>
                     <span style={{
-                      fontSize: '12px',
+                      fontSize: '15px',
                       fontWeight: 700,
                       letterSpacing: '0.02em',
                       lineHeight: '1.3',
@@ -771,10 +771,10 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                       padding: '6px 0',
                       borderBottom: '1px solid #FFFFFF'
                     }}>
-                      <span style={{ fontSize: '12px', fontWeight: 500 }}>
+                      <span style={{ fontSize: '15px', fontWeight: 500 }}>
                         {String(t('documents.subtotalHT'))} (Net)
                       </span>
-                      <span style={{ fontSize: '12px', fontWeight: 700 }}>
+                      <span style={{ fontSize: '15px', fontWeight: 700 }}>
                         {formatMADFull(totals.subtotal)}
                       </span>
                     </div>
@@ -788,7 +788,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                     borderTop: ((totals.discountAmount || 0) > 0) ? 'none' : '1px solid #FFFFFF'
                   }}>
                     <span style={{
-                      fontSize: '14px',
+                      fontSize: '18px',
                       fontWeight: 700,
                       letterSpacing: '0.02em',
                       lineHeight: '1.4'
@@ -796,7 +796,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
                       GRAND TOTAL
                     </span>
                     <span style={{
-                      fontSize: '14px',
+                      fontSize: '18px',
                       fontWeight: 700,
                       letterSpacing: '0.02em',
                       lineHeight: '1.4',
@@ -820,7 +820,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({
         }}>
           <div style={{
             textAlign: 'center',
-            fontSize: '8px',
+            fontSize: '10px',
             color: '#6B7280',
             lineHeight: '1.4',
             fontWeight: 700
