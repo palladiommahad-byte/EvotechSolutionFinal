@@ -122,4 +122,16 @@ export const purchaseInvoicesService = {
   async delete(id: string): Promise<void> {
     await apiClient.delete(`/purchase-invoices/${id}`);
   },
+
+  async createFromBLs(payload: {
+    bl_ids: string[];
+    date: string;
+    due_date?: string;
+    payment_method?: 'cash' | 'check' | 'bank_transfer';
+    check_number?: string;
+    bank_account_id?: string;
+    note?: string;
+  }): Promise<PurchaseInvoiceWithItems> {
+    return await apiClient.post<PurchaseInvoiceWithItems>('/purchase-invoices/from-bls', payload);
+  },
 };

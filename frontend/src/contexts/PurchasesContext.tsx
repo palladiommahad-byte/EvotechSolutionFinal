@@ -52,6 +52,8 @@ export interface PurchaseDocument {
   subtotal?: number;    // HT
   status: string;
   type: 'purchase_order' | 'delivery_note' | 'invoice' | 'statement';
+  billing_status?: 'not_invoiced' | 'invoiced'; // For purchase delivery notes
+  purchase_invoice_id?: string | null;          // Linked purchase invoice UUID
   paymentMethod?: 'cash' | 'check' | 'bank_transfer';
   amount_paid?: number; // For partial payments
   dueDate?: string;
@@ -94,6 +96,16 @@ interface PurchasesContextType {
   createDeliveryNote: (data: Omit<PurchaseDocument, 'id' | 'type'>) => Promise<any>;
   updateDeliveryNote: (id: string, data: Partial<PurchaseDocument>) => Promise<void>;
   deleteDeliveryNote: (id: string) => Promise<void>;
+
+  createPurchaseInvoiceFromBLs: (payload: {
+    bl_ids: string[];
+    date: string;
+    due_date?: string;
+    payment_method?: 'cash' | 'check' | 'bank_transfer';
+    check_number?: string;
+    bank_account_id?: string;
+    note?: string;
+  }) => Promise<any>;
 
   // Refresh data
   refreshAll: () => Promise<void>;
@@ -178,6 +190,8 @@ const deliveryNoteToPurchaseDocument = (dn: DeliveryNoteWithItems): PurchaseDocu
   type: 'delivery_note',
   note: dn.note || undefined,
   warehouseId: dn.warehouse_id || undefined,
+  billing_status: (dn as any).billing_status || 'not_invoiced',
+  purchase_invoice_id: (dn as any).purchase_invoice_id || null,
   _internalId: dn.id,
 });
 
@@ -658,6 +672,26 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
     },
   });
 
+  const createPurchaseInvoiceFromBLsMutation = useMutation({
+    mutationFn: async (payload: {
+      bl_ids: string[];
+      date: string;
+      due_date?: string;
+      payment_method?: 'cash' | 'check' | 'bank_transfer';
+      check_number?: string;
+      bank_account_id?: string;
+      note?: string;
+    }) => purchaseInvoicesService.createFromBLs(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchases', 'purchase_invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['purchases', 'delivery_notes'] });
+      toast({ title: 'Facture achat créée avec succès', variant: 'success' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Erreur lors de la création de la facture', description: error.message, variant: 'destructive' });
+    },
+  });
+
   const deleteDeliveryNoteMutation = useMutation({
     mutationFn: async (id: string) => {
       const dn = purchaseDeliveryNotes.find(dn => dn.id === id || dn._internalId === id);
@@ -691,6 +725,9 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
       createDeliveryNote: async (data) => { return await createDeliveryNoteMutation.mutateAsync(data); },
       updateDeliveryNote: async (id, data) => { await updateDeliveryNoteMutation.mutateAsync({ id, data }); },
       deleteDeliveryNote: async (id) => { await deleteDeliveryNoteMutation.mutateAsync(id); },
+      createPurchaseInvoiceFromBLs: async (payload) => {
+        return await createPurchaseInvoiceFromBLsMutation.mutateAsync(payload);
+      },
       refreshAll: async () => {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ['purchases', 'purchase_orders'] }),
@@ -713,6 +750,7 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
       createDeliveryNoteMutation,
       updateDeliveryNoteMutation,
       deleteDeliveryNoteMutation,
+      createPurchaseInvoiceFromBLsMutation,
       queryClient,
     ]
   );

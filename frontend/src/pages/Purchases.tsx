@@ -126,6 +126,7 @@ export const Purchases = () => {
     createDeliveryNote,
     updateDeliveryNote,
     deleteDeliveryNote,
+    createPurchaseInvoiceFromBLs,
   } = usePurchases();
 
   // Statements feature removed - no database table yet
@@ -159,6 +160,15 @@ export const Purchases = () => {
   const [stmtTypeFilter, setStmtTypeFilter] = useState<'all' | 'debit' | 'credit'>('all');
   const [stmtSupplierOpen, setStmtSupplierOpen] = useState(false);
   const [stmtSupplierSearch, setStmtSupplierSearch] = useState('');
+
+  // Créer Facture from BLs modal state
+  const [showCreateInvoiceModal, setShowCreateInvoiceModal] = useState(false);
+  const [invoiceModalDate, setInvoiceModalDate] = useState(new Date().toISOString().split('T')[0]);
+  const [invoiceModalDueDate, setInvoiceModalDueDate] = useState('');
+  const [invoiceModalPaymentMethod, setInvoiceModalPaymentMethod] = useState<'cash' | 'check' | 'bank_transfer'>('cash');
+  const [invoiceModalBankAccount, setInvoiceModalBankAccount] = useState('');
+  const [invoiceModalNote, setInvoiceModalNote] = useState('');
+  const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
 
   // File upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -329,6 +339,56 @@ export const Purchases = () => {
         status: inv.status
       }))
     });
+  };
+
+  const getBillingStatusBadge = (doc: PurchaseDocument) => {
+    if (doc.type !== 'delivery_note') return null;
+    if ((doc as any).billing_status === 'invoiced') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+          Facturé
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+        Non facturé
+      </span>
+    );
+  };
+
+  const handleCreateInvoiceFromSelection = async () => {
+    const selectedDocIds = Array.from(selectedDocuments);
+    if (selectedDocIds.length === 0) return;
+
+    // Map document_id strings to internal UUIDs
+    const internalUUIDs = selectedDocIds
+      .map(docId => deliveryNotes.find(bl => bl.id === docId)?._internalId)
+      .filter((id): id is string => !!id);
+
+    if (internalUUIDs.length === 0) return;
+
+    setIsCreatingInvoice(true);
+    try {
+      await createPurchaseInvoiceFromBLs({
+        bl_ids: internalUUIDs,
+        date: invoiceModalDate,
+        due_date: invoiceModalDueDate || undefined,
+        payment_method: invoiceModalPaymentMethod,
+        bank_account_id: (invoiceModalPaymentMethod === 'bank_transfer' && invoiceModalBankAccount) ? invoiceModalBankAccount : undefined,
+        note: invoiceModalNote || undefined,
+      });
+      setShowCreateInvoiceModal(false);
+      setSelectedDocuments(new Set());
+      setInvoiceModalNote('');
+      setInvoiceModalDueDate('');
+      setInvoiceModalBankAccount('');
+      setInvoiceModalPaymentMethod('cash');
+    } catch {
+      // Error handled by context toast
+    } finally {
+      setIsCreatingInvoice(false);
+    }
   };
 
   const handleExportStatementPDF = () => {
@@ -2343,9 +2403,19 @@ export const Purchases = () => {
                 {selectedDocuments.size > 0 && (
                   <div className="card-elevated p-4 flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">
-                      {t('documents.documentsSelected', { count: selectedDocuments.size })}
+                      {selectedDocuments.size} BL{selectedDocuments.size > 1 ? 's' : ''} sélectionné{selectedDocuments.size > 1 ? 's' : ''}
                     </span>
                     <div className="flex items-center gap-2">
+                      {/* Créer Facture Achat */}
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        onClick={() => setShowCreateInvoiceModal(true)}
+                      >
+                        <Receipt className="w-4 h-4" />
+                        Créer Facture
+                      </Button>
                       <Button variant="outline" size="sm" onClick={handleBulkDuplicate} className="gap-2">
                         <Copy className="w-4 h-4" />
                         {t('documents.duplicateSelected') || 'Duplicate Selected'}
@@ -2400,18 +2470,21 @@ export const Purchases = () => {
                         <TableHead className="text-center">{t('documents.items')}</TableHead>
                         <TableHead className="text-right">{t('documents.totalTTC')}</TableHead>
                         <TableHead className="text-center">{t('common.status')}</TableHead>
+                        <TableHead className="text-center">Facturation</TableHead>
                         <TableHead className="text-center">{t('common.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredDocuments.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground" align="center">
+                          <TableCell colSpan={9} className="text-center py-8 text-muted-foreground" align="center">
                             {t('documents.noDocumentsFound')}
                           </TableCell>
                         </TableRow>
                       ) : (
-                        filteredDocuments.map((doc) => (
+                        filteredDocuments.map((doc) => {
+                          const isInvoiced = (doc as any).billing_status === 'invoiced';
+                          return (
                           <TableRow
                             key={doc.id}
                             className={cn(
@@ -2424,6 +2497,7 @@ export const Purchases = () => {
                                 <Checkbox
                                   checked={selectedDocuments.has(doc.id)}
                                   onCheckedChange={() => toggleDocumentSelection(doc.id)}
+                                  disabled={isInvoiced}
                                   aria-label={t('documents.selectAll')}
                                 />
                               </div>
@@ -2438,7 +2512,10 @@ export const Purchases = () => {
                             <TableCell className="text-center">
                               {renderStatusSelect(doc)}
                             </TableCell>
-                            <TableCell className="w-[220px]">
+                            <TableCell className="text-center">
+                              {getBillingStatusBadge(doc)}
+                            </TableCell>
+                            <TableCell className="w-[240px]">
                               <div className="flex items-center justify-center gap-1">
                                 <Button
                                   variant="ghost"
@@ -2476,6 +2553,21 @@ export const Purchases = () => {
                                 >
                                   <Printer className="w-4 h-4" />
                                 </Button>
+                                {/* Single BL → Facture shortcut */}
+                                {!isInvoiced && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                                    title="Créer Facture pour ce BL"
+                                    onClick={() => {
+                                      setSelectedDocuments(new Set([doc.id]));
+                                      setShowCreateInvoiceModal(true);
+                                    }}
+                                  >
+                                    <Receipt className="w-4 h-4" />
+                                  </Button>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -2488,7 +2580,8 @@ export const Purchases = () => {
                               </div>
                             </TableCell>
                           </TableRow>
-                        ))
+                          );
+                        })
                       )}
                     </TableBody>
                   </Table>
@@ -2497,6 +2590,112 @@ export const Purchases = () => {
             </TabsContent>
           </Tabs>
         </TabsContent>
+
+        {/* ═══ Créer Facture Achat Modal ═══════════════════════════════════════ */}
+        <Dialog open={showCreateInvoiceModal} onOpenChange={setShowCreateInvoiceModal}>
+          <DialogContent className="sm:max-w-[480px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-emerald-600" />
+                Créer une Facture Achat
+              </DialogTitle>
+              <DialogDescription>
+                {selectedDocuments.size === 1
+                  ? `Créer une facture pour 1 BL sélectionné.`
+                  : `Créer une facture groupée pour ${selectedDocuments.size} BLs sélectionnés.`}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="pi-modal-date">Date de facturation</Label>
+                <Input
+                  id="pi-modal-date"
+                  type="date"
+                  value={invoiceModalDate}
+                  onChange={(e) => setInvoiceModalDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pi-modal-due-date">Échéance (optionnel)</Label>
+                <Input
+                  id="pi-modal-due-date"
+                  type="date"
+                  value={invoiceModalDueDate}
+                  onChange={(e) => setInvoiceModalDueDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Mode de paiement</Label>
+                <Select
+                  value={invoiceModalPaymentMethod}
+                  onValueChange={(v) => setInvoiceModalPaymentMethod(v as 'cash' | 'check' | 'bank_transfer')}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">{t('paymentMethods.cash')}</SelectItem>
+                    <SelectItem value="check">{t('paymentMethods.check')}</SelectItem>
+                    <SelectItem value="bank_transfer">{t('paymentMethods.bankTransfer')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {invoiceModalPaymentMethod === 'bank_transfer' && (
+                <div className="space-y-1.5">
+                  <Label>Compte bancaire</Label>
+                  <Select value={invoiceModalBankAccount} onValueChange={setInvoiceModalBankAccount}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un compte" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bankAccounts.map((acc) => (
+                        <SelectItem key={acc.id} value={acc.id}>
+                          {acc.name} — {acc.bank}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label htmlFor="pi-modal-note">Note (optionnel)</Label>
+                <Textarea
+                  id="pi-modal-note"
+                  placeholder="Note interne ou mention sur la facture..."
+                  value={invoiceModalNote}
+                  onChange={(e) => setInvoiceModalNote(e.target.value)}
+                  rows={2}
+                  className="resize-none"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowCreateInvoiceModal(false)}
+                disabled={isCreatingInvoice}
+              >
+                Annuler
+              </Button>
+              <Button
+                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+                onClick={handleCreateInvoiceFromSelection}
+                disabled={isCreatingInvoice || !invoiceModalDate}
+              >
+                {isCreatingInvoice ? (
+                  <>Création en cours…</>
+                ) : (
+                  <>
+                    <Receipt className="w-4 h-4" />
+                    Créer la Facture
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Invoice Tab */}
         <TabsContent value="invoice" className="space-y-6">

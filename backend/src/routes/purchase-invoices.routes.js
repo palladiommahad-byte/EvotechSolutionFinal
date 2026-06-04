@@ -374,4 +374,231 @@ router.delete('/:id', asyncHandler(async (req, res) => {
     }
 }));
 
+/**
+ * POST /api/purchase-invoices/from-bls
+ * Create a purchase invoice (Facture Achat) from one or more purchase delivery notes.
+ * All BLs must share the same supplier and be not yet invoiced.
+ * Mirrors POST /api/invoices/from-bls for the sales flow.
+ */
+router.post('/from-bls', asyncHandler(async (req, res) => {
+    const {
+        bl_ids,
+        date,
+        due_date,
+        payment_method,
+        check_number,
+        bank_account_id,
+        note,
+        discount_type = 'fixed',
+        discount_value = 0,
+    } = req.body;
+
+    if (!Array.isArray(bl_ids) || bl_ids.length === 0) {
+        return res.status(400).json({ error: 'Validation Error', message: 'bl_ids must be a non-empty array.' });
+    }
+    if (!date) {
+        return res.status(400).json({ error: 'Validation Error', message: 'date is required.' });
+    }
+
+    const client = await getClient();
+    try {
+        await client.query('BEGIN');
+
+        // ── Lock and fetch the selected BLs ───────────────────────────────────
+        const blResult = await client.query(
+            `SELECT dn.id, dn.document_id, dn.supplier_id, dn.billing_status,
+                    dn.tax_enabled, dn.discount_type, dn.discount_value,
+                    s.name as supplier_name, s.company as supplier_company
+               FROM delivery_notes dn
+               LEFT JOIN contacts s ON s.id = dn.supplier_id
+              WHERE dn.id = ANY($1::uuid[])
+              FOR UPDATE OF dn`,
+            [bl_ids]
+        );
+
+        if (blResult.rows.length !== bl_ids.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Not Found', message: 'One or more BLs not found.' });
+        }
+
+        // All must be purchase BLs (supplier_id set, no client_id)
+        const nonPurchaseBLs = blResult.rows.filter(bl => !bl.supplier_id);
+        if (nonPurchaseBLs.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(422).json({ error: 'Validation Error', message: 'All BLs must be purchase delivery notes (must have a supplier).' });
+        }
+
+        // All must share the same supplier
+        const uniqueSuppliers = [...new Set(blResult.rows.map(bl => bl.supplier_id))];
+        if (uniqueSuppliers.length > 1) {
+            await client.query('ROLLBACK');
+            return res.status(422).json({ error: 'Validation Error', message: 'All BLs must belong to the same supplier.' });
+        }
+
+        // None must already be invoiced
+        const alreadyInvoiced = blResult.rows.filter(bl => bl.billing_status === 'invoiced');
+        if (alreadyInvoiced.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(422).json({
+                error: 'Validation Error',
+                message: `BL(s) already invoiced: ${alreadyInvoiced.map(bl => bl.document_id).join(', ')}.`,
+            });
+        }
+
+        const supplierId   = uniqueSuppliers[0];
+        const supplierName = blResult.rows[0].supplier_company || blResult.rows[0].supplier_name || 'Unknown Supplier';
+        const taxEnabled   = blResult.rows[0].tax_enabled;
+
+        // ── Fetch all line items from the selected BLs ────────────────────────
+        const itemsResult = await client.query(
+            `SELECT product_id, description, quantity, unit, unit_price, delivery_note_id
+               FROM delivery_note_items
+              WHERE delivery_note_id = ANY($1::uuid[])`,
+            [bl_ids]
+        );
+        const allItems = itemsResult.rows;
+
+        if (allItems.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(422).json({ error: 'Validation Error', message: 'Selected BLs have no line items.' });
+        }
+
+        // ── Calculate totals ──────────────────────────────────────────────────
+        const allItemsWithTotals = allItems.map(item => ({
+            ...item,
+            computed_total: parseFloat(item.quantity) * parseFloat(item.unit_price),
+        }));
+
+        const initialSubtotal = allItemsWithTotals.reduce((s, i) => s + i.computed_total, 0);
+
+        // Inherit discounts from BLs
+        let mergedDiscount = 0;
+        for (const bl of blResult.rows) {
+            const blItems = allItemsWithTotals.filter(i => i.delivery_note_id === bl.id);
+            const blSubtotal = blItems.reduce((s, i) => s + i.computed_total, 0);
+            const dv = parseFloat(bl.discount_value) || 0;
+            if (dv > 0) {
+                mergedDiscount += bl.discount_type === 'percentage'
+                    ? blSubtotal * (dv / 100)
+                    : dv;
+            }
+        }
+
+        let finalDiscountType  = discount_type;
+        let finalDiscountValue = parseFloat(discount_value) || 0;
+        if (finalDiscountValue === 0 && mergedDiscount > 0) {
+            finalDiscountType  = 'fixed';
+            finalDiscountValue = parseFloat(mergedDiscount.toFixed(2));
+        }
+
+        let discountAmount = 0;
+        if (finalDiscountValue > 0) {
+            discountAmount = finalDiscountType === 'percentage'
+                ? initialSubtotal * (finalDiscountValue / 100)
+                : finalDiscountValue;
+        }
+        discountAmount = Math.min(discountAmount, initialSubtotal);
+
+        const subtotal   = initialSubtotal - discountAmount;
+        const vatRate    = taxEnabled ? 20.0 : 0.0;
+        const vatAmount  = subtotal * (vatRate / 100);
+        const total      = subtotal + vatAmount;
+
+        // ── Generate document number ──────────────────────────────────────────
+        const document_id = await generateDocumentNumber('purchase_invoice', date);
+
+        // ── Insert purchase invoice ───────────────────────────────────────────
+        const invoiceResult = await client.query(
+            `INSERT INTO purchase_invoices
+               (document_id, supplier_id, date, due_date, subtotal, vat_rate, vat_amount, total,
+                payment_method, check_number, bank_account_id, status, note, discount_type, discount_value)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'draft',$12,$13,$14)
+             RETURNING *`,
+            [
+                document_id, supplierId, date, due_date || null,
+                subtotal, vatRate, vatAmount, total,
+                payment_method || null,
+                payment_method === 'check' ? check_number : null,
+                bank_account_id || null,
+                note || null,
+                finalDiscountType, finalDiscountValue,
+            ]
+        );
+        const invoice = invoiceResult.rows[0];
+
+        // ── Insert invoice line items ─────────────────────────────────────────
+        for (const item of allItemsWithTotals) {
+            await client.query(
+                `INSERT INTO purchase_invoice_items
+                   (purchase_invoice_id, product_id, description, quantity, unit, unit_price, total)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+                [invoice.id, item.product_id || null, item.description, item.quantity,
+                 item.unit || null, item.unit_price, item.computed_total]
+            );
+        }
+
+        // ── Link BLs via pivot ────────────────────────────────────────────────
+        for (const blId of bl_ids) {
+            await client.query(
+                `INSERT INTO purchase_invoice_bls (purchase_invoice_id, bl_id) VALUES ($1, $2)`,
+                [invoice.id, blId]
+            );
+        }
+
+        // ── Mark BLs as invoiced ──────────────────────────────────────────────
+        await client.query(
+            `UPDATE delivery_notes
+                SET billing_status = 'invoiced', purchase_invoice_id = $1
+              WHERE id = ANY($2::uuid[])`,
+            [invoice.id, bl_ids]
+        );
+
+        await client.query('COMMIT');
+
+        // ── Build response with linked BL data ────────────────────────────────
+        const finalItems = await query(
+            'SELECT * FROM purchase_invoice_items WHERE purchase_invoice_id = $1',
+            [invoice.id]
+        );
+
+        const linkedBLsRaw = await query(
+            `SELECT dn.id, dn.document_id, dn.date,
+                    dni.id as item_id, dni.description, dni.quantity,
+                    dni.unit, dni.unit_price, dni.total
+               FROM purchase_invoice_bls pib
+               JOIN delivery_notes dn ON dn.id = pib.bl_id
+               LEFT JOIN delivery_note_items dni ON dni.delivery_note_id = dn.id
+              WHERE pib.purchase_invoice_id = $1
+              ORDER BY dn.date ASC`,
+            [invoice.id]
+        );
+
+        const blMap = new Map();
+        for (const row of linkedBLsRaw.rows) {
+            if (!blMap.has(row.id)) {
+                blMap.set(row.id, { id: row.id, document_id: row.document_id, date: row.date, items: [] });
+            }
+            if (row.item_id) {
+                blMap.get(row.id).items.push({
+                    id: row.item_id, description: row.description, quantity: row.quantity,
+                    unit: row.unit, unit_price: row.unit_price, total: row.total,
+                });
+            }
+        }
+
+        return res.status(201).json({
+            ...invoice,
+            items: finalItems.rows,
+            linked_bls: Array.from(blMap.values()),
+            supplier_name: supplierName,
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+}));
+
 module.exports = router;
