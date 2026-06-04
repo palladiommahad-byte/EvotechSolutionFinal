@@ -359,6 +359,18 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
   const scale = isMultiPage ? 0.88 : getLayoutScale(totalItemCount);
   const styles = createStyles(scale);
 
+  // Dynamic font size for company name — shrinks to fit long names on one line.
+  // Only applied to the company-name texts; no other font sizes are affected.
+  const dynCompanyFontSize = (name: string, basePt: number): number => {
+    const len = (name || '').length;
+    const base = Math.max(1, Math.round(basePt * scale));
+    if (len <= 12) return base;
+    if (len <= 18) return Math.max(8, Math.round(base * 0.87));
+    if (len <= 24) return Math.max(8, Math.round(base * 0.78));
+    if (len <= 30) return Math.max(7, Math.round(base * 0.70));
+    return Math.max(7, Math.round(base * 0.62));
+  };
+
   const documentTitles: Record<string, string> = {
     invoice: String(t('pdf.invoice')),
     estimate: String(t('pdf.estimate')),
@@ -555,7 +567,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
             />
           ) : (
             <View style={{ flex: 1 }}>
-              <Text style={[styles.companyName, { color: titleColor }]}>{(companyInfo.name || 'COMPANY NAME').toUpperCase()}</Text>
+              <Text style={[styles.companyName, { color: titleColor, fontSize: dynCompanyFontSize(companyInfo.name || '', 18) }]}>{(companyInfo.name || 'COMPANY NAME').toUpperCase()}</Text>
             </View>
           )}
         </View>
@@ -625,7 +637,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
               </View>
             ) : (
               <View>
-                <Text style={styles.clientName}>
+                <Text style={[styles.clientName, { fontSize: dynCompanyFontSize(companyInfo.name || '', 15) }]}>
 {(companyInfo.name || 'COMPANY NAME').toUpperCase()}
 </Text>
 {companyInfo.ice ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
@@ -648,7 +660,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
           <View style={[styles.invoiceToBox, { borderColor: primaryColor }]}>
             {type === 'purchase_invoice' || type === 'purchase_delivery_note' ? (
               <View>
-                <Text style={styles.clientName}>
+                <Text style={[styles.clientName, { fontSize: dynCompanyFontSize(companyInfo.name || '', 15) }]}>
 {(companyInfo.name || 'COMPANY NAME').toUpperCase()}
 </Text>
 {companyInfo.ice ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
