@@ -47,6 +47,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 import { cn, formatDate } from '@/lib/utils';
 import { ToastAction } from '@/components/ui/toast';
@@ -157,6 +162,8 @@ export const Sales = () => {
   const [stmtDateTo, setStmtDateTo] = useState('');
   const [stmtClientFilter, setStmtClientFilter] = useState('all');
   const [stmtTypeFilter, setStmtTypeFilter] = useState<'all' | 'debit' | 'credit'>('all');
+  const [stmtClientOpen, setStmtClientOpen] = useState(false);
+  const [stmtClientSearch, setStmtClientSearch] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
@@ -4786,17 +4793,57 @@ export const Sales = () => {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Client</Label>
-                      <Select value={stmtClientFilter} onValueChange={setStmtClientFilter}>
-                        <SelectTrigger className="h-8 text-sm">
-                          <SelectValue placeholder="Tous les clients" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Tous les clients</SelectItem>
-                          {statementClients.map(c => (
-                            <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Popover open={stmtClientOpen} onOpenChange={setStmtClientOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full h-8 text-sm font-normal justify-between px-3"
+                          >
+                            <span className="truncate">
+                              {stmtClientFilter === 'all' ? 'Tous les clients' : stmtClientFilter}
+                            </span>
+                            <ChevronDown className="w-3.5 h-3.5 opacity-50 shrink-0 ml-1" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-0" align="start">
+                          <div className="p-2 border-b">
+                            <Input
+                              placeholder="Rechercher un client..."
+                              value={stmtClientSearch}
+                              onChange={e => setStmtClientSearch(e.target.value)}
+                              className="h-7 text-sm"
+                              autoFocus
+                            />
+                          </div>
+                          <div className="max-h-52 overflow-y-auto">
+                            {['all', ...statementClients
+                              .filter(c => c.name.toLowerCase().includes(stmtClientSearch.toLowerCase()))
+                              .map(c => c.name)
+                            ].map(val => (
+                              <div
+                                key={val}
+                                className={cn(
+                                  'px-3 py-2 text-sm cursor-pointer hover:bg-accent',
+                                  stmtClientFilter === val && 'bg-primary/10 font-medium'
+                                )}
+                                onClick={() => {
+                                  setStmtClientFilter(val);
+                                  setStmtClientOpen(false);
+                                  setStmtClientSearch('');
+                                }}
+                              >
+                                {val === 'all' ? 'Tous les clients' : val}
+                              </div>
+                            ))}
+                            {stmtClientSearch && statementClients.filter(c =>
+                              c.name.toLowerCase().includes(stmtClientSearch.toLowerCase())
+                            ).length === 0 && (
+                              <p className="px-3 py-4 text-sm text-muted-foreground text-center">Aucun client trouvé</p>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Type de mouvement</Label>

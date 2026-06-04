@@ -742,15 +742,17 @@ export const exportRelevePDF = (options: {
   const ROW_H = 7;
   const PAD = 1.5;
   // Column x-positions and widths (total = 182 mm)
+  // Column widths must sum to exactly usableW (182 mm)
+  // fa(8)+numero(32)+date(20)+ht(26)+ttc(26)+acompte(22)+regle(22)+solde(26)=182
   const C = {
-    fa:      { x: leftM,       w: 9  },
-    numero:  { x: leftM + 9,   w: 35 },
-    date:    { x: leftM + 44,  w: 22 },
-    ht:      { x: leftM + 66,  w: 28 },
-    ttc:     { x: leftM + 94,  w: 28 },
-    acompte: { x: leftM + 122, w: 22 },
-    regle:   { x: leftM + 144, w: 20 },
-    solde:   { x: leftM + 164, w: 32 },
+    fa:      { x: leftM,       w: 8  },
+    numero:  { x: leftM + 8,   w: 32 },
+    date:    { x: leftM + 40,  w: 20 },
+    ht:      { x: leftM + 60,  w: 26 },
+    ttc:     { x: leftM + 86,  w: 26 },
+    acompte: { x: leftM + 112, w: 22 },
+    regle:   { x: leftM + 134, w: 22 },
+    solde:   { x: leftM + 156, w: 26 },
   };
   const HEADERS: [keyof typeof C, string][] = [
     ['fa','F/A'], ['numero','NUMERO'], ['date','DATE'],
