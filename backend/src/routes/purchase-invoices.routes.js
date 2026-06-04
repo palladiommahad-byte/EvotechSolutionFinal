@@ -16,10 +16,11 @@ router.get('/', asyncHandler(async (req, res) => {
     const { status, supplierId, startDate, endDate } = req.query;
 
     let sql = `
-    SELECT pi.*, 
+    SELECT pi.*,
            s.id as supplier_id, s.name as supplier_name, s.company as supplier_company,
            s.email as supplier_email, s.phone as supplier_phone, s.ice as supplier_ice,
            s.if_number as supplier_if_number, s.rc as supplier_rc,
+           s.city as supplier_city, s.address as supplier_address,
            ba.id as bank_account_id, ba.name as bank_account_name, 
            ba.bank as bank_account_bank, ba.account_number as bank_account_number
     FROM purchase_invoices pi
@@ -52,6 +53,7 @@ router.get('/', asyncHandler(async (req, res) => {
                     id: invoice.supplier_id, name: invoice.supplier_name, company: invoice.supplier_company,
                     email: invoice.supplier_email, phone: invoice.supplier_phone, ice: invoice.supplier_ice,
                     if_number: invoice.supplier_if_number, rc: invoice.supplier_rc,
+                    city: invoice.supplier_city, address: invoice.supplier_address,
                 } : undefined,
                 bank_account: invoice.bank_account_id ? {
                     id: invoice.bank_account_id,
@@ -76,7 +78,8 @@ router.get('/:id', asyncHandler(async (req, res) => {
         `SELECT pi.*, s.id as supplier_id, s.name as supplier_name, s.company as supplier_company,
             s.email as supplier_email, s.phone as supplier_phone, s.ice as supplier_ice,
             s.if_number as supplier_if_number, s.rc as supplier_rc,
-            ba.id as bank_account_id, ba.name as bank_account_name, 
+            s.city as supplier_city, s.address as supplier_address,
+            ba.id as bank_account_id, ba.name as bank_account_name,
             ba.bank as bank_account_bank, ba.account_number as bank_account_number
      FROM purchase_invoices pi
      LEFT JOIN contacts s ON pi.supplier_id = s.id
@@ -99,6 +102,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
             id: invoice.supplier_id, name: invoice.supplier_name, company: invoice.supplier_company,
             email: invoice.supplier_email, phone: invoice.supplier_phone, ice: invoice.supplier_ice,
             if_number: invoice.supplier_if_number, rc: invoice.supplier_rc,
+            city: invoice.supplier_city, address: invoice.supplier_address,
         } : undefined,
         bank_account: invoice.bank_account_id ? {
             id: invoice.bank_account_id,

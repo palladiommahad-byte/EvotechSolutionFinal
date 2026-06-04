@@ -43,10 +43,13 @@ export interface PurchaseDocument {
     ice: string | null;
     if_number: string | null;
     rc: string | null;
+    city?: string | null;
+    address?: string | null;
   };
   date: string;
   items: PurchaseItem[];
-  total: number;
+  total: number;        // TTC
+  subtotal?: number;    // HT
   status: string;
   type: 'purchase_order' | 'delivery_note' | 'invoice' | 'statement';
   paymentMethod?: 'cash' | 'check' | 'bank_transfer';
@@ -137,6 +140,7 @@ const purchaseInvoiceToPurchaseDocument = (pi: PurchaseInvoiceWithItems): Purcha
     total: item.total,
   })),
   total: pi.total,
+  subtotal: (pi as any).subtotal,
   status: mapPurchaseInvoiceStatusToUI(pi.status),
   type: 'invoice',
   paymentMethod: pi.payment_method || undefined,

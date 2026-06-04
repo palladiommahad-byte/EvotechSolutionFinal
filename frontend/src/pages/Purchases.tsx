@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Search, ShoppingCart, FileText, Download, Package, Receipt, FileCheck, Calculator, Trash2, Send, Eye, Edit, Check, FileSpreadsheet, ChevronDown, Printer, TrendingUp, CheckSquare, FileX, Upload, Image as ImageIcon, FilePlus, Paperclip, ChevronsUpDown, X, Copy } from 'lucide-react';
 import { exportStyledExcel } from '@/lib/styled-export';
 import { useTranslation } from 'react-i18next';
@@ -82,7 +82,13 @@ import {
   generatePurchaseDeliveryNotePDF,
   generateStatementPDF,
   generateDocumentsListPDF,
+  exportRelevePDF,
 } from '@/lib/pdf-generator';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { generatePDFBlobFromTemplate } from '@/lib/pdf-template-generator';
 import {
   generateDocumentExcel,
@@ -146,6 +152,13 @@ export const Purchases = () => {
   const [editItems, setEditItems] = useState<any[]>([]);
   const [deletingDocument, setDeletingDocument] = useState<PurchaseDocument | null>(null);
   const [selectedStatementDocs, setSelectedStatementDocs] = useState<Set<string>>(new Set());
+  // Relevé filters
+  const [stmtDateFrom, setStmtDateFrom] = useState('');
+  const [stmtDateTo, setStmtDateTo] = useState('');
+  const [stmtSupplierFilter, setStmtSupplierFilter] = useState('all');
+  const [stmtTypeFilter, setStmtTypeFilter] = useState<'all' | 'debit' | 'credit'>('all');
+  const [stmtSupplierOpen, setStmtSupplierOpen] = useState(false);
+  const [stmtSupplierSearch, setStmtSupplierSearch] = useState('');
 
   // File upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -258,12 +271,35 @@ export const Purchases = () => {
     setSelectedDocuments(newSelected);
   };
 
+  // ── Relevé filtered list ─────────────────────────────────────────────────
+  const filteredStatementInvoices = useMemo(() => {
+    return purchaseInvoices
+      .filter(inv => {
+        if (stmtSupplierFilter !== 'all' && inv.supplier !== stmtSupplierFilter) return false;
+        if (stmtDateFrom && inv.date < stmtDateFrom) return false;
+        if (stmtDateTo && inv.date > stmtDateTo) return false;
+        const paid = (inv as any).amount_paid || 0;
+        if (stmtTypeFilter === 'debit') return (inv.total - paid) > 0;
+        if (stmtTypeFilter === 'credit') return paid > 0;
+        return true;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [purchaseInvoices, stmtSupplierFilter, stmtDateFrom, stmtDateTo, stmtTypeFilter]);
+
+  const statementSuppliers = useMemo(() => {
+    const seen = new Set<string>();
+    return purchaseInvoices
+      .map(inv => ({ name: inv.supplier, data: inv.supplierData }))
+      .filter(s => { if (!s.name || seen.has(s.name)) return false; seen.add(s.name); return true; });
+  }, [purchaseInvoices]);
+
   const toggleSelectAllStatementDocs = () => {
-    if (purchaseInvoices.length === 0) return;
-    if (selectedStatementDocs.size === purchaseInvoices.length) {
+    if (filteredStatementInvoices.length === 0) return;
+    const allSelected = filteredStatementInvoices.every(inv => selectedStatementDocs.has(inv.id));
+    if (allSelected) {
       setSelectedStatementDocs(new Set());
     } else {
-      setSelectedStatementDocs(new Set(purchaseInvoices.map(inv => inv.id)));
+      setSelectedStatementDocs(new Set(filteredStatementInvoices.map(inv => inv.id)));
     }
   };
 
@@ -279,9 +315,7 @@ export const Purchases = () => {
 
   const handleExportSelected = () => {
     if (selectedStatementDocs.size === 0) return;
-
-    const selectedInvoices = purchaseInvoices.filter(inv => selectedStatementDocs.has(inv.id));
-
+    const selectedInvoices = filteredStatementInvoices.filter(inv => selectedStatementDocs.has(inv.id));
     exportStyledExcel({
       title: 'Relevé des Achats',
       type: 'purchases',
@@ -294,6 +328,36 @@ export const Purchases = () => {
         balance: inv.total - ((inv as any).amount_paid || 0),
         status: inv.status
       }))
+    });
+  };
+
+  const handleExportStatementPDF = () => {
+    if (selectedStatementDocs.size === 0) return;
+    const selectedInvoices = filteredStatementInvoices.filter(inv => selectedStatementDocs.has(inv.id));
+    const supplierName = stmtSupplierFilter !== 'all' ? stmtSupplierFilter : undefined;
+    const supplierData = selectedInvoices.find(inv => inv.supplierData)?.supplierData;
+    exportRelevePDF({
+      invoices: selectedInvoices.map(inv => ({
+        id: inv.id,
+        date: inv.date,
+        total: inv.total,
+        subtotal: (inv as any).subtotal,
+        amount_paid: (inv as any).amount_paid || 0,
+        status: inv.status,
+        client: inv.supplier,
+        clientData: supplierData ? {
+          ice: supplierData.ice || '',
+          city: (supplierData as any).city || '',
+          address: (supplierData as any).address || '',
+        } : undefined,
+      })),
+      clientName: supplierName,
+      clientData: supplierData ? {
+        ice: supplierData.ice || '',
+        city: (supplierData as any).city || '',
+        address: (supplierData as any).address || '',
+      } : undefined,
+      companyInfo: companyInfo as any,
     });
   };
 
@@ -3407,64 +3471,139 @@ export const Purchases = () => {
             </TabsContent>
 
             <TabsContent value="list" className="animate-fade-in">
-              <div className="space-y-6">
-                {/* Summary Cards */}
+              <div className="space-y-4">
+
+                {/* ── Smart Filters ──────────────────────────────────────────── */}
+                <div className="card-elevated p-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-foreground">Filtres</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Date début</Label>
+                      <Input type="date" value={stmtDateFrom} onChange={e => setStmtDateFrom(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Date fin</Label>
+                      <Input type="date" value={stmtDateTo} onChange={e => setStmtDateTo(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Fournisseur</Label>
+                      <Popover open={stmtSupplierOpen} onOpenChange={setStmtSupplierOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="w-full h-8 text-sm font-normal justify-between px-3">
+                            <span className="truncate">{stmtSupplierFilter === 'all' ? 'Tous les fournisseurs' : stmtSupplierFilter}</span>
+                            <ChevronDown className="w-3.5 h-3.5 opacity-50 shrink-0 ml-1" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-0" align="start">
+                          <div className="p-2 border-b">
+                            <Input
+                              placeholder="Rechercher un fournisseur..."
+                              value={stmtSupplierSearch}
+                              onChange={e => setStmtSupplierSearch(e.target.value)}
+                              className="h-7 text-sm"
+                              autoFocus
+                            />
+                          </div>
+                          <div className="max-h-52 overflow-y-auto">
+                            {['all', ...statementSuppliers
+                              .filter(s => s.name.toLowerCase().includes(stmtSupplierSearch.toLowerCase()))
+                              .map(s => s.name)
+                            ].map(val => (
+                              <div
+                                key={val}
+                                className={cn('px-3 py-2 text-sm cursor-pointer hover:bg-accent', stmtSupplierFilter === val && 'bg-primary/10 font-medium')}
+                                onClick={() => { setStmtSupplierFilter(val); setStmtSupplierOpen(false); setStmtSupplierSearch(''); }}
+                              >
+                                {val === 'all' ? 'Tous les fournisseurs' : val}
+                              </div>
+                            ))}
+                            {stmtSupplierSearch && statementSuppliers.filter(s => s.name.toLowerCase().includes(stmtSupplierSearch.toLowerCase())).length === 0 && (
+                              <p className="px-3 py-4 text-sm text-muted-foreground text-center">Aucun fournisseur trouvé</p>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Type de mouvement</Label>
+                      <Select value={stmtTypeFilter} onValueChange={(v: any) => setStmtTypeFilter(v)}>
+                        <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Débit &amp; Crédit</SelectItem>
+                          <SelectItem value="debit">Débit uniquement</SelectItem>
+                          <SelectItem value="credit">Crédit uniquement</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {(stmtDateFrom || stmtDateTo || stmtSupplierFilter !== 'all' || stmtTypeFilter !== 'all') && (
+                    <Button variant="ghost" size="sm" className="text-xs h-7 text-muted-foreground"
+                      onClick={() => { setStmtDateFrom(''); setStmtDateTo(''); setStmtSupplierFilter('all'); setStmtTypeFilter('all'); }}>
+                      Réinitialiser les filtres
+                    </Button>
+                  )}
+                </div>
+
+                {/* ── Summary Cards (filtered) ──────────────────────────────── */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="card-elevated p-6">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm text-muted-foreground">{t('ledger.debit')}</p>
+                      <p className="text-sm text-muted-foreground">{t('ledger.debit')} (Total)</p>
                       <TrendingUp className="w-4 h-4 text-primary" />
                     </div>
                     <p className="text-2xl font-heading font-bold text-foreground">
-                      <CurrencyDisplay amount={purchaseInvoices.reduce((sum, inv) => sum + inv.total, 0)} />
+                      <CurrencyDisplay amount={filteredStatementInvoices.reduce((s, inv) => s + inv.total, 0)} />
                     </p>
                   </div>
                   <div className="card-elevated p-6">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm text-muted-foreground">{t('ledger.credit')}</p>
+                      <p className="text-sm text-muted-foreground">{t('ledger.credit')} (Versé)</p>
                       <CheckSquare className="w-4 h-4 text-success" />
                     </div>
                     <p className="text-2xl font-heading font-bold text-success">
-                      <CurrencyDisplay amount={purchaseInvoices.reduce((sum, inv) => sum + ((inv as any).amount_paid || 0), 0)} />
+                      <CurrencyDisplay amount={filteredStatementInvoices.reduce((s, inv) => s + ((inv as any).amount_paid || 0), 0)} />
                     </p>
                   </div>
                   <div className="card-elevated p-6">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm text-muted-foreground">{t('ledger.balance')}</p>
+                      <p className="text-sm text-muted-foreground">Solde (Reste)</p>
                       <FileX className="w-4 h-4 text-destructive" />
                     </div>
                     <p className="text-2xl font-heading font-bold text-destructive">
-                      <CurrencyDisplay amount={purchaseInvoices.reduce((sum, inv) => sum + (inv.total - ((inv as any).amount_paid || 0)), 0)} />
+                      <CurrencyDisplay amount={filteredStatementInvoices.reduce((s, inv) => s + (inv.total - ((inv as any).amount_paid || 0)), 0)} />
                     </p>
                   </div>
                 </div>
 
-                {/* Ledger Table */}
+                {/* ── Grand Livre Table ──────────────────────────────────────── */}
                 <div className="card-elevated overflow-hidden">
-                  <div className="p-6 border-b border-border flex justify-between items-center">
+                  <div className="p-4 border-b border-border flex flex-wrap justify-between items-center gap-3">
                     <div>
                       <h3 className="font-heading font-semibold text-foreground">{t('ledger.title')}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">{t('ledger.description')}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {filteredStatementInvoices.length} facture{filteredStatementInvoices.length !== 1 ? 's' : ''}
+                        {selectedStatementDocs.size > 0 && ` · ${selectedStatementDocs.size} sélectionnée${selectedStatementDocs.size !== 1 ? 's' : ''}`}
+                      </p>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleExportSelected}
-                      disabled={selectedStatementDocs.size === 0}
-                      className="gap-2"
-                    >
-                      <Download className="w-4 h-4" />
-                      Styled Export
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={handleExportStatementPDF} disabled={selectedStatementDocs.size === 0} className="gap-2">
+                        <FileText className="w-4 h-4" />
+                        Exporter PDF
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleExportSelected} disabled={selectedStatementDocs.size === 0} className="gap-2">
+                        <FileSpreadsheet className="w-4 h-4" />
+                        Exporter Excel
+                      </Button>
+                    </div>
                   </div>
                   <div className="max-h-[600px] overflow-y-auto">
                     <Table>
                       <TableHeader className="sticky top-0 z-10 bg-background">
                         <TableRow className="data-table-header hover:bg-section">
-                          <TableHead className="text-center px-4" style={{ width: '80px', minWidth: '80px' }}>
+                          <TableHead className="text-center px-4" style={{ width: '52px', minWidth: '52px' }}>
                             <div className="flex items-center justify-center">
                               <Checkbox
-                                checked={purchaseInvoices.length > 0 && selectedStatementDocs.size === purchaseInvoices.length}
+                                checked={filteredStatementInvoices.length > 0 && filteredStatementInvoices.every(inv => selectedStatementDocs.has(inv.id))}
                                 onCheckedChange={toggleSelectAllStatementDocs}
                               />
                             </div>
@@ -3472,57 +3611,44 @@ export const Purchases = () => {
                           <TableHead>{t('common.date')}</TableHead>
                           <TableHead>{t('documents.supplier')}</TableHead>
                           <TableHead>{t('documents.invoiceNumber')}</TableHead>
-                          <TableHead className="text-right font-bold">{t('ledger.debit')}</TableHead>
+                          <TableHead className="text-right font-bold">{t('ledger.debit')} (TTC)</TableHead>
+                          <TableHead className="text-right">Total HT</TableHead>
                           <TableHead className="text-right">{t('ledger.credit')}</TableHead>
                           <TableHead className="text-right">{t('ledger.balance')}</TableHead>
                           <TableHead className="text-center">{t('common.status')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {purchaseInvoices.length === 0 ? (
+                        {filteredStatementInvoices.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                            <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                               {t('documents.noDocumentsFound')}
                             </TableCell>
                           </TableRow>
                         ) : (
-                          purchaseInvoices
-                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                            .map((inv) => {
-                              const amountPaid = (inv as any).amount_paid || 0;
-                              const balance = inv.total - amountPaid;
-                              const isSelected = selectedStatementDocs.has(inv.id);
-
-                              return (
-                                <TableRow key={inv.id} className="hover:bg-section/50">
-                                  <TableCell className="text-center" style={{ width: '80px', minWidth: '80px' }}>
-                                    <div className="flex items-center justify-center">
-                                      <Checkbox
-                                        checked={isSelected}
-                                        onCheckedChange={() => handleStatementDocSelection(inv.id)}
-                                      />
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>{formatDate(inv.date)}</TableCell>
-                                  <TableCell className="max-w-[200px] truncate" title={inv.supplier}>
-                                    {inv.supplier}
-                                  </TableCell>
-                                  <TableCell className="font-mono font-medium">{inv.id}</TableCell>
-                                  <TableCell className="text-right font-bold">
-                                    <CurrencyDisplay amount={inv.total} />
-                                  </TableCell>
-                                  <TableCell className="text-right text-success">
-                                    <CurrencyDisplay amount={amountPaid} />
-                                  </TableCell>
-                                  <TableCell className={`text-right ${balance > 0 ? 'text-destructive font-medium' : 'text-success'}`}>
-                                    <CurrencyDisplay amount={balance} />
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {getStatusBadge(inv.status)}
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })
+                          filteredStatementInvoices.map((inv) => {
+                            const amountPaid = (inv as any).amount_paid || 0;
+                            const balance = inv.total - amountPaid;
+                            const ht = (inv as any).subtotal != null ? Number((inv as any).subtotal) : inv.total / 1.2;
+                            const isSelected = selectedStatementDocs.has(inv.id);
+                            return (
+                              <TableRow key={inv.id} className={`hover:bg-section/50 ${isSelected ? 'bg-primary/5' : ''}`}>
+                                <TableCell className="text-center" style={{ width: '52px', minWidth: '52px' }}>
+                                  <div className="flex items-center justify-center">
+                                    <Checkbox checked={isSelected} onCheckedChange={() => handleStatementDocSelection(inv.id)} />
+                                  </div>
+                                </TableCell>
+                                <TableCell>{formatDate(inv.date)}</TableCell>
+                                <TableCell className="max-w-[200px] truncate font-medium" title={inv.supplier}>{inv.supplier}</TableCell>
+                                <TableCell className="font-mono text-sm">{inv.id}</TableCell>
+                                <TableCell className="text-right font-bold"><CurrencyDisplay amount={inv.total} /></TableCell>
+                                <TableCell className="text-right text-muted-foreground text-sm"><CurrencyDisplay amount={ht} /></TableCell>
+                                <TableCell className="text-right text-success"><CurrencyDisplay amount={amountPaid} /></TableCell>
+                                <TableCell className={`text-right font-medium ${balance > 0 ? 'text-destructive' : 'text-success'}`}><CurrencyDisplay amount={balance} /></TableCell>
+                                <TableCell className="text-center">{getStatusBadge(inv.status)}</TableCell>
+                              </TableRow>
+                            );
+                          })
                         )}
                       </TableBody>
                     </Table>
