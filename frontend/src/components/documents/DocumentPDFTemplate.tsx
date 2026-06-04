@@ -291,6 +291,16 @@ const createStyles = (scale: number) => {
   });
 };
 
+// Items per page for multi-page invoice pagination
+const ITEMS_PER_PAGE = 14;
+
+type PageableItem = {
+  item: any;
+  globalIndex: number;
+  blDocId?: string;
+  blShortDate?: string;
+};
+
 export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
   type,
   documentId,
@@ -319,20 +329,34 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
   const primaryColor = companyInfo.pdfPrimaryColor || '#3b82f6';
   const titleColor = companyInfo.pdfTitleColor || '#3b82f6';
 
-  const totals = calculateInvoiceTotals(items, discountType, discountValue);
-  // showVAT rules:
-  //   - invoice/estimate/credit_note/prelevement: always show VAT
-  //   - delivery_note: show VAT UNLESS taxEnabled is explicitly false
-  //     (undefined/null/true all mean "show tax" — tax is ON by default)
+  // For BL-grouped invoices, compute totals from BL items (same data shown in the table).
+  // This ensures subtotal always matches the displayed line rows, even if invoice_items diverge.
+  const hasGroupedBLsEarly = type === 'invoice' && linkedBLs && linkedBLs.length > 0
+    && linkedBLs.some(bl => bl.items && bl.items.length > 0);
+  const itemsForTotals: InvoiceItem[] = hasGroupedBLsEarly
+    ? (linkedBLs || []).flatMap(bl => (bl.items || []).map(item => ({
+        id: item.id,
+        description: item.description,
+        quantity: item.quantity,
+        unit: item.unit,
+        unitPrice: item.unit_price,
+        total: item.total,
+      })))
+    : items;
+  const totals = calculateInvoiceTotals(itemsForTotals, discountType, discountValue);
   const showVAT = type === 'invoice' || type === 'estimate' || type === 'credit_note' || type === 'prelevement'
     || type === 'purchase_order' || type === 'purchase_delivery_note'
     || (type === 'delivery_note' && taxEnabled !== false);
 
-  // Auto-scale layout to fit everything on one page
   const totalItemCount = (type === 'invoice' && linkedBLs && linkedBLs.length > 0)
     ? linkedBLs.reduce((sum, bl) => sum + (bl.items?.length || 0), 0)
     : items.length;
-  const scale = getLayoutScale(totalItemCount);
+
+  // Multi-page mode: invoices with more than ITEMS_PER_PAGE items get paginated
+  const isMultiPage = type === 'invoice' && totalItemCount > ITEMS_PER_PAGE;
+
+  // For multi-page use a comfortable fixed scale; for single-page use auto-shrink
+  const scale = isMultiPage ? 0.88 : getLayoutScale(totalItemCount);
   const styles = createStyles(scale);
 
   const documentTitles: Record<string, string> = {
@@ -344,17 +368,16 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
     statement: String(t('pdf.statement')),
     purchase_invoice: String(t('pdf.purchaseInvoice')),
     purchase_delivery_note: String(t('pdf.deliveryNote')),
-    prelevement: 'PRÉLÈVEMENT', // Fallback until translation added
+    prelevement: 'PRÉLÈVEMENT',
     divers: 'DIVERS',
   };
 
-  // Calculate font size based on text length - smaller for longer text
   const getTitleFontSize = (text: string): number => {
     const length = text.length;
-    if (length <= 8) return 35;      // Short: INVOICE (7), DEVIS (5)
-    if (length <= 15) return 30;     // Medium: BON DE COMMANDE (15)
-    if (length <= 18) return 25;     // Long: BON DE LIVRAISON (17)
-    return 23;                        // Very long: fallback
+    if (length <= 8) return 35;
+    if (length <= 15) return 30;
+    if (length <= 18) return 25;
+    return 23;
   };
 
   const paymentMethodText: Record<string, string> = {
@@ -363,7 +386,6 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
     bank_transfer: String(t('paymentMethods.bankTransfer')),
   };
 
-  // Format date based on language
   const formatDate = (dateString: string) => {
     const d = new Date(dateString);
     const locale = currentLang === 'fr' ? 'fr-FR' : 'en-US';
@@ -371,29 +393,25 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
     return d.toLocaleDateString(locale, options);
   };
 
-  // Format document ID with French prefix based on document type
   const formatDocumentId = (id: string, docType: string): string => {
-    // Define French prefixes for each document type
     const prefixes: Record<string, string> = {
-      invoice: 'FC',                    // Facture Client
-      estimate: 'DV',                   // Devis
-      delivery_note: 'BL',              // Bon de Livraison
-      purchase_order: 'BC',             // Bon de Commande
-      credit_note: 'AV',                // Avoir
-      statement: 'RL',                  // Relevé
-      purchase_invoice: 'FA',           // Facture d'Achat
-      purchase_delivery_note: 'BL',     // Bon de Livraison
-      divers: 'DIV',                    // Divers
+      invoice: 'FC',
+      estimate: 'DV',
+      delivery_note: 'BL',
+      purchase_order: 'BC',
+      credit_note: 'AV',
+      statement: 'RL',
+      purchase_invoice: 'FA',
+      purchase_delivery_note: 'BL',
+      divers: 'DIV',
     };
 
     const prefix = prefixes[docType] || 'DOC';
 
-    // If ID already starts with the expected prefix, return as is
     if (id.toUpperCase().startsWith(prefix)) {
       return id;
     }
 
-    // Handle legacy English prefixes if they still exist in DB
     if (id.startsWith('INV-')) return id.replace('INV-', 'FC-');
     if (id.startsWith('EST-')) return id.replace('EST-', 'DV-');
     if (id.startsWith('DN-')) return id.replace('DN-', 'BL-');
@@ -403,166 +421,449 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
     if (id.startsWith('PO-')) return id.replace('PO-', 'BC-');
     if (id.startsWith('PI-')) return id.replace('PI-', 'FA-');
 
-    // If ID already has an uppercase prefix separated by a dash, return as is
     if (id.match(/^[A-Z]{2,4}-/)) {
       return id;
     }
 
-    // Otherwise, add the prefix
     return `${prefix}-${id}`;
   };
 
   const formattedDocumentId = formatDocumentId(documentId, type);
 
+  const hasGroupedBLs = type === 'invoice' && linkedBLs && linkedBLs.length > 0 && linkedBLs.some(bl => bl.items && bl.items.length > 0);
+
+  // Collect all pageable items (flat across BL groups) for multi-page chunking
+  const allPageableItems: PageableItem[] = [];
+  if (hasGroupedBLs) {
+    let gi = 0;
+    for (const bl of linkedBLs!) {
+      const d = new Date(bl.date);
+      const sd = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(2)}`;
+      (bl.items || []).forEach(item => {
+        allPageableItems.push({ item, globalIndex: gi++, blDocId: bl.document_id, blShortDate: sd });
+      });
+    }
+  } else {
+    items.forEach((item, i) => allPageableItems.push({ item, globalIndex: i }));
+  }
+
+  // Split into pages of ITEMS_PER_PAGE
+  const pageChunks: PageableItem[][] = [];
+  if (isMultiPage) {
+    for (let i = 0; i < allPageableItems.length; i += ITEMS_PER_PAGE) {
+      pageChunks.push(allPageableItems.slice(i, i + ITEMS_PER_PAGE));
+    }
+  }
+
+  // ─── Render helpers (shared by single-page and multi-page paths) ───────────
+
+  const renderItemRow = (item: any, rowIndex: number) => {
+    const unitPrice = Number(item.unit_price ?? item.unitPrice) || 0;
+    const quantity = Number(item.quantity) || 0;
+    const itemInitialHT = unitPrice * quantity;
+    let discountForThisItem = 0;
+    if ((totals.discountAmount || 0) > 0 && discountValue) {
+      if (discountType === 'percentage') {
+        discountForThisItem = itemInitialHT * (discountValue / 100);
+      } else if (totals.initialSubtotal) {
+        discountForThisItem = (itemInitialHT / totals.initialSubtotal) * (totals.discountAmount || 0);
+      }
+    }
+    const itemNetHT = itemInitialHT - discountForThisItem;
+
+    return (
+      <View
+        key={item.id || rowIndex}
+        style={[styles.tableRow, rowIndex % 2 === 0 ? styles.rowEven : styles.rowOdd]}
+        wrap={false}
+      >
+        <View style={[styles.tableCell, { flex: 0.5, width: '5%' }]}>
+          <Text>{rowIndex + 1}</Text>
+        </View>
+        <View style={[styles.tableCell, { flex: 3.0, width: '30%' }]}>
+          <Text>{item.description || '-'}</Text>
+        </View>
+        <View style={[styles.tableCell, styles.tableCellCenter, { flex: 0.8, width: '8%' }]}>
+          <Text>{quantity}</Text>
+        </View>
+        <View style={[styles.tableCell, styles.tableCellCenter, { flex: 0.9, width: '9%' }]}>
+          <Text>{item.unit || '-'}</Text>
+        </View>
+        <View style={[styles.tableCell, styles.tableCellCenter, { flex: 1.3, width: '13%' }]}>
+          <Text wrap={false}>{formatMADFull(unitPrice)}</Text>
+        </View>
+        {((totals.discountAmount || 0) > 0) && (
+          <View style={[styles.tableCell, styles.tableCellCenter, { flex: 1.0, width: showVAT ? '10%' : '12%' }]}>
+            <Text wrap={false}>{formatMADFull(discountForThisItem)}</Text>
+          </View>
+        )}
+        {showVAT && (
+          <View style={[styles.tableCell, styles.tableCellCenter, { flex: 1.0, width: ((totals.discountAmount || 0) > 0) ? '10%' : '12%' }]}>
+            <Text wrap={false}>{`${Math.round(VAT_RATE * 100)}%`}</Text>
+          </View>
+        )}
+        <View style={[styles.tableCell, styles.tableCellRight, styles.tableCellBold, { flex: 1.5, width: (showVAT && (totals.discountAmount || 0) > 0) ? '15%' : (showVAT || (totals.discountAmount || 0) > 0) ? '23%' : '35%' }]}>
+          <Text wrap={false}>{formatMADFull(itemNetHT)}</Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderTableHeaderRow = () => (
+    <View style={[styles.tableHeader, { backgroundColor: primaryColor }]} wrap={false}>
+      <View style={[styles.tableHeaderCell, { flex: 0.5, width: '5%' }]}>
+        <Text>{String(t('pdf.no'))}</Text>
+      </View>
+      <View style={[styles.tableHeaderCell, { flex: 3.0, width: '30%' }]}>
+        <Text>{String(t('pdf.description'))}</Text>
+      </View>
+      <View style={[styles.tableHeaderCell, { flex: 0.8, width: '8%', textAlign: 'center' }]}>
+        <Text>{String(t('pdf.qty'))}</Text>
+      </View>
+      <View style={[styles.tableHeaderCell, { flex: 0.9, width: '9%', textAlign: 'center' }]}>
+        <Text>UNITÉ</Text>
+      </View>
+      <View style={[styles.tableHeaderCell, { flex: 1.3, width: '13%', textAlign: 'center' }]}>
+        <Text>{String(t('pdf.price'))}</Text>
+      </View>
+      {((totals.discountAmount || 0) > 0) && (
+        <View style={[styles.tableHeaderCell, { flex: 1.0, width: showVAT ? '10%' : '12%', textAlign: 'center' }]}>
+          <Text>REMISE</Text>
+        </View>
+      )}
+      {showVAT && (
+        <View style={[styles.tableHeaderCell, { flex: 1.0, width: ((totals.discountAmount || 0) > 0) ? '10%' : '12%', textAlign: 'center' }]}>
+          <Text>TVA</Text>
+        </View>
+      )}
+      <View style={[styles.tableHeaderCell, { flex: 1.5, width: (showVAT && (totals.discountAmount || 0) > 0) ? '15%' : (showVAT || (totals.discountAmount || 0) > 0) ? '23%' : '35%', textAlign: 'right' }]}>
+        <Text>{String(t('pdf.total'))}</Text>
+      </View>
+    </View>
+  );
+
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <View style={styles.headerRow}>
+        {/* Company Info - Logo Only */}
+        <View style={styles.companyInfo}>
+          {companyInfo.logo && companyInfo.logo.trim() ? (
+            <Image
+              src={companyInfo.logo}
+              style={styles.logo}
+              cache={false}
+            />
+          ) : (
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.companyName, { color: titleColor }]}>{(companyInfo.name || 'COMPANY NAME').toUpperCase()}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Document Title */}
+        <View style={{ alignItems: 'flex-end', width: 'auto' }}>
+          <Text style={[styles.documentTitle, { fontSize: getTitleFontSize(documentTitles[type]), color: titleColor }]}>
+            {documentTitles[type]}
+          </Text>
+          <View style={[styles.invoiceDetails, { width: 'auto', alignSelf: 'flex-end', backgroundColor: primaryColor }]}>
+            <View style={styles.invoiceDetailRow}>
+              <Text>
+                <Text style={styles.invoiceDetailLabel}>{String(t('pdf.documentNumber'))}: </Text>
+                <Text style={styles.invoiceDetailValue}>{formattedDocumentId}</Text>
+              </Text>
+            </View>
+            {companyInfo.footerText && (
+              <View style={styles.invoiceDetailRow}>
+                <Text>
+                  <Text style={styles.invoiceDetailLabel}>Lieu: </Text>
+                  <Text style={styles.invoiceDetailValue}>{companyInfo.footerText}</Text>
+                </Text>
+              </View>
+            )}
+            <View>
+              <Text>
+                <Text style={styles.invoiceDetailLabel}>{String(t('common.date'))}: </Text>
+                <Text style={styles.invoiceDetailValue}>{formatDate(date)}</Text>
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Company Info and Invoice To - Side by Side */}
+      <View style={{
+        flexDirection: 'row',
+        gap: 20,
+        width: '100%',
+        marginTop: 0,
+        marginLeft: 0,
+        paddingLeft: 0,
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: scale < 1 ? 6 : 12,
+      }}>
+        {/* Left Box - From (Sender) */}
+        <View style={{ width: '40%', flexShrink: 0 }}>
+          <Text style={[styles.invoiceToLabel, { color: primaryColor }]}>{String(t('pdf.from'))}:</Text>
+          <View style={[styles.invoiceToBox, { borderColor: primaryColor }]}>
+            {type === 'purchase_invoice' || type === 'purchase_delivery_note' ? (
+              <View>
+                {(clientData || supplierData) ? (
+                  <View>
+                    <Text style={styles.clientName}>
+{clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '-'}
+</Text>
+{(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
+                    <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
+                      {(clientData?.phone || supplierData?.phone) ? <Text>{String(t('pdf.phone'))}: {clientData?.phone || supplierData?.phone}    </Text> : null}
+                      {(clientData?.address || supplierData?.address) ? <Text>{clientData?.address || supplierData?.address}</Text> : null}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.clientName}>{client || supplier || '-'}</Text>
+                )}
+              </View>
+            ) : (
+              <View>
+                <Text style={styles.clientName}>
+{(companyInfo.name || 'COMPANY NAME').toUpperCase()}
+</Text>
+{companyInfo.ice ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
+                <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
+                  {companyInfo.phone ? <Text>{String(t('pdf.phone'))}: {companyInfo.phone}    </Text> : null}
+                  {companyInfo.address ? <Text>{companyInfo.address}</Text> : null}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Right Box - To (Recipient) */}
+        <View style={{ width: '40%', flexShrink: 0 }}>
+          <Text style={[styles.invoiceToLabel, { color: primaryColor }]}>
+            {type === 'purchase_order'
+              ? `${String(t('pdf.supplier'))}:`
+              : (currentLang === 'en' ? `${documentTitles[type]} TO:` : `${documentTitles[type]} À:`)}
+          </Text>
+          <View style={[styles.invoiceToBox, { borderColor: primaryColor }]}>
+            {type === 'purchase_invoice' || type === 'purchase_delivery_note' ? (
+              <View>
+                <Text style={styles.clientName}>
+{(companyInfo.name || 'COMPANY NAME').toUpperCase()}
+</Text>
+{companyInfo.ice ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
+                <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
+                  {companyInfo.phone ? <Text>{String(t('pdf.phone'))}: {companyInfo.phone}    </Text> : null}
+                  {companyInfo.address ? <Text>{companyInfo.address}</Text> : null}
+                </Text>
+              </View>
+            ) : (
+              <View>
+                {(clientData || supplierData) ? (
+                  <View>
+                    <Text style={styles.clientName}>
+{clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '-'}
+</Text>
+{(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
+                    <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
+                      {(clientData?.phone || supplierData?.phone) ? <Text>{String(t('pdf.phone'))}: {clientData?.phone || supplierData?.phone}    </Text> : null}
+                      {(clientData?.address || supplierData?.address) ? <Text>{clientData?.address || supplierData?.address}</Text> : null}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.clientName}>{client || supplier || '-'}</Text>
+                )}
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderSummarySection = () => (
+    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'flex-start', gap: 20, marginBottom: scale < 1 ? 8 : 32, width: '100%' }} wrap={false}>
+      {/* Note Section - Left Side */}
+      {note && note.trim() && (
+        <View style={{
+          flex: 1,
+          maxWidth: 300,
+          padding: '12px 14px',
+          backgroundColor: '#F9FAFB',
+          border: '1px solid #E5E7EB',
+          borderRadius: 6,
+          marginTop: 10,
+          marginRight: 'auto',
+        }}>
+          <Text style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: '#374151',
+            marginBottom: 6,
+            textTransform: 'uppercase',
+            letterSpacing: 0.05,
+          }}>
+            {String(t('common.notes'))}
+          </Text>
+          <Text style={{
+            fontSize: 13,
+            color: '#6B7280',
+            lineHeight: 1.5,
+          }}>
+            {note}
+          </Text>
+        </View>
+      )}
+
+      {/* Summary Box - Right Side */}
+      <View style={[styles.summaryBox, { backgroundColor: primaryColor }]} wrap={false}>
+        {(totals.discountAmount || 0) > 0 && (
+          <>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryText}>{String(t('documents.subtotalHT'))} (Initial)</Text>
+              <Text style={styles.summaryTextBold} wrap={false}>{formatMADFull(totals.initialSubtotal ?? totals.subtotal)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryText}>Remise {discountType === 'percentage' ? `(${discountValue}%)` : ''}</Text>
+              <Text style={styles.summaryTextBold} wrap={false}>-{formatMADFull(totals.discountAmount || 0)}</Text>
+            </View>
+          </>
+        )}
+
+        {showVAT && (
+          <>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryText}>{String(t('documents.subtotalHT'))} {((totals.discountAmount || 0) > 0) ? '(Net)' : ''}</Text>
+              <Text style={styles.summaryTextBold} wrap={false}>{formatMADFull(totals.subtotal)}</Text>
+            </View>
+            <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
+              <Text style={styles.summaryText}>{String(t('documents.vat'))} {VAT_RATE * 100}%</Text>
+              <Text style={styles.summaryTextBold} wrap={false}>{formatMADFull(totals.vat)}</Text>
+            </View>
+            <View style={styles.summaryTotal}>
+              <Text style={styles.summaryTotalText}>{String(t('pdf.grandTotal'))}</Text>
+              <Text style={styles.summaryTotalText} wrap={false}>{formatMADFull(totals.total)}</Text>
+            </View>
+          </>
+        )}
+        {!showVAT && (
+          <>
+            {((totals.discountAmount || 0) > 0) && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryText}>{String(t('documents.subtotalHT'))} (Net)</Text>
+                <Text style={styles.summaryTextBold} wrap={false}>{formatMADFull(totals.subtotal)}</Text>
+              </View>
+            )}
+            <View style={styles.summaryTotal}>
+              <Text style={styles.summaryTotalText}>{String(t('pdf.grandTotal'))}</Text>
+              <Text style={styles.summaryTotalText} wrap={false}>{formatMADFull(totals.subtotal)}</Text>
+            </View>
+          </>
+        )}
+      </View>
+    </View>
+  );
+
+  const renderAmountInWordsSection = () => type === 'invoice' ? (
+    <View style={{ marginTop: scale < 1 ? 4 : 'auto', marginBottom: scale < 1 ? 6 : 15, paddingLeft: 8 }} wrap={false}>
+      <Text style={{ fontSize: scale < 1 ? 8 : 9, color: '#374151' }}>
+        Arrêté la présente facture à la somme de :
+      </Text>
+      <Text style={{ fontSize: scale < 1 ? 9 : 11, fontWeight: 'bold', color: primaryColor, marginTop: 3 }}>
+        {amountToFrenchWords(showVAT ? totals.total : totals.subtotal)}
+      </Text>
+    </View>
+  ) : null;
+
+  const renderFooterText = () => (
+    <Text style={{
+      fontSize: 10,
+      color: '#6B7280',
+      lineHeight: 1.4,
+      textAlign: 'center',
+      fontWeight: 700,
+    }}>
+      {[
+        companyInfo.ice && `${String(t('pdf.ice'))}: ${companyInfo.ice}`,
+        companyInfo.ifNumber && `${String(t('pdf.if'))}: ${companyInfo.ifNumber}`,
+        companyInfo.rc && `${String(t('pdf.rc'))}: ${companyInfo.rc}`,
+        companyInfo.tp && `${String(t('pdf.tp'))}: ${companyInfo.tp}`,
+        companyInfo.patente && `${String(t('pdf.patente'))}: ${companyInfo.patente}`,
+        companyInfo.cnss && `${String(t('pdf.cnss'))}: ${companyInfo.cnss}`,
+        companyInfo.phone && `${String(t('pdf.phone'))}: ${companyInfo.phone}`,
+        companyInfo.email && `${String(t('common.email'))}: ${companyInfo.email}`
+      ].filter(Boolean).join(' | ')}
+    </Text>
+  );
+
+  // ─── Multi-page render (invoices with > 20 items) ────────────────────────
+  if (isMultiPage) {
+    const totalPages = pageChunks.length;
+
+    return (
+      <Document>
+        {pageChunks.map((chunk, pageIdx) => (
+          <Page key={pageIdx} size="A4" style={styles.page}>
+            <View style={styles.contentWrapper}>
+              {/* Full header on every page */}
+              {renderHeader()}
+
+              {/* Items table for this page */}
+              <View style={[styles.table, { borderColor: primaryColor }]}>
+                {renderTableHeaderRow()}
+                {chunk.map((pi, localIdx) => {
+                  // Show BL group header when BL changes within a page
+                  const showBLHeader = !!pi.blDocId && (
+                    localIdx === 0 || chunk[localIdx - 1].blDocId !== pi.blDocId
+                  );
+                  return (
+                    <React.Fragment key={pi.item?.id ?? pi.globalIndex}>
+                      {showBLHeader && (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            backgroundColor: '#EFF6FF',
+                            borderBottom: '1px solid #BFDBFE',
+                            padding: `${Math.max(2, Math.round(4 * scale))}px ${Math.max(4, Math.round(8 * scale))}px`,
+                          }}
+                          wrap={false}
+                        >
+                          <Text style={{ fontSize: Math.max(7, Math.round(9 * scale)), fontFamily: 'Helvetica-Bold', color: '#1D4ED8' }}>
+                            {pi.blDocId} Du {pi.blShortDate}
+                          </Text>
+                        </View>
+                      )}
+                      {renderItemRow(pi.item, pi.globalIndex)}
+                    </React.Fragment>
+                  );
+                })}
+              </View>
+
+              {/* Totals and amount in words — last page only */}
+              {pageIdx === totalPages - 1 && renderSummarySection()}
+              {pageIdx === totalPages - 1 && renderAmountInWordsSection()}
+            </View>
+
+            {/* Footer with page number — explicit on every page */}
+            <View style={styles.footer}>
+              {renderFooterText()}
+              <Text style={{ fontSize: 9, color: '#9CA3AF', marginTop: 3 }}>
+                Page {pageIdx + 1} / {totalPages}
+              </Text>
+            </View>
+          </Page>
+        ))}
+      </Document>
+    );
+  }
+
+  // ─── Single-page render (existing behavior — all non-invoice types and invoices ≤ 20 items) ──
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.contentWrapper}>
           {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerRow}>
-              {/* Company Info - Logo Only */}
-              <View style={styles.companyInfo}>
-                {companyInfo.logo && companyInfo.logo.trim() ? (
-                  <Image
-                    src={companyInfo.logo}
-                    style={styles.logo}
-                    cache={false}
-                  />
-                ) : (
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.companyName, { color: titleColor }]}>{(companyInfo.name || 'COMPANY NAME').toUpperCase()}</Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Document Title */}
-              <View style={{ alignItems: 'flex-end', width: 'auto' }}>
-                <Text style={[styles.documentTitle, { fontSize: getTitleFontSize(documentTitles[type]), color: titleColor }]}>
-                  {documentTitles[type]}
-                </Text>
-                <View style={[styles.invoiceDetails, { width: 'auto', alignSelf: 'flex-end', backgroundColor: primaryColor }]}>
-                  <View style={styles.invoiceDetailRow}>
-                    <Text>
-                      <Text style={styles.invoiceDetailLabel}>{String(t('pdf.documentNumber'))}: </Text>
-                      <Text style={styles.invoiceDetailValue}>{formattedDocumentId}</Text>
-                    </Text>
-                  </View>
-                  {companyInfo.footerText && (
-                    <View style={styles.invoiceDetailRow}>
-                      <Text>
-                        <Text style={styles.invoiceDetailLabel}>Lieu: </Text>
-                        <Text style={styles.invoiceDetailValue}>{companyInfo.footerText}</Text>
-                      </Text>
-                    </View>
-                  )}
-                  <View>
-                    <Text>
-                      <Text style={styles.invoiceDetailLabel}>{String(t('common.date'))}: </Text>
-                      <Text style={styles.invoiceDetailValue}>{formatDate(date)}</Text>
-                    </Text>
-                  </View>
-                </View>
-
-
-              </View>
-            </View>
-
-            {/* Company Info and Invoice To - Side by Side */}
-            <View style={{
-              flexDirection: 'row',
-              gap: 20,
-              width: '100%',
-              marginTop: 0,
-              marginLeft: 0,
-              paddingLeft: 0,
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              marginBottom: scale < 1 ? 6 : 12,
-            }}>
-              {/* Left Box - From (Sender) */}
-              <View style={{ width: '40%', flexShrink: 0 }}>
-                <Text style={[styles.invoiceToLabel, { color: primaryColor }]}>{String(t('pdf.from'))}:</Text>
-                <View style={[styles.invoiceToBox, { borderColor: primaryColor }]}>
-                  {type === 'purchase_invoice' || type === 'purchase_delivery_note' ? (
-                    /* For Purchase Invoice/Delivery Note: Sender is Supplier */
-                    <View>
-                      {/* Use supplierData if available */}
-                      {(clientData || supplierData) ? (
-                        <View>
-                          <Text style={styles.clientName}>
-  {clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '-'}
-</Text>
-{(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
-                          <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
-                            {(clientData?.phone || supplierData?.phone) ? <Text>{String(t('pdf.phone'))}: {clientData?.phone || supplierData?.phone}    </Text> : null}
-                            {(clientData?.address || supplierData?.address) ? <Text>{clientData?.address || supplierData?.address}</Text> : null}
-                          </Text>
-                        </View>
-                      ) : (
-                        <Text style={styles.clientName}>{client || supplier || '-'}</Text>
-                      )}
-                    </View>
-                  ) : (
-                    /* For Sales Invoice/Others: Sender is Company (Us) */
-                    <View>
-                      <Text style={styles.clientName}>
-  {(companyInfo.name || 'COMPANY NAME').toUpperCase()}
-</Text>
-{companyInfo.ice ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
-                      <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
-                        {companyInfo.phone ? <Text>{String(t('pdf.phone'))}: {companyInfo.phone}    </Text> : null}
-                        {companyInfo.address ? <Text>{companyInfo.address}</Text> : null}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-
-              {/* Right Box - To (Recipient) */}
-              <View style={{ width: '40%', flexShrink: 0 }}>
-                <Text style={[styles.invoiceToLabel, { color: primaryColor }]}>
-                  {type === 'purchase_order' 
-                    ? `${String(t('pdf.supplier'))}:` 
-                    : (currentLang === 'en' ? `${documentTitles[type]} TO:` : `${documentTitles[type]} À:`)}
-                </Text>
-                <View style={[styles.invoiceToBox, { borderColor: primaryColor }]}>
-                  {type === 'purchase_invoice' || type === 'purchase_delivery_note' ? (
-                    /* For Purchase Invoice/Delivery Note: Recipient is Company (Us) */
-                    <View>
-                      <Text style={styles.clientName}>
-  {(companyInfo.name || 'COMPANY NAME').toUpperCase()}
-</Text>
-{companyInfo.ice ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
-                      <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
-                        {companyInfo.phone ? <Text>{String(t('pdf.phone'))}: {companyInfo.phone}    </Text> : null}
-                        {companyInfo.address ? <Text>{companyInfo.address}</Text> : null}
-                      </Text>
-                    </View>
-                  ) : (
-                    /* For Sales Invoice/Others: Recipient is Client/Supplier */
-                    <View>
-                      {/* Use clientData/supplierData if available */}
-                      {(clientData || supplierData) ? (
-                        <View>
-                          <Text style={styles.clientName}>
-  {clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '-'}
-</Text>
-{(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
-                          <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
-                            {(clientData?.phone || supplierData?.phone) ? <Text>{String(t('pdf.phone'))}: {clientData?.phone || supplierData?.phone}    </Text> : null}
-                            {(clientData?.address || supplierData?.address) ? <Text>{clientData?.address || supplierData?.address}</Text> : null}
-                          </Text>
-                        </View>
-                      ) : (
-                        <Text style={styles.clientName}>{client || supplier || '-'}</Text>
-                      )}
-                    </View>
-                  )}
-                </View>
-              </View>
-            </View>
-          </View>
+          {renderHeader()}
 
           {/* Client PO Number — shown for delivery notes when provided */}
           {type === 'delivery_note' && clientPoNumber && clientPoNumber.trim() && (
@@ -599,96 +900,10 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
 
           {/* Items Table - Can flow across pages */}
           <View style={[styles.table, { borderColor: primaryColor }]} wrap>
-            {/* Table Header */}
-            <View style={[styles.tableHeader, { backgroundColor: primaryColor }]} wrap={false}>
-              <View style={[styles.tableHeaderCell, { flex: 0.5, width: '5%' }]}>
-                <Text>{String(t('pdf.no'))}</Text>
-              </View>
-              <View style={[styles.tableHeaderCell, { flex: 3.0, width: '30%' }]}>
-                <Text>{String(t('pdf.description'))}</Text>
-              </View>
-              <View style={[styles.tableHeaderCell, { flex: 0.8, width: '8%', textAlign: 'center' }]}>
-                <Text>{String(t('pdf.qty'))}</Text>
-              </View>
-              <View style={[styles.tableHeaderCell, { flex: 0.9, width: '9%', textAlign: 'center' }]}>
-                <Text>UNITÉ</Text>
-              </View>
-              <View style={[styles.tableHeaderCell, { flex: 1.3, width: '13%', textAlign: 'center' }]}>
-                <Text>{String(t('pdf.price'))}</Text>
-              </View>
-              {((totals.discountAmount || 0) > 0) && (
-                <View style={[styles.tableHeaderCell, { flex: 1.0, width: showVAT ? '10%' : '12%', textAlign: 'center' }]}>
-                  <Text>REMISE</Text>
-                </View>
-              )}
-              {showVAT && (
-                <View style={[styles.tableHeaderCell, { flex: 1.0, width: ((totals.discountAmount || 0) > 0) ? '10%' : '12%', textAlign: 'center' }]}>
-                  <Text>TVA</Text>
-                </View>
-              )}
-              <View style={[styles.tableHeaderCell, { flex: 1.5, width: (showVAT && (totals.discountAmount || 0) > 0) ? '15%' : (showVAT || (totals.discountAmount || 0) > 0) ? '23%' : '35%', textAlign: 'right' }]}>
-                <Text>{String(t('pdf.total'))}</Text>
-              </View>
-            </View>
+            {renderTableHeaderRow()}
 
             {/* Table Rows - grouped by BL when available, otherwise flat */}
             {(() => {
-              const hasGroupedBLs = type === 'invoice' && linkedBLs && linkedBLs.length > 0 && linkedBLs.some(bl => bl.items && bl.items.length > 0);
-
-              const renderItemRow = (item: { id?: string; description: string; quantity: number; unit?: string; unit_price?: number; unitPrice?: number; total: number }, rowIndex: number) => {
-                const unitPrice = Number((item as any).unit_price ?? (item as any).unitPrice) || 0;
-                const quantity = Number(item.quantity) || 0;
-                const itemInitialHT = unitPrice * quantity;
-                let discountForThisItem = 0;
-                if ((totals.discountAmount || 0) > 0 && discountValue) {
-                  if (discountType === 'percentage') {
-                    discountForThisItem = itemInitialHT * (discountValue / 100);
-                  } else if (totals.initialSubtotal) {
-                    discountForThisItem = (itemInitialHT / totals.initialSubtotal) * (totals.discountAmount || 0);
-                  }
-                }
-                const itemNetHT = itemInitialHT - discountForThisItem;
-                const itemTaxAmount = showVAT ? itemNetHT * VAT_RATE : 0;
-                const itemTotalAfterTax = itemNetHT + itemTaxAmount;
-
-                return (
-                  <View
-                    key={item.id || rowIndex}
-                    style={[styles.tableRow, rowIndex % 2 === 0 ? styles.rowEven : styles.rowOdd]}
-                    wrap={false}
-                  >
-                    <View style={[styles.tableCell, { flex: 0.5, width: '5%' }]}>
-                      <Text>{rowIndex + 1}</Text>
-                    </View>
-                    <View style={[styles.tableCell, { flex: 3.0, width: '30%' }]}>
-                      <Text>{item.description || '-'}</Text>
-                    </View>
-                    <View style={[styles.tableCell, styles.tableCellCenter, { flex: 0.8, width: '8%' }]}>
-                      <Text>{quantity}</Text>
-                    </View>
-                    <View style={[styles.tableCell, styles.tableCellCenter, { flex: 0.9, width: '9%' }]}>
-                      <Text>{item.unit || '-'}</Text>
-                    </View>
-                    <View style={[styles.tableCell, styles.tableCellCenter, { flex: 1.3, width: '13%' }]}>
-                      <Text wrap={false}>{formatMADFull(unitPrice)}</Text>
-                    </View>
-                    {((totals.discountAmount || 0) > 0) && (
-                      <View style={[styles.tableCell, styles.tableCellCenter, { flex: 1.0, width: showVAT ? '10%' : '12%' }]}>
-                        <Text wrap={false}>{formatMADFull(discountForThisItem)}</Text>
-                      </View>
-                    )}
-                    {showVAT && (
-                      <View style={[styles.tableCell, styles.tableCellCenter, { flex: 1.0, width: ((totals.discountAmount || 0) > 0) ? '10%' : '12%' }]}>
-                        <Text wrap={false}>{showVAT ? `${Math.round(VAT_RATE * 100)}%` : '-'}</Text>
-                      </View>
-                    )}
-                    <View style={[styles.tableCell, styles.tableCellRight, styles.tableCellBold, { flex: 1.5, width: (showVAT && (totals.discountAmount || 0) > 0) ? '15%' : (showVAT || (totals.discountAmount || 0) > 0) ? '23%' : '35%' }]}>
-                      <Text wrap={false}>{formatMADFull(itemNetHT)}</Text>
-                    </View>
-                  </View>
-                );
-              };
-
               if (hasGroupedBLs) {
                 let globalIndex = 0;
                 return linkedBLs!.map((bl, blIdx) => {
@@ -704,7 +919,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                           {bl.document_id} Du {shortDate}
                         </Text>
                       </View>
-                      {blItems.map((item, itemIdx) => renderItemRow(item, startIndex + itemIdx))}
+                      {blItems.map((item, itemIdx) => renderItemRow(item as any, startIndex + itemIdx))}
                     </React.Fragment>
                   );
                 });
@@ -715,123 +930,16 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
             })()}
           </View>
 
-          {/* Financial Summary - Keep together with table, with Note on Left */}
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'flex-start', gap: 20, marginBottom: scale < 1 ? 8 : 32, width: '100%' }} wrap={false}>
-            {/* Note Section - Left Side */}
-            {note && note.trim() && (
-              <View style={{
-                flex: 1,
-                maxWidth: 300,
-                padding: '12px 14px',
-                backgroundColor: '#F9FAFB',
-                border: '1px solid #E5E7EB',
-                borderRadius: 6,
-                marginTop: 10,
-                marginRight: 'auto',
-              }}>
-                <Text style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: '#374151',
-                  marginBottom: 6,
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.05,
-                }}>
-                  {String(t('common.notes'))}
-                </Text>
-                <Text style={{
-                  fontSize: 13,
-                  color: '#6B7280',
-                  lineHeight: 1.5,
-                }}>
-                  {note}
-                </Text>
-              </View>
-            )}
+          {/* Financial Summary */}
+          {renderSummarySection()}
 
-            {/* Summary Box - Right Side - Always Right Aligned */}
-            <View style={[styles.summaryBox, { backgroundColor: primaryColor }]} wrap={false}>
-              
-              {(totals.discountAmount || 0) > 0 && (
-                <>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryText}>{String(t('documents.subtotalHT'))} (Initial)</Text>
-                    <Text style={styles.summaryTextBold} wrap={false}>{formatMADFull(totals.initialSubtotal ?? totals.subtotal)}</Text>
-                  </View>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryText}>Remise {discountType === 'percentage' ? `(${discountValue}%)` : ''}</Text>
-                    <Text style={styles.summaryTextBold} wrap={false}>-{formatMADFull(totals.discountAmount || 0)}</Text>
-                  </View>
-                </>
-              )}
-
-              {showVAT && (
-                <>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryText}>{String(t('documents.subtotalHT'))} {((totals.discountAmount || 0) > 0) ? '(Net)' : ''}</Text>
-                    <Text style={styles.summaryTextBold} wrap={false}>{formatMADFull(totals.subtotal)}</Text>
-                  </View>
-                  <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
-                    <Text style={styles.summaryText}>{String(t('documents.vat'))} {VAT_RATE * 100}%</Text>
-                    <Text style={styles.summaryTextBold} wrap={false}>{formatMADFull(totals.vat)}</Text>
-                  </View>
-                  <View style={styles.summaryTotal}>
-                    <Text style={styles.summaryTotalText}>{String(t('pdf.grandTotal'))}</Text>
-                    <Text style={styles.summaryTotalText} wrap={false}>{formatMADFull(totals.total)}</Text>
-                  </View>
-                </>
-              )}
-              {!showVAT && (
-                <>
-                  {((totals.discountAmount || 0) > 0) && (
-                    <View style={styles.summaryRow}>
-                      <Text style={styles.summaryText}>{String(t('documents.subtotalHT'))} (Net)</Text>
-                      <Text style={styles.summaryTextBold} wrap={false}>{formatMADFull(totals.subtotal)}</Text>
-                    </View>
-                  )}
-                  <View style={styles.summaryTotal}>
-                    <Text style={styles.summaryTotalText}>{String(t('pdf.grandTotal'))}</Text>
-                    <Text style={styles.summaryTotalText} wrap={false}>{formatMADFull(totals.subtotal)}</Text>
-                  </View>
-                </>
-              )}
-              {/* For purchase_order and purchase_delivery_note: always show HT subtotal + TVA breakdown even though showVAT was added above — handled by showVAT block */}
-            </View>
-          </View>
-
-          {/* Amount in Words for Invoices - Bottom Left Above Footer */}
-          {type === 'invoice' && (
-            <View style={{ marginTop: scale < 1 ? 4 : 'auto', marginBottom: scale < 1 ? 6 : 15, paddingLeft: 8 }} wrap={false}>
-             <Text style={{ fontSize: scale < 1 ? 8 : 9, color: '#374151' }}>
-               Arrêté la présente facture à la somme de :
-             </Text>
-             <Text style={{ fontSize: scale < 1 ? 9 : 11, fontWeight: 'bold', color: primaryColor, marginTop: 3 }}>
-               {amountToFrenchWords(showVAT ? totals.total : totals.subtotal)}
-             </Text>
-            </View>
-          )}
+          {/* Amount in Words for Invoices */}
+          {renderAmountInWordsSection()}
         </View>
 
-        {/* Footer - Company Details - Absolutely pinned to page bottom */}
+        {/* Footer - fixed so it appears on every page if content overflows */}
         <View style={styles.footer} fixed>
-          <Text style={{
-            fontSize: 10,
-            color: '#6B7280',
-            lineHeight: 1.4,
-            textAlign: 'center',
-            fontWeight: 700,
-          }}>
-            {[
-              companyInfo.ice && `${String(t('pdf.ice'))}: ${companyInfo.ice}`,
-              companyInfo.ifNumber && `${String(t('pdf.if'))}: ${companyInfo.ifNumber}`,
-              companyInfo.rc && `${String(t('pdf.rc'))}: ${companyInfo.rc}`,
-              companyInfo.tp && `${String(t('pdf.tp'))}: ${companyInfo.tp}`,
-              companyInfo.patente && `${String(t('pdf.patente'))}: ${companyInfo.patente}`,
-              companyInfo.cnss && `${String(t('pdf.cnss'))}: ${companyInfo.cnss}`,
-              companyInfo.phone && `${String(t('pdf.phone'))}: ${companyInfo.phone}`,
-              companyInfo.email && `${String(t('common.email'))}: ${companyInfo.email}`
-            ].filter(Boolean).join(' | ')}
-          </Text>
+          {renderFooterText()}
         </View>
       </Page>
     </Document>

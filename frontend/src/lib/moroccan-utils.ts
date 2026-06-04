@@ -140,7 +140,10 @@ export const calculateInvoiceTotals = (
       const qty   = Number(item.quantity)  || 0;
       const price = Number(item.unitPrice) || 0;
       const stored = Number(item.total)    || 0;
-      const itemTotal = stored || roundTo2Decimals(qty * price);
+      // Always prefer qty×price (matches what renderItemRow displays); fall back
+      // to stored total only when both qty and price are unavailable.
+      const computed = roundTo2Decimals(qty * price);
+      const itemTotal = computed > 0 ? computed : stored;
       return sum + roundTo2Decimals(itemTotal);
     }, 0)
   );

@@ -152,7 +152,7 @@ const invoiceToSalesDocument = (invoice: InvoiceWithItems): SalesDocument => {
   return {
     id: invoice.document_id,
     documentId: invoice.document_id,
-    client: invoice.client?.name || invoice.client_id,
+    client: invoice.client?.name || invoice.client?.company || '',
     clientData,
     date: invoice.date,
     items: invoice.items.map(item => ({
@@ -205,7 +205,7 @@ const estimateToSalesDocument = (estimate: EstimateWithItems): SalesDocument => 
   return {
     id: estimate.document_id,
     documentId: estimate.document_id,
-    client: estimate.client?.name || estimate.client_id,
+    client: estimate.client?.name || estimate.client?.company || '',
     clientData,
     date: estimate.date,
     items: estimate.items.map(item => ({
@@ -247,7 +247,7 @@ const deliveryNoteToSalesDocument = (deliveryNote: DeliveryNoteWithItems): Sales
   return {
     id: deliveryNote.document_id,
     documentId: deliveryNote.document_id,
-    client: deliveryNote.client?.name || deliveryNote.client_id || deliveryNote.supplier?.name || deliveryNote.supplier_id || '',
+    client: deliveryNote.client?.name || deliveryNote.client?.company || deliveryNote.supplier?.name || deliveryNote.supplier?.company || '',
     clientData,
     date: deliveryNote.date,
     items: deliveryNote.items.map(item => ({
@@ -294,7 +294,7 @@ const creditNoteToSalesDocument = (creditNote: CreditNoteWithItems): SalesDocume
   return {
     id: creditNote.document_id,
     documentId: creditNote.document_id,
-    client: creditNote.client?.name || creditNote.client_id,
+    client: creditNote.client?.name || creditNote.client?.company || '',
     clientData,
     date: creditNote.date,
     items: creditNote.items.map(item => ({
@@ -333,7 +333,7 @@ const prelevementToSalesDocument = (prelevement: PrelevementWithItems): SalesDoc
   return {
     id: prelevement.document_id,
     documentId: prelevement.document_id,
-    client: prelevement.client?.name || prelevement.client_id || '',
+    client: prelevement.client?.name || prelevement.client?.company || '',
     clientData,
     date: prelevement.date,
     items: prelevement.items.map(item => ({

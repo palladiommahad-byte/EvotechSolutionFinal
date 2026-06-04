@@ -26,7 +26,9 @@ const TABLE_MAP = {
 
 /**
  * Generates a unique document ID in the format PREFIX-MM/YY/NNNN
+ * (e.g. BL-06/26/0008, DV-06/26/0001)
  * Uses the legacy SELECT-based approach (safe for low-concurrency doc types).
+ * NOTE: invoices use generateInvoiceNumberSafe which produces FC-MMYY/NNNN format.
  *
  * @param {string} type - The document type (e.g., 'delivery_note', 'estimate')
  * @param {Date} date   - The document date (defaults to now)
@@ -84,7 +86,7 @@ async function generateInvoiceNumberSafe(pgClient, date = new Date()) {
     const d = new Date(date);
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year  = String(d.getFullYear()).slice(-2); // YY
-    const baseId = `FC-${month}/${year}/`;
+    const baseId = `FC${month}${year}/`;
 
     // Row-lock the invoice sequence row to act as a global mutex for invoice generation.
     // This prevents race conditions when generating invoices concurrently.
@@ -105,8 +107,8 @@ async function generateInvoiceNumberSafe(pgClient, date = new Date()) {
 
     // Now safely determine the max ID for this specific month/year
     const result = await pgClient.query(
-        `SELECT document_id FROM invoices 
-         WHERE document_id LIKE $1 
+        `SELECT document_id FROM invoices
+         WHERE document_id LIKE $1
          ORDER BY document_id DESC LIMIT 1`,
         [`${baseId}%`]
     );
@@ -115,8 +117,8 @@ async function generateInvoiceNumberSafe(pgClient, date = new Date()) {
     if (result.rows.length > 0) {
         const lastId = result.rows[0].document_id;
         const parts = lastId.split('/');
-        if (parts.length === 3) {
-            const serialPart = parts[2]; // NNNN
+        if (parts.length === 2) {
+            const serialPart = parts[1]; // NNNN
             const lastSerial = parseInt(serialPart, 10);
             if (!isNaN(lastSerial)) {
                 nextSeq = lastSerial + 1;
