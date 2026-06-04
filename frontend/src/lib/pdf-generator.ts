@@ -652,7 +652,8 @@ export const exportRelevePDF = (options: {
   invoices: Array<{
     id: string;
     date: string;
-    total: number;
+    total: number;       // TTC
+    subtotal?: number;   // HT — use this when available
     amount_paid: number;
     status: string;
     client: string;
@@ -781,9 +782,9 @@ export const exportRelevePDF = (options: {
   options.invoices.forEach((inv, idx) => {
     if (y > 268) { doc.addPage(); y = 15; drawTableHeader(); }
 
-    const ttc = Number(inv.total) || 0;
-    const ht  = ttc / 1.2;
-    const regle  = Number(inv.amount_paid) || 0;
+    const ttc  = Number(inv.total) || 0;
+    const ht   = inv.subtotal != null ? Number(inv.subtotal) : ttc / 1.2;
+    const regle = Number(inv.amount_paid) || 0;
     const solde  = ttc - regle;
 
     sumHT    += ht;

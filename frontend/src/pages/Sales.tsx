@@ -1585,6 +1585,7 @@ export const Sales = () => {
         id: inv.id,
         date: inv.date,
         total: inv.total,
+        subtotal: (inv as any).subtotal,
         amount_paid: (inv as any).amount_paid || 0,
         status: inv.status,
         client: inv.client,
@@ -4920,7 +4921,7 @@ export const Sales = () => {
                           filteredStatementInvoices.map((inv) => {
                             const amountPaid = (inv as any).amount_paid || 0;
                             const balance = inv.total - amountPaid;
-                            const ht = inv.total / 1.2;
+                            const ht = (inv as any).subtotal != null ? Number((inv as any).subtotal) : inv.total / 1.2;
                             const isSelected = selectedStatementDocs.has(inv.id);
                             return (
                               <TableRow key={inv.id} className={`hover:bg-section/50 ${isSelected ? 'bg-primary/5' : ''}`}>

@@ -46,7 +46,8 @@ export interface SalesDocument {
   clientData?: UIContact;
   date: string;
   items: SalesItem[];
-  total: number;
+  total: number;        // TTC (tax-inclusive total)
+  subtotal?: number;    // HT (tax-exclusive subtotal) — populated for invoices
   status: string;
   type: 'delivery_note' | 'divers' | 'invoice' | 'estimate' | 'credit_note' | 'statement' | 'prelevement';
   paymentMethod?: 'cash' | 'check' | 'bank_transfer';
@@ -141,7 +142,8 @@ const invoiceToSalesDocument = (invoice: InvoiceWithItems): SalesDocument => {
     company: invoice.client.company || '',
     email: invoice.client.email || '',
     phone: invoice.client.phone || '',
-    city: '',
+    city: (invoice.client as any).city || '',
+    address: (invoice.client as any).address || undefined,
     ice: invoice.client.ice || '',
     ifNumber: invoice.client.if_number || '',
     rc: invoice.client.rc || '',
@@ -165,6 +167,7 @@ const invoiceToSalesDocument = (invoice: InvoiceWithItems): SalesDocument => {
       total: item.total,
     })),
     total: invoice.total,
+    subtotal: (invoice as any).subtotal,
     amount_paid: invoice.amount_paid,
     status: mapInvoiceStatusToUI(invoice.status),
     type: 'invoice',

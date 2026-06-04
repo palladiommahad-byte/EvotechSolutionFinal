@@ -24,6 +24,7 @@ router.get('/', asyncHandler(async (req, res) => {
            c.id as client_id, c.name as client_name, c.company as client_company,
            c.email as client_email, c.phone as client_phone, c.ice as client_ice,
            c.if_number as client_if_number, c.rc as client_rc,
+           c.city as client_city, c.address as client_address,
            ba.id as bank_account_id, ba.name as bank_account_name, 
            ba.bank as bank_account_bank, ba.account_number as bank_account_number
     FROM invoices i
@@ -98,6 +99,8 @@ router.get('/', asyncHandler(async (req, res) => {
                     ice: invoice.client_ice,
                     if_number: invoice.client_if_number,
                     rc: invoice.client_rc,
+                    city: invoice.client_city,
+                    address: invoice.client_address,
                 } : undefined,
                 bank_account: invoice.bank_account_id ? {
                     id: invoice.bank_account_id,
@@ -124,7 +127,8 @@ router.get('/:id', asyncHandler(async (req, res) => {
             c.id as client_id, c.name as client_name, c.company as client_company,
             c.email as client_email, c.phone as client_phone, c.ice as client_ice,
             c.if_number as client_if_number, c.rc as client_rc,
-            ba.id as bank_account_id, ba.name as bank_account_name, 
+            c.city as client_city, c.address as client_address,
+            ba.id as bank_account_id, ba.name as bank_account_name,
             ba.bank as bank_account_bank, ba.account_number as bank_account_number
      FROM invoices i
      LEFT JOIN contacts c ON i.client_id = c.id
@@ -177,6 +181,8 @@ router.get('/:id', asyncHandler(async (req, res) => {
             ice: invoice.client_ice,
             if_number: invoice.client_if_number,
             rc: invoice.client_rc,
+            city: invoice.client_city,
+            address: invoice.client_address,
         } : undefined,
         bank_account: invoice.bank_account_id ? {
             id: invoice.bank_account_id,
@@ -208,7 +214,8 @@ router.get('/document/:documentId', asyncHandler(async (req, res) => {
             c.id as client_id, c.name as client_name, c.company as client_company,
             c.email as client_email, c.phone as client_phone, c.ice as client_ice,
             c.if_number as client_if_number, c.rc as client_rc,
-            ba.id as bank_account_id, ba.name as bank_account_name, 
+            c.city as client_city, c.address as client_address,
+            ba.id as bank_account_id, ba.name as bank_account_name,
             ba.bank as bank_account_bank, ba.account_number as bank_account_number
      FROM invoices i
      LEFT JOIN contacts c ON i.client_id = c.id
@@ -244,6 +251,8 @@ router.get('/document/:documentId', asyncHandler(async (req, res) => {
             ice: invoice.client_ice,
             if_number: invoice.client_if_number,
             rc: invoice.client_rc,
+            city: invoice.client_city,
+            address: invoice.client_address,
         } : undefined,
         bank_account: invoice.bank_account_id ? {
             id: invoice.bank_account_id,
