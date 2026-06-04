@@ -641,6 +641,226 @@ export const generateStatementPDF = (document: {
   doc.save(`${document.id}.pdf`);
 };
 
+// ─── Relevé de Compte (Grand Livre) PDF ─────────────────────────────────────
+// Matches the "VOTRE RELEVÉ DU COMPTE" layout shown to client:
+//   Logo | Company name/tagline
+//   CLIENT / city / ICE block
+//   Intro paragraph
+//   Table: F/A | NUMERO | DATE | TOTAL HT | TOTAL TTC | ACOMPTE | Réglé | solde du
+//   Totaux row + Total général section
+export const exportRelevePDF = (options: {
+  invoices: Array<{
+    id: string;
+    date: string;
+    total: number;
+    amount_paid: number;
+    status: string;
+    client: string;
+    clientData?: any;
+  }>;
+  clientName?: string;
+  clientData?: any;
+  companyInfo?: CompanyInfo;
+}) => {
+  const doc = new jsPDF();
+  const pageW = 210;
+  const leftM = 14;
+  const rightM = pageW - leftM;
+  const usableW = rightM - leftM; // 182 mm
+  let y = 12;
+
+  // ── Company header ────────────────────────────────────────────────────────
+  const ci = options.companyInfo;
+  let textX = leftM;
+
+  if (ci?.logo && ci.logo.startsWith('data:')) {
+    try {
+      doc.addImage(ci.logo, 'AUTO', leftM, y, 28, 18);
+      textX = leftM + 31;
+    } catch { /* skip on error */ }
+  }
+
+  if (ci?.name) {
+    doc.setFontSize(15);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 32, 96);
+    const nameText = ci.name + (ci.legalForm ? ` ${ci.legalForm}` : '');
+    doc.text(nameText, textX, y + 7);
+  }
+  if (ci?.address) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(200, 80, 0);
+    doc.text(ci.address, textX, y + 14);
+  }
+  doc.setTextColor(0, 0, 0);
+  y += 26;
+
+  doc.setDrawColor(180, 180, 180);
+  doc.setLineWidth(0.3);
+  doc.line(leftM, y, rightM, y);
+  y += 8;
+
+  // ── Title ─────────────────────────────────────────────────────────────────
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('VOTRE RELEVÉ DU COMPTE', leftM, y);
+  y += 7;
+
+  // ── Client block ──────────────────────────────────────────────────────────
+  const cd = options.clientData;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'italic');
+  doc.text('CLIENT:', leftM, y);
+  doc.setFont('helvetica', 'normal');
+  doc.text(options.clientName || '', leftM + 22, y);
+  y += 5;
+
+  if (cd?.city || cd?.address) {
+    doc.text(cd?.city || cd?.address || '', leftM, y);
+    y += 5;
+  }
+
+  doc.setFont('helvetica', 'italic');
+  doc.text('ICE:', leftM, y);
+  doc.setFont('helvetica', 'normal');
+  doc.text(cd?.ice || '', leftM + 13, y);
+  y += 10;
+
+  // ── Intro text ────────────────────────────────────────────────────────────
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'italic');
+  doc.text('Apres verification de notre compte sur nos livres et sauf omission de notre part', leftM, y);
+  y += 5;
+  doc.text('les factures a payer sont les suivantes:', leftM, y);
+  y += 10;
+  doc.setFont('helvetica', 'normal');
+
+  // ── Table ─────────────────────────────────────────────────────────────────
+  const ROW_H = 7;
+  const PAD = 1.5;
+  // Column x-positions and widths (total = 182 mm)
+  const C = {
+    fa:      { x: leftM,       w: 9  },
+    numero:  { x: leftM + 9,   w: 35 },
+    date:    { x: leftM + 44,  w: 22 },
+    ht:      { x: leftM + 66,  w: 28 },
+    ttc:     { x: leftM + 94,  w: 28 },
+    acompte: { x: leftM + 122, w: 22 },
+    regle:   { x: leftM + 144, w: 20 },
+    solde:   { x: leftM + 164, w: 32 },
+  };
+  const HEADERS: [keyof typeof C, string][] = [
+    ['fa','F/A'], ['numero','NUMERO'], ['date','DATE'],
+    ['ht','TOTAL HT'], ['ttc','TOTAL TTC'], ['acompte','ACOMPTE'],
+    ['regle','Réglé'], ['solde','solde du'],
+  ];
+
+  const drawTableHeader = () => {
+    doc.setFillColor(0, 32, 96);
+    doc.rect(leftM, y, usableW, ROW_H, 'F');
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    HEADERS.forEach(([key, label]) => {
+      const col = C[key];
+      const isNum = ['ht','ttc','acompte','regle','solde'].includes(key);
+      const tx = isNum ? col.x + col.w - PAD : col.x + PAD;
+      doc.text(label, tx, y + 5, { align: isNum ? 'right' : 'left' });
+    });
+    doc.setTextColor(0, 0, 0);
+    y += ROW_H;
+  };
+
+  drawTableHeader();
+
+  let sumHT = 0, sumTTC = 0, sumRegle = 0, sumSolde = 0;
+  const fmt = (v: number) => v.toFixed(2);
+
+  options.invoices.forEach((inv, idx) => {
+    if (y > 268) { doc.addPage(); y = 15; drawTableHeader(); }
+
+    const ttc = Number(inv.total) || 0;
+    const ht  = ttc / 1.2;
+    const regle  = Number(inv.amount_paid) || 0;
+    const solde  = ttc - regle;
+
+    sumHT    += ht;
+    sumTTC   += ttc;
+    sumRegle += regle;
+    sumSolde += solde;
+
+    if (idx % 2 === 0) {
+      doc.setFillColor(245, 247, 250);
+      doc.rect(leftM, y, usableW, ROW_H, 'F');
+    }
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+
+    const dateStr = inv.date ? new Date(inv.date).toLocaleDateString('fr-FR') : '';
+    doc.text('F', C.fa.x + C.fa.w / 2, y + 5, { align: 'center' });
+    doc.text(inv.id, C.numero.x + PAD, y + 5);
+    doc.text(dateStr, C.date.x + PAD, y + 5);
+    doc.text(fmt(ht),   C.ht.x      + C.ht.w      - PAD, y + 5, { align: 'right' });
+    doc.text(fmt(ttc),  C.ttc.x     + C.ttc.w     - PAD, y + 5, { align: 'right' });
+    doc.text('0.00',    C.acompte.x + C.acompte.w - PAD, y + 5, { align: 'right' });
+    doc.text(fmt(regle),C.regle.x   + C.regle.w   - PAD, y + 5, { align: 'right' });
+    doc.text(fmt(solde),C.solde.x   + C.solde.w   - PAD, y + 5, { align: 'right' });
+
+    doc.setDrawColor(220, 220, 220);
+    doc.setLineWidth(0.1);
+    doc.line(leftM, y + ROW_H, rightM, y + ROW_H);
+    y += ROW_H;
+  });
+
+  // ── Totaux row ────────────────────────────────────────────────────────────
+  if (y > 268) { doc.addPage(); y = 15; }
+  doc.setFillColor(210, 215, 225);
+  doc.rect(leftM, y, usableW, ROW_H, 'F');
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Totaux', C.numero.x + PAD, y + 5);
+  doc.text(fmt(sumHT),   C.ht.x    + C.ht.w    - PAD, y + 5, { align: 'right' });
+  doc.text(fmt(sumTTC),  C.ttc.x   + C.ttc.w   - PAD, y + 5, { align: 'right' });
+  doc.text('0.00', C.acompte.x + C.acompte.w - PAD, y + 5, { align: 'right' });
+  doc.text(fmt(sumRegle),C.regle.x + C.regle.w - PAD, y + 5, { align: 'right' });
+  doc.text(fmt(sumSolde),C.solde.x + C.solde.w - PAD, y + 5, { align: 'right' });
+  y += ROW_H + 10;
+
+  // ── Total général ─────────────────────────────────────────────────────────
+  if (y > 260) { doc.addPage(); y = 15; }
+  const tgLabelW = 40;
+  const tgColW   = (usableW - tgLabelW) / 5;
+
+  // Sub-header
+  doc.setFillColor(220, 224, 235);
+  doc.rect(leftM + tgLabelW, y, usableW - tgLabelW, ROW_H, 'F');
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  ['TOTAL HT','TOTAL TTC','ACOMPTE','Réglé','solde du'].forEach((h, i) => {
+    const cx = leftM + tgLabelW + tgColW * (i + 1);
+    doc.text(h, cx - PAD, y + 5, { align: 'right' });
+  });
+  y += ROW_H;
+
+  // Values row
+  doc.setFillColor(235, 238, 245);
+  doc.rect(leftM, y, usableW, ROW_H, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.text('Total général', leftM + PAD, y + 5);
+  const tgVals = [sumHT, sumTTC, 0, sumRegle, sumSolde];
+  tgVals.forEach((v, i) => {
+    const cx = leftM + tgLabelW + tgColW * (i + 1);
+    doc.text(fmt(v), cx - PAD, y + 5, { align: 'right' });
+  });
+
+  const slug = (options.clientName || 'tous').replace(/\s+/g, '-').toLowerCase();
+  doc.save(`releve-${slug}-${new Date().toISOString().split('T')[0]}.pdf`);
+};
+
 // Generate Inventory List PDF
 export const generateInventoryPDF = (products: Array<{
   sku: string;

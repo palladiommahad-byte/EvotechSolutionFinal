@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Plus, Search, TrendingUp, FileText, Download, Users, Package, Receipt, FileCheck, Calculator, Trash2, Send, FileX, Eye, Edit, Check, FileSpreadsheet, ChevronDown, Printer, CheckSquare, ArrowRightLeft, Copy } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -72,6 +72,7 @@ import {
   generateStatementPDF,
   generatePrelevementPDF,
   generateDocumentsListPDF,
+  exportRelevePDF,
 } from '@/lib/pdf-generator';
 import { generatePDFBlobFromTemplate, createFallbackItems } from '@/lib/pdf-template-generator';
 import {
@@ -151,6 +152,11 @@ export const Sales = () => {
   const [formDiscountValue, setFormDiscountValue] = useState<number>(0);
   const [formOriginalInvoice, setFormOriginalInvoice] = useState('');
   const [selectedStatementDocs, setSelectedStatementDocs] = useState<Set<string>>(new Set());
+  // Relevé filters
+  const [stmtDateFrom, setStmtDateFrom] = useState('');
+  const [stmtDateTo, setStmtDateTo] = useState('');
+  const [stmtClientFilter, setStmtClientFilter] = useState('all');
+  const [stmtTypeFilter, setStmtTypeFilter] = useState<'all' | 'debit' | 'credit'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
@@ -1542,19 +1548,18 @@ export const Sales = () => {
   };
 
   const toggleSelectAllStatementDocs = () => {
-    if (invoices.length === 0) return;
-    if (selectedStatementDocs.size === invoices.length) {
+    if (filteredStatementInvoices.length === 0) return;
+    const allSelected = filteredStatementInvoices.every(inv => selectedStatementDocs.has(inv.id));
+    if (allSelected) {
       setSelectedStatementDocs(new Set());
     } else {
-      setSelectedStatementDocs(new Set(invoices.map(inv => inv.id)));
+      setSelectedStatementDocs(new Set(filteredStatementInvoices.map(inv => inv.id)));
     }
   };
 
   const handleExportSelected = () => {
     if (selectedStatementDocs.size === 0) return;
-
-    const selectedInvoices = invoices.filter(inv => selectedStatementDocs.has(inv.id));
-
+    const selectedInvoices = filteredStatementInvoices.filter(inv => selectedStatementDocs.has(inv.id));
     exportStyledExcel({
       title: 'Relevé des Ventes',
       type: 'sales',
@@ -1569,6 +1574,49 @@ export const Sales = () => {
       }))
     });
   };
+
+  const handleExportStatementPDF = () => {
+    if (selectedStatementDocs.size === 0) return;
+    const selectedInvoices = filteredStatementInvoices.filter(inv => selectedStatementDocs.has(inv.id));
+    const clientName = stmtClientFilter !== 'all' ? stmtClientFilter : undefined;
+    const clientData = selectedInvoices.find(inv => inv.clientData)?.clientData;
+    exportRelevePDF({
+      invoices: selectedInvoices.map(inv => ({
+        id: inv.id,
+        date: inv.date,
+        total: inv.total,
+        amount_paid: (inv as any).amount_paid || 0,
+        status: inv.status,
+        client: inv.client,
+        clientData: inv.clientData,
+      })),
+      clientName,
+      clientData,
+      companyInfo: companyInfo as any,
+    });
+  };
+
+  // ── Relevé filtered list ─────────────────────────────────────────────────
+  const filteredStatementInvoices = useMemo(() => {
+    return invoices
+      .filter(inv => {
+        if (stmtClientFilter !== 'all' && inv.client !== stmtClientFilter) return false;
+        if (stmtDateFrom && inv.date < stmtDateFrom) return false;
+        if (stmtDateTo && inv.date > stmtDateTo) return false;
+        const paid = (inv as any).amount_paid || 0;
+        if (stmtTypeFilter === 'debit') return (inv.total - paid) > 0;
+        if (stmtTypeFilter === 'credit') return paid > 0;
+        return true;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [invoices, stmtClientFilter, stmtDateFrom, stmtDateTo, stmtTypeFilter]);
+
+  const statementClients = useMemo(() => {
+    const seen = new Set<string>();
+    return invoices
+      .map(inv => ({ name: inv.client, data: inv.clientData }))
+      .filter(c => { if (!c.name || seen.has(c.name)) return false; seen.add(c.name); return true; });
+  }, [invoices]);
 
   const totalRevenue = [...invoices, ...deliveryNotes].reduce((sum, o) => {
     const amount = typeof o.total === 'number' ? o.total : parseFloat(o.total as any) || 0;
@@ -4711,8 +4759,71 @@ export const Sales = () => {
             </TabsContent>
 
             <TabsContent value="list" className="animate-fade-in">
-              <div className="space-y-6">
-                {/* Summary Cards */}
+              <div className="space-y-4">
+
+                {/* ── Smart Filters ─────────────────────────────────────────── */}
+                <div className="card-elevated p-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-foreground">Filtres</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Date début</Label>
+                      <Input
+                        type="date"
+                        value={stmtDateFrom}
+                        onChange={e => setStmtDateFrom(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Date fin</Label>
+                      <Input
+                        type="date"
+                        value={stmtDateTo}
+                        onChange={e => setStmtDateTo(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Client</Label>
+                      <Select value={stmtClientFilter} onValueChange={setStmtClientFilter}>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder="Tous les clients" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Tous les clients</SelectItem>
+                          {statementClients.map(c => (
+                            <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Type de mouvement</Label>
+                      <Select value={stmtTypeFilter} onValueChange={(v: any) => setStmtTypeFilter(v)}>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Débit &amp; Crédit</SelectItem>
+                          <SelectItem value="debit">Débit uniquement</SelectItem>
+                          <SelectItem value="credit">Crédit uniquement</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {(stmtDateFrom || stmtDateTo || stmtClientFilter !== 'all' || stmtTypeFilter !== 'all') && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7 text-muted-foreground"
+                      onClick={() => { setStmtDateFrom(''); setStmtDateTo(''); setStmtClientFilter('all'); setStmtTypeFilter('all'); }}
+                    >
+                      Réinitialiser les filtres
+                    </Button>
+                  )}
+                </div>
+
+                {/* ── Summary Cards (reflect filtered results) ─────────────── */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="card-elevated p-6">
                     <div className="flex items-center justify-between mb-2">
@@ -4720,9 +4831,7 @@ export const Sales = () => {
                       <TrendingUp className="w-4 h-4 text-primary" />
                     </div>
                     <p className="text-2xl font-heading font-bold text-foreground">
-                      <CurrencyDisplay
-                        amount={invoices.reduce((sum, inv) => sum + inv.total, 0)}
-                      />
+                      <CurrencyDisplay amount={filteredStatementInvoices.reduce((s, inv) => s + inv.total, 0)} />
                     </p>
                   </div>
                   <div className="card-elevated p-6">
@@ -4731,9 +4840,7 @@ export const Sales = () => {
                       <CheckSquare className="w-4 h-4 text-success" />
                     </div>
                     <p className="text-2xl font-heading font-bold text-success">
-                      <CurrencyDisplay
-                        amount={invoices.reduce((sum, inv) => sum + ((inv as any).amount_paid || 0), 0)}
-                      />
+                      <CurrencyDisplay amount={filteredStatementInvoices.reduce((s, inv) => s + ((inv as any).amount_paid || 0), 0)} />
                     </p>
                   </div>
                   <div className="card-elevated p-6">
@@ -4742,39 +4849,52 @@ export const Sales = () => {
                       <FileX className="w-4 h-4 text-warning" />
                     </div>
                     <p className="text-2xl font-heading font-bold text-warning">
-                      <CurrencyDisplay
-                        amount={invoices.reduce((sum, inv) => sum + (inv.total - ((inv as any).amount_paid || 0)), 0)}
-                      />
+                      <CurrencyDisplay amount={filteredStatementInvoices.reduce((s, inv) => s + (inv.total - ((inv as any).amount_paid || 0)), 0)} />
                     </p>
                   </div>
                 </div>
 
-                {/* Global Ledger Table */}
+                {/* ── Grand Livre Table ─────────────────────────────────────── */}
                 <div className="card-elevated overflow-hidden">
-                  <div className="p-6 border-b border-border flex justify-between items-center">
+                  <div className="p-4 border-b border-border flex flex-wrap justify-between items-center gap-3">
                     <div>
                       <h3 className="font-heading font-semibold text-foreground">{t('ledger.globalLedger')}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">Suivi détaillé de toutes les factures avec débits et crédits</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {filteredStatementInvoices.length} facture{filteredStatementInvoices.length !== 1 ? 's' : ''}
+                        {selectedStatementDocs.size > 0 && ` · ${selectedStatementDocs.size} sélectionnée${selectedStatementDocs.size !== 1 ? 's' : ''}`}
+                      </p>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleExportSelected}
-                      disabled={selectedStatementDocs.size === 0}
-                      className="gap-2"
-                    >
-                      <Download className="w-4 h-4" />
-                      Styled Export
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExportStatementPDF}
+                        disabled={selectedStatementDocs.size === 0}
+                        className="gap-2"
+                      >
+                        <FileText className="w-4 h-4" />
+                        Exporter PDF
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExportSelected}
+                        disabled={selectedStatementDocs.size === 0}
+                        className="gap-2"
+                      >
+                        <FileSpreadsheet className="w-4 h-4" />
+                        Exporter Excel
+                      </Button>
+                    </div>
                   </div>
                   <div className="max-h-[600px] overflow-y-auto">
                     <Table>
                       <TableHeader className="sticky top-0 z-10 bg-background">
                         <TableRow className="data-table-header hover:bg-section">
-                          <TableHead className="text-center px-4" style={{ width: '80px', minWidth: '80px' }}>
+                          <TableHead className="text-center px-4" style={{ width: '52px', minWidth: '52px' }}>
                             <div className="flex items-center justify-center">
                               <Checkbox
-                                checked={invoices.length > 0 && selectedStatementDocs.size === invoices.length}
+                                checked={filteredStatementInvoices.length > 0 && filteredStatementInvoices.every(inv => selectedStatementDocs.has(inv.id))}
                                 onCheckedChange={toggleSelectAllStatementDocs}
                               />
                             </div>
@@ -4782,55 +4902,57 @@ export const Sales = () => {
                           <TableHead>{t('common.date')}</TableHead>
                           <TableHead>{t('documents.client')}</TableHead>
                           <TableHead>{t('documents.invoiceNumber')}</TableHead>
-                          <TableHead className="text-right font-bold">{t('ledger.debit')}</TableHead>
+                          <TableHead className="text-right font-bold">{t('ledger.debit')} (TTC)</TableHead>
+                          <TableHead className="text-right">Total HT</TableHead>
                           <TableHead className="text-right">{t('ledger.credit')}</TableHead>
                           <TableHead className="text-right">{t('ledger.balance')}</TableHead>
                           <TableHead className="text-center">{t('common.status')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {invoices.length === 0 ? (
+                        {filteredStatementInvoices.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground" align="center">
+                            <TableCell colSpan={9} className="text-center py-8 text-muted-foreground" align="center">
                               {t('documents.noDocumentsFound')}
                             </TableCell>
                           </TableRow>
                         ) : (
-                          invoices
-                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                            .map((inv) => {
-                              const amountPaid = (inv as any).amount_paid || 0;
-                              const balance = inv.total - amountPaid;
-                              const isSelected = selectedStatementDocs.has(inv.id);
-
-                              return (
-                                <TableRow key={inv.id} className="hover:bg-section/50">
-                                  <TableCell className="text-center" style={{ width: '80px', minWidth: '80px' }}>
-                                    <div className="flex items-center justify-center">
-                                      <Checkbox
-                                        checked={isSelected}
-                                        onCheckedChange={() => handleStatementDocSelection(inv.id)}
-                                      />
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>{formatDate(inv.date)}</TableCell>
-                                  <TableCell className="font-medium">{inv.client}</TableCell>
-                                  <TableCell className="font-mono">{inv.id}</TableCell>
-                                  <TableCell className="text-right font-bold text-foreground">
-                                    <CurrencyDisplay amount={inv.total} />
-                                  </TableCell>
-                                  <TableCell className="text-right text-success font-medium">
-                                    <CurrencyDisplay amount={amountPaid} />
-                                  </TableCell>
-                                  <TableCell className={`text-right font-medium ${balance > 0 ? 'text-destructive' : 'text-success'}`}>
-                                    <CurrencyDisplay amount={balance} />
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {getStatusBadge(inv.status)}
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })
+                          filteredStatementInvoices.map((inv) => {
+                            const amountPaid = (inv as any).amount_paid || 0;
+                            const balance = inv.total - amountPaid;
+                            const ht = inv.total / 1.2;
+                            const isSelected = selectedStatementDocs.has(inv.id);
+                            return (
+                              <TableRow key={inv.id} className={`hover:bg-section/50 ${isSelected ? 'bg-primary/5' : ''}`}>
+                                <TableCell className="text-center" style={{ width: '52px', minWidth: '52px' }}>
+                                  <div className="flex items-center justify-center">
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onCheckedChange={() => handleStatementDocSelection(inv.id)}
+                                    />
+                                  </div>
+                                </TableCell>
+                                <TableCell>{formatDate(inv.date)}</TableCell>
+                                <TableCell className="font-medium">{inv.client}</TableCell>
+                                <TableCell className="font-mono text-sm">{inv.id}</TableCell>
+                                <TableCell className="text-right font-bold text-foreground">
+                                  <CurrencyDisplay amount={inv.total} />
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground text-sm">
+                                  <CurrencyDisplay amount={ht} />
+                                </TableCell>
+                                <TableCell className="text-right text-success font-medium">
+                                  <CurrencyDisplay amount={amountPaid} />
+                                </TableCell>
+                                <TableCell className={`text-right font-medium ${balance > 0 ? 'text-destructive' : 'text-success'}`}>
+                                  <CurrencyDisplay amount={balance} />
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {getStatusBadge(inv.status)}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
                         )}
                       </TableBody>
                     </Table>
