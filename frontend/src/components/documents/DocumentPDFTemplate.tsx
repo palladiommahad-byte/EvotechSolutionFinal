@@ -622,7 +622,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
               <View>
                 {(clientData || supplierData) ? (
                   <View>
-                    <Text style={styles.clientName}>
+                    <Text style={[styles.clientName, { fontSize: dynCompanyFontSize(clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '', 15) }]}>
 {clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '-'}
 </Text>
 {(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
@@ -632,7 +632,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                     </Text>
                   </View>
                 ) : (
-                  <Text style={styles.clientName}>{client || supplier || '-'}</Text>
+                  <Text style={[styles.clientName, { fontSize: dynCompanyFontSize(client || supplier || '', 15) }]}>{client || supplier || '-'}</Text>
                 )}
               </View>
             ) : (
@@ -673,7 +673,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
               <View>
                 {(clientData || supplierData) ? (
                   <View>
-                    <Text style={styles.clientName}>
+                    <Text style={[styles.clientName, { fontSize: dynCompanyFontSize(clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '', 15) }]}>
 {clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '-'}
 </Text>
 {(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
@@ -683,7 +683,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                     </Text>
                   </View>
                 ) : (
-                  <Text style={styles.clientName}>{client || supplier || '-'}</Text>
+                  <Text style={[styles.clientName, { fontSize: dynCompanyFontSize(client || supplier || '', 15) }]}>{client || supplier || '-'}</Text>
                 )}
               </View>
             )}
