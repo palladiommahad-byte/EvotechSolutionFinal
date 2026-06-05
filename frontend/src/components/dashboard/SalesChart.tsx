@@ -1,126 +1,208 @@
-import { useState } from 'react';
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Cell,
+  ReferenceLine,
 } from 'recharts';
 import { formatMAD } from '@/lib/moroccan-utils';
-import { ToggleButtonGroup } from '@/components/ui/ToggleButtonGroup';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-type Period = 'weekly' | 'monthly' | 'yearly';
+const MONTHS = [
+  { key: '01', label: 'Jan' },
+  { key: '02', label: 'Fév' },
+  { key: '03', label: 'Mar' },
+  { key: '04', label: 'Avr' },
+  { key: '05', label: 'Mai' },
+  { key: '06', label: 'Jun' },
+  { key: '07', label: 'Jul' },
+  { key: '08', label: 'Aoû' },
+  { key: '09', label: 'Sep' },
+  { key: '10', label: 'Oct' },
+  { key: '11', label: 'Nov' },
+  { key: '12', label: 'Déc' },
+];
 
 interface SalesChartProps {
-  data?: {
-    label: string;
-    value: number;
-    originalDate?: string; // To help with sorting/filtering
-  }[];
+  data?: { label: string; value: number; originalDate?: string }[];
 }
 
-// Fallback to empty state if no data is provided
-export const SalesChart = ({ data: displayData = [] }: SalesChartProps) => {
-  const { t } = useTranslation();
-  const [period, setPeriod] = useState<Period>('monthly');
+const yFmt = (v: number) => {
+  if (v === 0) return '0';
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(v % 1_000 === 0 ? 0 : 1)}k`;
+  return `${v}`;
+};
 
-  const totalValue = displayData.reduce((sum, item) => sum + item.value, 0);
-  const avgValue = displayData.length > 0 ? totalValue / displayData.length : 0;
-  const changePercent = displayData.length > 1
-    ? ((displayData[displayData.length - 1].value - displayData[0].value) / displayData[0].value * 100).toFixed(1)
-    : '0.0';
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{
+      background: 'hsl(var(--card))',
+      border: '1px solid hsl(var(--border))',
+      borderRadius: 10,
+      padding: '10px 14px',
+      boxShadow: '0 8px 24px -4px rgb(0 0 0 / 0.15)',
+    }}>
+      <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: 12, marginBottom: 4 }}>{label}</p>
+      <p style={{ color: 'hsl(var(--foreground))', fontWeight: 700, fontSize: 15 }}>
+        {formatMAD(payload[0].value)}
+      </p>
+    </div>
+  );
+};
+
+export const SalesChart = ({ data = [] }: SalesChartProps) => {
+  const { t } = useTranslation();
+  const currentMonth = new Date().getMonth() + 1;
+
+  // Fill all 12 months — match incoming data by month number or abbreviation
+  const fullData = MONTHS.map(({ key, label }) => {
+    const num = parseInt(key, 10);
+    const match = data.find(d => {
+      const lbl = String(d.label).trim();
+      return (
+        lbl === key ||
+        lbl === String(num) ||
+        lbl.toLowerCase() === label.toLowerCase() ||
+        lbl.startsWith(key) ||
+        lbl.padStart(2, '0') === key
+      );
+    });
+    return {
+      month: label,
+      value: match?.value ?? 0,
+      isCurrent: num === currentMonth,
+    };
+  });
+
+  const totalValue = fullData.reduce((s, d) => s + d.value, 0);
+  const maxValue = Math.max(...fullData.map(d => d.value), 1);
+  const avgValue = totalValue / 12;
+
+  const nonZeroMonths = fullData.filter(d => d.value > 0);
+  const changePercent = nonZeroMonths.length >= 2
+    ? (((nonZeroMonths[nonZeroMonths.length - 1].value - nonZeroMonths[0].value) / nonZeroMonths[0].value) * 100).toFixed(1)
+    : null;
 
   return (
     <div className="card-elevated p-6 animate-slide-up">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
-        <div className="min-w-0 flex-1 overflow-visible">
-          <h3 className="text-lg font-heading font-semibold text-foreground">{t('dashboard.totalSales')}</h3>
-          <p className="text-xl sm:text-2xl font-bold text-foreground mt-1 break-words overflow-visible whitespace-normal leading-tight">{formatMAD(totalValue)}</p>
-          <p className={`text-sm ${Number(changePercent) >= 0 ? 'text-success' : 'text-destructive'}`}>
-            {Number(changePercent) >= 0 ? '+' : ''}{changePercent}% {t('dashboard.thisPeriod')}
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
+        <div>
+          <h3 className="text-base font-heading font-semibold text-foreground">
+            {t('dashboard.totalSales')}
+          </h3>
+          <p className="text-2xl font-bold text-foreground mt-1 leading-tight">
+            {formatMAD(totalValue)}
           </p>
+          {changePercent !== null && (
+            <p className={`text-xs mt-1 font-medium ${Number(changePercent) >= 0 ? 'text-success' : 'text-destructive'}`}>
+              {Number(changePercent) >= 0 ? '▲' : '▼'} {Math.abs(Number(changePercent))}% {t('dashboard.thisPeriod')}
+            </p>
+          )}
         </div>
-        <div className="flex-shrink-0">
-          <ToggleButtonGroup
-            options={[
-              { value: 'weekly' as const, label: t('dashboard.weekly') },
-              { value: 'monthly' as const, label: t('dashboard.monthly') },
-              { value: 'yearly' as const, label: t('dashboard.yearly') },
-            ]}
-            value={period}
-            onChange={(val) => setPeriod(val as Period)}
-            size="sm"
-          />
+        <div className="flex flex-col items-end gap-1">
+          <span className="text-xs text-muted-foreground">{new Date().getFullYear()}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm bg-primary inline-block opacity-90" />
+            <span className="text-xs text-muted-foreground">{t('dashboard.totalSales')}</span>
+          </div>
+          {avgValue > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-0.5 bg-muted-foreground inline-block opacity-50" />
+              <span className="text-xs text-muted-foreground">Moy. {yFmt(avgValue)}</span>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="flex items-center justify-between mb-4 gap-2">
-        <button className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">
-          <ChevronLeft className="w-4 h-4 flex-shrink-0" />
-          <span className="hidden sm:inline">{t('common.previous')}</span>
-        </button>
-        <span className="text-xs sm:text-sm text-muted-foreground font-medium text-center px-2 flex-1">
-          {period === 'weekly' ? 'Current Week' : period === 'monthly' ? 'Year 2024' : 'All Time'}
-        </span>
-        <button className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">
-          <span className="hidden sm:inline">{t('common.next')}</span>
-          <ChevronRight className="w-4 h-4 flex-shrink-0" />
-        </button>
-      </div>
-
-      <div className="h-[250px] min-h-[200px]">
+      {/* Chart */}
+      <div className="h-[240px]">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={displayData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <BarChart
+            data={fullData}
+            margin={{ top: 8, right: 4, left: -12, bottom: 0 }}
+            barSize={18}
+            barCategoryGap="25%"
+          >
             <defs>
-              <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.01} />
+              <linearGradient id="salesBarGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.95} />
+                <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.55} />
+              </linearGradient>
+              <linearGradient id="salesBarGradActive" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={1} />
+                <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.75} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground))" strokeOpacity={0.1} vertical={false} />
-            <XAxis
-              dataKey="label"
+
+            <CartesianGrid
+              strokeDasharray="3 3"
               stroke="hsl(var(--muted-foreground))"
-              fontSize={12}
+              strokeOpacity={0.1}
+              vertical={false}
+            />
+            <XAxis
+              dataKey="month"
+              stroke="hsl(var(--muted-foreground))"
+              fontSize={11}
               tickLine={false}
               axisLine={false}
-              tickMargin={10}
-              tickFormatter={(value) => String(t(`months.${value}`, value))}
+              tickMargin={8}
             />
             <YAxis
               stroke="hsl(var(--muted-foreground))"
-              fontSize={12}
+              fontSize={11}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`}
+              tickFormatter={yFmt}
+              width={38}
             />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px',
-                boxShadow: '0 4px 12px -2px rgb(0 0 0 / 0.1)',
-                padding: '8px 12px',
-              }}
-              itemStyle={{ color: 'hsl(var(--foreground))', fontWeight: 500 }}
-              labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '4px', fontSize: '12px' }}
-              formatter={(value: number) => [formatMAD(value), t('dashboard.totalSales')]}
-              cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '4 4' }}
-            />
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke="hsl(var(--primary))"
-              strokeWidth={3}
-              fill="url(#salesGradient)"
-              activeDot={{ r: 6, strokeWidth: 0, fill: 'hsl(var(--primary))' }}
-            />
-          </AreaChart>
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted-foreground))', fillOpacity: 0.06, radius: 4 }} />
+
+            {/* Average reference line — only when there's real data */}
+            {avgValue > 0 && (
+              <ReferenceLine
+                y={avgValue}
+                stroke="hsl(var(--muted-foreground))"
+                strokeOpacity={0.4}
+                strokeDasharray="4 4"
+                strokeWidth={1}
+              />
+            )}
+
+            <Bar dataKey="value" radius={[5, 5, 2, 2]}>
+              {fullData.map((entry, idx) => (
+                <Cell
+                  key={idx}
+                  fill={
+                    entry.value === maxValue && maxValue > 0
+                      ? 'url(#salesBarGradActive)'
+                      : entry.value > 0
+                        ? 'url(#salesBarGrad)'
+                        : 'hsl(var(--muted-foreground))'
+                  }
+                  fillOpacity={entry.value === 0 ? 0.12 : 1}
+                />
+              ))}
+            </Bar>
+          </BarChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* Footer summary */}
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+        <span className="text-xs text-muted-foreground">
+          {nonZeroMonths.length} mois avec activité
+        </span>
+        <span className="text-xs text-muted-foreground">
+          Meilleur: <span className="text-foreground font-medium">{yFmt(maxValue)}</span>
+        </span>
       </div>
     </div>
   );
