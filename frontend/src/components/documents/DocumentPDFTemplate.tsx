@@ -632,9 +632,9 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                     <Text style={[styles.clientName, { fontSize: sharedNameFontSize }]}>
 {clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '-'}
 </Text>
-{(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
-{(clientData?.phone || supplierData?.phone) ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{String(t('pdf.phone'))}: {clientData?.phone || supplierData?.phone}</Text> : null}
-{(clientData?.address || supplierData?.address) ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{clientData?.address || supplierData?.address}</Text> : null}
+{(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 1, lineHeight: 1.2 }}>{String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
+{(clientData?.phone || supplierData?.phone) ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 1, lineHeight: 1.2 }}>{String(t('pdf.phone'))}: {clientData?.phone || supplierData?.phone}</Text> : null}
+{(clientData?.address || supplierData?.address) ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 1, lineHeight: 1.2 }}>{clientData?.address || supplierData?.address}</Text> : null}
                   </View>
                 ) : (
                   <Text style={[styles.clientName, { fontSize: sharedNameFontSize }]}>{client || supplier || '-'}</Text>
@@ -645,9 +645,9 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                 <Text style={[styles.clientName, { fontSize: sharedNameFontSize }]}>
 {(companyInfo.name || 'COMPANY NAME').toUpperCase()}
 </Text>
-{companyInfo.ice ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
-{companyInfo.phone ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{String(t('pdf.phone'))}: {companyInfo.phone}</Text> : null}
-{companyInfo.address ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{companyInfo.address}</Text> : null}
+{companyInfo.ice ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 1, lineHeight: 1.2 }}>{String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
+{companyInfo.phone ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 1, lineHeight: 1.2 }}>{String(t('pdf.phone'))}: {companyInfo.phone}</Text> : null}
+{companyInfo.address ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 1, lineHeight: 1.2 }}>{companyInfo.address}</Text> : null}
               </View>
             )}
           </View>
@@ -666,9 +666,9 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                 <Text style={[styles.clientName, { fontSize: sharedNameFontSize }]}>
 {(companyInfo.name || 'COMPANY NAME').toUpperCase()}
 </Text>
-{companyInfo.ice ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
-{companyInfo.phone ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{String(t('pdf.phone'))}: {companyInfo.phone}</Text> : null}
-{companyInfo.address ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{companyInfo.address}</Text> : null}
+{companyInfo.ice ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 1, lineHeight: 1.2 }}>{String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
+{companyInfo.phone ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 1, lineHeight: 1.2 }}>{String(t('pdf.phone'))}: {companyInfo.phone}</Text> : null}
+{companyInfo.address ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 1, lineHeight: 1.2 }}>{companyInfo.address}</Text> : null}
               </View>
             ) : (
               <View>
@@ -677,9 +677,9 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                     <Text style={[styles.clientName, { fontSize: sharedNameFontSize }]}>
 {clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '-'}
 </Text>
-{(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
-{(clientData?.phone || supplierData?.phone) ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{String(t('pdf.phone'))}: {clientData?.phone || supplierData?.phone}</Text> : null}
-{(clientData?.address || supplierData?.address) ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{clientData?.address || supplierData?.address}</Text> : null}
+{(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 1, lineHeight: 1.2 }}>{String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
+{(clientData?.phone || supplierData?.phone) ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 1, lineHeight: 1.2 }}>{String(t('pdf.phone'))}: {clientData?.phone || supplierData?.phone}</Text> : null}
+{(clientData?.address || supplierData?.address) ? <Text style={{ fontSize: 10, color: '#475569', marginTop: 1, lineHeight: 1.2 }}>{clientData?.address || supplierData?.address}</Text> : null}
                   </View>
                 ) : (
                   <Text style={[styles.clientName, { fontSize: sharedNameFontSize }]}>{client || supplier || '-'}</Text>
