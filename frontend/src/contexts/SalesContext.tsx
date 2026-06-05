@@ -492,7 +492,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     onSuccess: async (invoice: InvoiceWithItems, variables: Omit<SalesDocument, 'id' | 'type'>) => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'invoices'] });
       queryClient.invalidateQueries({ queryKey: ['treasury'] });
-
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Invoice created successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -599,6 +599,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Invoice updated successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -629,6 +631,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'invoices'] });
       queryClient.invalidateQueries({ queryKey: ['sales', 'deliveryNotes'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Invoice deleted successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -673,6 +677,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'estimates'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Estimate created successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -713,6 +719,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'estimates'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Estimate updated successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -730,6 +738,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'estimates'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Estimate deleted successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -778,10 +788,10 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     onSuccess: (result, variables) => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'invoices'] });
       queryClient.invalidateQueries({ queryKey: ['sales', 'deliveryNotes'] });
-
-      // Invalidate products and stock items to reflect stock changes
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stockItems'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Delivery note created successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -820,9 +830,10 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'deliveryNotes'] });
-      // Invalidate products and stock items to reflect stock changes
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stockItems'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Delivery note updated successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -840,9 +851,10 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'deliveryNotes'] });
-      // Invalidate products and stock items to reflect stock changes
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stockItems'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Delivery note deleted successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -888,9 +900,10 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'deliveryNotes'] });
-      // Invalidate products and stock items to reflect stock changes
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stockItems'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Divers document created successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -928,9 +941,10 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'deliveryNotes'] });
-      // Invalidate products and stock items to reflect stock changes
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stockItems'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Divers document updated successfully' });
     },
     onError: (error: Error) => {
@@ -948,9 +962,10 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'deliveryNotes'] });
-      // Invalidate products and stock items to reflect stock changes
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stockItems'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Divers document deleted successfully' });
     },
     onError: (error: Error) => {
@@ -989,6 +1004,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'creditNotes'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Credit note created successfully' });
     },
     onError: (error: Error) => {
@@ -1026,6 +1043,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'creditNotes'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Credit note updated successfully' });
     },
     onError: (error: Error) => {
@@ -1043,6 +1062,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'creditNotes'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Credit note deleted successfully' });
     },
     onError: (error: Error) => {
@@ -1068,6 +1089,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'prelevements'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Prelevement created successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -1105,6 +1128,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'prelevements'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Prelevement updated successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -1122,6 +1147,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'prelevements'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Prelevement deleted successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -1156,6 +1183,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     onSuccess: (invoice) => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'invoices'] });
       queryClient.invalidateQueries({ queryKey: ['sales', 'deliveryNotes'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({
         title: 'Facture créée avec succès',
         description: `Facture ${invoice.document_id} générée.`,

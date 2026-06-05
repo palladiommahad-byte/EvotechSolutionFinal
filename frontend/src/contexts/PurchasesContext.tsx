@@ -309,6 +309,7 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
         // Still show success for purchase order creation
       }
 
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Purchase order created successfully', description: `Order ${purchaseOrder.document_id} created.`, variant: 'success' });
     },
     onError: (error: Error) => {
@@ -374,6 +375,8 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchases', 'purchase_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Purchase order updated successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -403,6 +406,8 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchases', 'purchase_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Purchase order deleted successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -491,6 +496,7 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
         // Still show success for purchase invoice creation
       }
 
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Purchase invoice created successfully', description: `Invoice ${purchaseInvoice.document_id} created.`, variant: 'success' });
     },
     onError: (error: Error) => {
@@ -574,6 +580,8 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchases', 'purchase_invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Purchase invoice updated successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -603,6 +611,8 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchases', 'purchase_invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Purchase invoice deleted successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -635,9 +645,10 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['purchases', 'delivery_notes'] });
-      // Invalidate products and stock items to reflect stock changes
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stockItems'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Delivery note created successfully', description: `Note ${result.document_id} created.`, variant: 'success' });
     },
     onError: (error: Error) => {
@@ -665,6 +676,10 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchases', 'delivery_notes'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['stockItems'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Delivery note updated successfully', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -685,6 +700,8 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchases', 'purchase_invoices'] });
       queryClient.invalidateQueries({ queryKey: ['purchases', 'delivery_notes'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Facture achat créée avec succès', variant: 'success' });
     },
     onError: (error: Error) => {
@@ -702,6 +719,10 @@ export const PurchasesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchases', 'delivery_notes'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['stockItems'] });
+      queryClient.invalidateQueries({ queryKey: ['treasury'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Delivery note deleted successfully', variant: 'success' });
     },
     onError: (error: Error) => {

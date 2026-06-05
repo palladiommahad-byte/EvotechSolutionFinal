@@ -11,39 +11,39 @@ export const useDashboardData = () => {
   const { data: dashboardData, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboard', 'stats-comprehensive'],
     queryFn: () => dashboardService.getDashboardData(),
-    staleTime: 60000,
+    staleTime: 0,
   });
 
   // Fetch sales chart data
   const { data: salesChartData, isLoading: salesChartLoading } = useQuery({
     queryKey: ['dashboard', 'sales-chart'],
     queryFn: () => dashboardService.getSalesChartData(),
-    staleTime: 300000,
+    staleTime: 0,
   });
 
   // Fetch revenue chart data
   const { data: revenueChartData, isLoading: revenueChartLoading } = useQuery({
     queryKey: ['dashboard', 'revenue-chart'],
     queryFn: () => dashboardService.getRevenueChartData(),
-    staleTime: 300000,
+    staleTime: 0,
   });
 
   const { data: stockByCategory, isLoading: stockByCategoryLoading } = useQuery({
     queryKey: ['dashboard', 'stock-by-category'],
     queryFn: () => dashboardService.getStockByCategory(),
-    staleTime: 300000,
+    staleTime: 0,
   });
 
   const { data: topProducts, isLoading: topProductsLoading } = useQuery({
     queryKey: ['dashboard', 'top-products'],
     queryFn: () => dashboardService.getTopProducts(),
-    staleTime: 300000,
+    staleTime: 0,
   });
 
   const { data: stockAlerts, isLoading: stockAlertsLoading } = useQuery({
     queryKey: ['dashboard', 'stock-alerts'],
     queryFn: () => dashboardService.getLowStockAlerts(),
-    staleTime: 60000,
+    staleTime: 0,
   });
 
   return {
