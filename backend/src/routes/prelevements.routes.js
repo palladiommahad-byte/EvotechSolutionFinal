@@ -59,7 +59,7 @@ router.get('/', asyncHandler(async (req, res) => {
             return {
                 ...doc,
                 items: itemsResult.rows,
-                client: doc.client_name ? {
+                client: (doc.client_name || doc.client_company) ? {
                     id: doc.client_id,
                     name: doc.client_name,
                     company: doc.client_company,
@@ -107,7 +107,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
     res.json({
         ...doc,
         items: itemsResult.rows,
-        client: doc.client_name ? {
+        client: (doc.client_name || doc.client_company) ? {
             id: doc.client_id,
             name: doc.client_name,
             company: doc.client_company,

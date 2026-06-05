@@ -90,7 +90,7 @@ router.get('/', asyncHandler(async (req, res) => {
                 ...invoice,
                 items: itemsResult.rows,
                 linked_bls: linkedBLsResult.rows,
-                client: invoice.client_name ? {
+                client: (invoice.client_name || invoice.client_company) ? {
                     id: invoice.client_id,
                     name: invoice.client_name,
                     company: invoice.client_company,
@@ -172,7 +172,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
         ...invoice,
         items: itemsResult.rows,
         linked_bls: linkedBLsResult.rows,
-        client: invoice.client_name ? {
+        client: (invoice.client_name || invoice.client_company) ? {
             id: invoice.client_id,
             name: invoice.client_name,
             company: invoice.client_company,
@@ -242,7 +242,7 @@ router.get('/document/:documentId', asyncHandler(async (req, res) => {
         ...invoice,
         items: itemsResult.rows,
         linked_bls: linkedBLsResult.rows,
-        client: invoice.client_name ? {
+        client: (invoice.client_name || invoice.client_company) ? {
             id: invoice.client_id,
             name: invoice.client_name,
             company: invoice.client_company,

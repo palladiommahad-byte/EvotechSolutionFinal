@@ -46,7 +46,7 @@ router.get('/', asyncHandler(async (req, res) => {
             return {
                 ...note,
                 items: itemsResult.rows,
-                client: note.client_name ? {
+                client: (note.client_name || note.client_company) ? {
                     id: note.client_id, name: note.client_name, company: note.client_company,
                     email: note.client_email, phone: note.client_phone, ice: note.client_ice,
                     if_number: note.client_if_number, rc: note.client_rc,
@@ -84,7 +84,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
     res.json({
         ...note,
         items: itemsResult.rows,
-        client: note.client_name ? {
+        client: (note.client_name || note.client_company) ? {
             id: note.client_id, name: note.client_name, company: note.client_company,
             email: note.client_email, phone: note.client_phone, ice: note.client_ice,
             if_number: note.client_if_number, rc: note.client_rc,

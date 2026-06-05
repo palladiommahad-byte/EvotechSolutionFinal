@@ -59,7 +59,7 @@ router.get('/', asyncHandler(async (req, res) => {
             return {
                 ...estimate,
                 items: itemsResult.rows,
-                client: estimate.client_name ? {
+                client: (estimate.client_name || estimate.client_company) ? {
                     id: estimate.client_id,
                     name: estimate.client_name,
                     company: estimate.client_company,
@@ -107,7 +107,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
     res.json({
         ...estimate,
         items: itemsResult.rows,
-        client: estimate.client_name ? {
+        client: (estimate.client_name || estimate.client_company) ? {
             id: estimate.client_id,
             name: estimate.client_name,
             company: estimate.client_company,

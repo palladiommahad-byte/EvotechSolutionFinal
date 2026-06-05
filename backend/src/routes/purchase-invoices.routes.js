@@ -49,7 +49,7 @@ router.get('/', asyncHandler(async (req, res) => {
             return {
                 ...invoice,
                 items: itemsResult.rows,
-                supplier: invoice.supplier_name ? {
+                supplier: (invoice.supplier_name || invoice.supplier_company) ? {
                     id: invoice.supplier_id, name: invoice.supplier_name, company: invoice.supplier_company,
                     email: invoice.supplier_email, phone: invoice.supplier_phone, ice: invoice.supplier_ice,
                     if_number: invoice.supplier_if_number, rc: invoice.supplier_rc,
@@ -98,7 +98,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
     res.json({
         ...invoice,
         items: itemsResult.rows,
-        supplier: invoice.supplier_name ? {
+        supplier: (invoice.supplier_name || invoice.supplier_company) ? {
             id: invoice.supplier_id, name: invoice.supplier_name, company: invoice.supplier_company,
             email: invoice.supplier_email, phone: invoice.supplier_phone, ice: invoice.supplier_ice,
             if_number: invoice.supplier_if_number, rc: invoice.supplier_rc,

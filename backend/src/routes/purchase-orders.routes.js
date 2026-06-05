@@ -45,7 +45,7 @@ router.get('/', asyncHandler(async (req, res) => {
             return {
                 ...order,
                 items: itemsResult.rows,
-                supplier: order.supplier_name ? {
+                supplier: (order.supplier_name || order.supplier_company) ? {
                     id: order.supplier_id, name: order.supplier_name, company: order.supplier_company,
                     email: order.supplier_email, phone: order.supplier_phone, ice: order.supplier_ice,
                     if_number: order.supplier_if_number, rc: order.supplier_rc,
@@ -83,7 +83,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
     res.json({
         ...order,
         items: itemsResult.rows,
-        supplier: order.supplier_name ? {
+        supplier: (order.supplier_name || order.supplier_company) ? {
             id: order.supplier_id, name: order.supplier_name, company: order.supplier_company,
             email: order.supplier_email, phone: order.supplier_phone, ice: order.supplier_ice,
             if_number: order.supplier_if_number, rc: order.supplier_rc,
