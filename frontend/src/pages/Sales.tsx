@@ -1575,8 +1575,8 @@ export const Sales = () => {
         number: inv.id,
         entity: inv.client,
         total: inv.total,
-        paid: (inv as any).amount_paid || 0,
-        balance: inv.total - ((inv as any).amount_paid || 0),
+        paid: inv.status === 'paid' ? inv.total : ((inv as any).amount_paid || 0),
+        balance: inv.status === 'paid' ? 0 : (inv.total - ((inv as any).amount_paid || 0)),
         status: inv.status
       }))
     });
@@ -1593,7 +1593,7 @@ export const Sales = () => {
         date: inv.date,
         total: inv.total,
         subtotal: (inv as any).subtotal,
-        amount_paid: (inv as any).amount_paid || 0,
+        amount_paid: inv.status === 'paid' ? inv.total : ((inv as any).amount_paid || 0),
         status: inv.status,
         client: inv.client,
         clientData: inv.clientData,
@@ -4900,7 +4900,7 @@ export const Sales = () => {
                       <CheckSquare className="w-4 h-4 text-success" />
                     </div>
                     <p className="text-2xl font-heading font-bold text-success">
-                      <CurrencyDisplay amount={filteredStatementInvoices.reduce((s, inv) => s + ((inv as any).amount_paid || 0), 0)} />
+                      <CurrencyDisplay amount={filteredStatementInvoices.reduce((s, inv) => s + (inv.status === 'paid' ? inv.total : ((inv as any).amount_paid || 0)), 0)} />
                     </p>
                   </div>
                   <div className="card-elevated p-6">
@@ -4909,7 +4909,7 @@ export const Sales = () => {
                       <FileX className="w-4 h-4 text-warning" />
                     </div>
                     <p className="text-2xl font-heading font-bold text-warning">
-                      <CurrencyDisplay amount={filteredStatementInvoices.reduce((s, inv) => s + (inv.total - ((inv as any).amount_paid || 0)), 0)} />
+                      <CurrencyDisplay amount={filteredStatementInvoices.reduce((s, inv) => s + (inv.status === 'paid' ? 0 : (inv.total - ((inv as any).amount_paid || 0))), 0)} />
                     </p>
                   </div>
                 </div>
@@ -4978,7 +4978,10 @@ export const Sales = () => {
                           </TableRow>
                         ) : (
                           filteredStatementInvoices.map((inv) => {
-                            const amountPaid = (inv as any).amount_paid || 0;
+                            // If status is fully paid, treat credit = total regardless of stored amount_paid
+                            const amountPaid = inv.status === 'paid'
+                              ? inv.total
+                              : ((inv as any).amount_paid || 0);
                             const balance = inv.total - amountPaid;
                             const ht = (inv as any).subtotal != null ? Number((inv as any).subtotal) : inv.total / 1.2;
                             const isSelected = selectedStatementDocs.has(inv.id);

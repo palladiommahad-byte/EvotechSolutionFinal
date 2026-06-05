@@ -748,7 +748,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
         }
 
         // Determine the new amount_paid and auto-calculate status
-        let newAmountPaid = amount_paid !== undefined ? parseFloat(amount_paid) : existingInvoice.amount_paid;
+        let newAmountPaid = amount_paid !== undefined ? parseFloat(amount_paid) : parseFloat(existingInvoice.amount_paid) || 0;
         let calculatedStatus = status; // Use provided status if given
 
         // Auto-calculate status based on amount_paid if not explicitly provided
@@ -764,6 +764,12 @@ router.put('/:id', asyncHandler(async (req, res) => {
             }
         }
 
+        // When explicitly marking as paid without providing amount_paid, auto-set amount_paid = total
+        // This handles the case where the user changes status to 'paid' via the status dropdown
+        if (status === 'paid' && amount_paid === undefined) {
+            newAmountPaid = total;
+        }
+
         // Build update query dynamically
         const updates = [];
         const params = [];
@@ -776,7 +782,11 @@ router.put('/:id', asyncHandler(async (req, res) => {
         if (bank_account_id !== undefined) { updates.push(`bank_account_id = $${paramIndex++}`); params.push(bank_account_id); }
         if (calculatedStatus !== undefined) { updates.push(`status = $${paramIndex++}`); params.push(calculatedStatus); }
         if (note !== undefined) { updates.push(`note = $${paramIndex++}`); params.push(note); }
-        if (amount_paid !== undefined) { updates.push(`amount_paid = $${paramIndex++}`); params.push(newAmountPaid); }
+        // Always write amount_paid when it was provided OR when auto-set from paid status
+        if (amount_paid !== undefined || (status === 'paid' && newAmountPaid !== (parseFloat(existingInvoice.amount_paid) || 0))) {
+            updates.push(`amount_paid = $${paramIndex++}`);
+            params.push(newAmountPaid);
+        }
         if (discount_type !== undefined) { updates.push(`discount_type = $${paramIndex++}`); params.push(discount_type); }
         if (discount_value !== undefined) { updates.push(`discount_value = $${paramIndex++}`); params.push(discount_value); }
         if (subtotal !== undefined) {
