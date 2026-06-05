@@ -371,6 +371,13 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
     return Math.max(7, Math.round(base * 0.62));
   };
 
+  // Shared font size for both DE: and recipient boxes — driven by whichever name is longer
+  // so both sides always render at the same size for a balanced look.
+  const _recipientName = clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || client || supplier || '';
+  const _providerName  = companyInfo.name || '';
+  const _longerName    = _providerName.length >= _recipientName.length ? _providerName : _recipientName;
+  const sharedNameFontSize = dynCompanyFontSize(_longerName, 15);
+
   const documentTitles: Record<string, string> = {
     invoice: String(t('pdf.invoice')),
     estimate: String(t('pdf.estimate')),
@@ -622,7 +629,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
               <View>
                 {(clientData || supplierData) ? (
                   <View>
-                    <Text style={[styles.clientName, { fontSize: dynCompanyFontSize(clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '', 15) }]}>
+                    <Text style={[styles.clientName, { fontSize: sharedNameFontSize }]}>
 {clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '-'}
 </Text>
 {(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
@@ -632,12 +639,12 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                     </Text>
                   </View>
                 ) : (
-                  <Text style={[styles.clientName, { fontSize: dynCompanyFontSize(client || supplier || '', 15) }]}>{client || supplier || '-'}</Text>
+                  <Text style={[styles.clientName, { fontSize: sharedNameFontSize }]}>{client || supplier || '-'}</Text>
                 )}
               </View>
             ) : (
               <View>
-                <Text style={[styles.clientName, { fontSize: dynCompanyFontSize(companyInfo.name || '', 15) }]}>
+                <Text style={[styles.clientName, { fontSize: sharedNameFontSize }]}>
 {(companyInfo.name || 'COMPANY NAME').toUpperCase()}
 </Text>
 {companyInfo.ice ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
@@ -660,7 +667,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
           <View style={[styles.invoiceToBox, { borderColor: primaryColor }]}>
             {type === 'purchase_invoice' || type === 'purchase_delivery_note' ? (
               <View>
-                <Text style={[styles.clientName, { fontSize: dynCompanyFontSize(companyInfo.name || '', 15) }]}>
+                <Text style={[styles.clientName, { fontSize: sharedNameFontSize }]}>
 {(companyInfo.name || 'COMPANY NAME').toUpperCase()}
 </Text>
 {companyInfo.ice ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {companyInfo.ice}</Text> : null}
@@ -673,7 +680,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
               <View>
                 {(clientData || supplierData) ? (
                   <View>
-                    <Text style={[styles.clientName, { fontSize: dynCompanyFontSize(clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '', 15) }]}>
+                    <Text style={[styles.clientName, { fontSize: sharedNameFontSize }]}>
 {clientData?.company || supplierData?.company || clientData?.name || supplierData?.name || '-'}
 </Text>
 {(clientData?.ice || supplierData?.ice) ? <Text style={{ fontSize: 10, color: '#475569', fontWeight: 'normal', marginBottom: 2 }}>{String(t('pdf.ice'))}: {clientData?.ice || supplierData?.ice}</Text> : null}
@@ -683,7 +690,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                     </Text>
                   </View>
                 ) : (
-                  <Text style={[styles.clientName, { fontSize: dynCompanyFontSize(client || supplier || '', 15) }]}>{client || supplier || '-'}</Text>
+                  <Text style={[styles.clientName, { fontSize: sharedNameFontSize }]}>{client || supplier || '-'}</Text>
                 )}
               </View>
             )}
