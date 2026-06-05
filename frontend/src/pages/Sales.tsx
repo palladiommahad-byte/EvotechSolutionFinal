@@ -2271,7 +2271,8 @@ export const Sales = () => {
 
 
                 <div className="card-elevated overflow-hidden">
-                  <Table>
+                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
+                  <Table className="min-w-[700px]">
                     <TableHeader>
                     <TableRow className="data-table-header hover:bg-section">
                         <TableHead className="w-[70px] min-w-[70px] px-3 text-center">
@@ -2423,6 +2424,7 @@ export const Sales = () => {
                       )}
                     </TableBody>
                   </Table>
+                  </div>
                 </div>
               </div>
             </TabsContent>
@@ -2835,7 +2837,8 @@ export const Sales = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <Table>
+                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
+                  <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
                         <TableHead className="w-[70px] min-w-[70px] px-3 text-center">
@@ -2966,6 +2969,7 @@ export const Sales = () => {
                       )}
                     </TableBody>
                   </Table>
+                  </div>
                 </div>
               </div>
             </TabsContent>
@@ -3056,7 +3060,8 @@ export const Sales = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden border border-border">
-                  <Table>
+                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
+                  <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="bg-muted/50">
                         <TableHead className="w-[50px]">
@@ -3165,6 +3170,7 @@ export const Sales = () => {
                       )}
                     </TableBody>
                   </Table>
+                  </div>
                 </div>
               </div>
             </TabsContent>
@@ -3501,7 +3507,8 @@ export const Sales = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <Table>
+                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
+                  <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
                         <TableHead className="w-[70px] min-w-[70px] px-3 text-center">
@@ -3627,6 +3634,7 @@ export const Sales = () => {
                       )}
                     </TableBody>
                   </Table>
+                  </div>
                 </div>
               </div>
             </TabsContent>
@@ -3915,7 +3923,8 @@ export const Sales = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <Table>
+                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
+                  <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
                         <TableHead className="w-[70px] min-w-[70px] px-3 text-center">
@@ -4027,6 +4036,7 @@ export const Sales = () => {
                       )}
                     </TableBody>
                   </Table>
+                  </div>
                 </div>
               </div>
             </TabsContent>
@@ -4317,7 +4327,8 @@ export const Sales = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <Table>
+                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
+                  <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
                         <TableHead className="w-[70px] min-w-[70px] px-3 text-center">
@@ -4425,6 +4436,7 @@ export const Sales = () => {
                       )}
                     </TableBody>
                   </Table>
+                  </div>
                 </div>
               </div>
             </TabsContent>
