@@ -77,6 +77,9 @@ export const Inventory = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [ageFilter, setAgeFilter] = useState<'all' | 'new' | 'old'>('all');
+  const [renamingCategory, setRenamingCategory] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
   const [customCategories, setCustomCategories] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('inventory_custom_categories');
@@ -203,6 +206,39 @@ export const Inventory = () => {
         variant: "success",
       });
     }
+  };
+
+  const handleRenameCategory = () => {
+    const trimmed = renameValue.trim();
+    if (!trimmed || !renamingCategory || trimmed === renamingCategory) {
+      setRenamingCategory(null);
+      return;
+    }
+    // Update customCategories list
+    const updatedCustom = customCategories.map(c => c === renamingCategory ? trimmed : c);
+    setCustomCategories(updatedCustom);
+    localStorage.setItem('inventory_custom_categories', JSON.stringify(updatedCustom));
+    // Update all products that use this category
+    products
+      .filter(p => p.category === renamingCategory)
+      .forEach(p => updateProduct(p.id, { ...p, category: trimmed }));
+    if (categoryFilter === renamingCategory) setCategoryFilter(trimmed);
+    setRenamingCategory(null);
+    setRenameValue('');
+    toast({ title: 'Catégorie renommée', description: `"${renamingCategory}" → "${trimmed}"`, variant: 'success' });
+  };
+
+  const handleDeleteCategory = (category: string) => {
+    const updatedCustom = customCategories.filter(c => c !== category);
+    setCustomCategories(updatedCustom);
+    localStorage.setItem('inventory_custom_categories', JSON.stringify(updatedCustom));
+    // Move products in this category to Uncategorized
+    products
+      .filter(p => p.category === category)
+      .forEach(p => updateProduct(p.id, { ...p, category: 'Uncategorized' }));
+    if (categoryFilter === category) setCategoryFilter('all');
+    setDeletingCategory(null);
+    toast({ title: 'Catégorie supprimée', description: `"${category}" a été supprimée.`, variant: 'default' });
   };
 
   const handleViewProduct = (product: Product) => {
@@ -723,7 +759,7 @@ export const Inventory = () => {
             return (
               <AccordionItem key={category} value={category} className="border rounded-lg mb-4 overflow-hidden">
                 <AccordionTrigger className="hover:no-underline px-4 py-3 bg-muted/50 hover:bg-muted/70 transition-colors data-[state=open]:bg-primary/5 data-[state=open]:text-primary mb-0">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-1">
                     <div className="p-2 rounded-md bg-white dark:bg-card shadow-sm">
                       {category === 'Uncategorized' ? <Package className="w-4 h-4" /> : <FolderPlus className="w-4 h-4" />}
                     </div>
@@ -731,6 +767,24 @@ export const Inventory = () => {
                     <Badge variant="secondary" className="ml-2 font-mono">
                       {categoryProducts.length}
                     </Badge>
+                    {category !== 'Uncategorized' && (
+                      <div className="ml-auto flex items-center gap-1 mr-2" onClick={e => e.stopPropagation()}>
+                        <button
+                          className="p-1.5 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                          title="Renommer"
+                          onClick={() => { setRenamingCategory(category); setRenameValue(category); }}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                          title="Supprimer"
+                          onClick={() => setDeletingCategory(category)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="px-0 pb-0">
@@ -1584,6 +1638,49 @@ export const Inventory = () => {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Rename Category Dialog */}
+      <Dialog open={!!renamingCategory} onOpenChange={open => { if (!open) setRenamingCategory(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Renommer la catégorie</DialogTitle>
+            <DialogDescription>Nouveau nom pour "{renamingCategory}"</DialogDescription>
+          </DialogHeader>
+          <Input
+            value={renameValue}
+            onChange={e => setRenameValue(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleRenameCategory(); }}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenamingCategory(null)}>Annuler</Button>
+            <Button onClick={handleRenameCategory} disabled={!renameValue.trim() || renameValue.trim() === renamingCategory}>
+              Renommer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Category Confirmation */}
+      <AlertDialog open={!!deletingCategory} onOpenChange={open => { if (!open) setDeletingCategory(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer la catégorie ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              La catégorie "{deletingCategory}" sera supprimée. Les produits qu'elle contient seront déplacés vers "Uncategorized".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingCategory && handleDeleteCategory(deletingCategory)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
