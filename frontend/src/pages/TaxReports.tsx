@@ -51,6 +51,12 @@ const filterByPeriod = <T extends { date: string }>(
   });
 };
 
+// Extract HT (pre-tax) amount from a document — pure helper, defined outside component
+const getHT = (inv: { total: number; subtotal?: number }): number => {
+  const ttc = Number(inv.total) || 0;
+  return inv.subtotal != null ? Number(inv.subtotal) : ttc / (1 + 0.20);
+};
+
 // Get available years based on data
 const getAvailableYears = (invoices: { date: string }[], purchaseInvoices: { date: string }[]): number[] => {
   const allDocs = [...invoices, ...purchaseInvoices];
@@ -97,14 +103,6 @@ export const TaxReports = () => {
     () => filterByPeriod(purchaseInvoices, selectedYear, selectedQuarter),
     [purchaseInvoices, selectedYear, selectedQuarter]
   );
-
-  // Helper: get HT (pre-tax) amount from a document
-  // Prefers subtotal (HT) field; falls back to total / 1.20 if subtotal missing
-  const getHT = (inv: { total: number; subtotal?: number }) => {
-    const ttc = Number(inv.total) || 0;
-    const ht = inv.subtotal != null ? Number(inv.subtotal) : ttc / (1 + VAT_RATE);
-    return ht;
-  };
 
   // VAT Collected = TTC - HT for each sales invoice
   const vatCollected = useMemo(() => {
@@ -261,7 +259,17 @@ export const TaxReports = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-heading font-bold text-foreground">{t('taxReports.title')}</h1>
-          <p className="text-muted-foreground">{t('taxReports.description')}</p>
+          <p className="text-muted-foreground">
+            {selectedQuarter === 'all'
+              ? `Année complète ${selectedYear}`
+              : `${selectedQuarter.toUpperCase()} ${selectedYear} — ${
+                  selectedQuarter === 'q1' ? 'Jan · Fév · Mar'
+                  : selectedQuarter === 'q2' ? 'Avr · Mai · Jun'
+                  : selectedQuarter === 'q3' ? 'Jul · Aoû · Sep'
+                  : 'Oct · Nov · Déc'
+                }`
+            }
+          </p>
         </div>
         <div className="flex gap-2">
           <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
