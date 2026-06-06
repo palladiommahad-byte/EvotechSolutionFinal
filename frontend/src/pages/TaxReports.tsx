@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { FileSpreadsheet, Calculator, TrendingUp, Download, Calendar, FileText, ChevronDown, Loader2, Save } from 'lucide-react';
+import { FileSpreadsheet, Download, FileText, ChevronDown, Loader2, Save } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -11,24 +11,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { formatMAD, VAT_RATE, calculateCorporateTax } from '@/lib/moroccan-utils';
+import { VAT_RATE } from '@/lib/moroccan-utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
 import { generateTaxReportPDF, generateVATReportPDF } from '@/lib/pdf-generator';
 import { generateTaxReportExcel, generateLedgerExcel } from '@/lib/excel-generator';
 import { generateTaxReportCSV } from '@/lib/csv-generator';
-import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { useSales } from '@/contexts/SalesContext';
 import { usePurchases } from '@/contexts/PurchasesContext';
 
@@ -83,15 +75,10 @@ export const TaxReports = () => {
   const { invoices, isLoading: salesLoading } = useSales();
   const { purchaseInvoices, isLoading: purchasesLoading } = usePurchases();
 
-  // State for period selection
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedQuarter, setSelectedQuarter] = useState<string>('all');
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
-
-  // State for modals
-  const [showISSimulation, setShowISSimulation] = useState(false);
-  const [showTaxCalendar, setShowTaxCalendar] = useState(false);
 
   const isLoading = salesLoading || purchasesLoading;
 
@@ -160,15 +147,11 @@ export const TaxReports = () => {
   // Net Profit = Gross Revenue - Expenses
   const netProfit = grossRevenue - expenses;
 
-  // Estimated Corporate Tax (IS)
-  const estimatedIS = calculateCorporateTax(Math.max(0, netProfit));
-
   // Prepare data for exports
   const taxReportData = {
     grossRevenue,
     expenses,
     netProfit,
-    estimatedIS,
     vatCollected,
     vatPaid,
     vatDue,
@@ -255,29 +238,6 @@ export const TaxReports = () => {
     });
   };
 
-  // Annual projection for IS Simulation
-  const annualProjection = useMemo(() => {
-    const monthsCompleted = selectedQuarter === 'all'
-      ? 12
-      : selectedQuarter === 'q1' ? 3
-        : selectedQuarter === 'q2' ? 6
-          : selectedQuarter === 'q3' ? 9
-            : 12;
-
-    const projectedAnnualRevenue = (grossRevenue / monthsCompleted) * 12;
-    const projectedAnnualExpenses = (expenses / monthsCompleted) * 12;
-    const projectedNetProfit = projectedAnnualRevenue - projectedAnnualExpenses;
-    const projectedIS = calculateCorporateTax(Math.max(0, projectedNetProfit));
-
-    return {
-      projectedAnnualRevenue,
-      projectedAnnualExpenses,
-      projectedNetProfit,
-      projectedIS,
-      monthsCompleted,
-    };
-  }, [grossRevenue, expenses, selectedQuarter]);
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -352,22 +312,14 @@ export const TaxReports = () => {
         </div>
       </div>
 
-      {/* Transaction Summary */}
-      <div className="flex gap-4 text-sm text-muted-foreground">
-        <span>{t('taxReports.salesTransactions') || 'Sales Transactions'}: <strong className="text-foreground">{filteredSalesInvoices.length}</strong></span>
-        <span>{t('taxReports.purchaseTransactions') || 'Purchase Transactions'}: <strong className="text-foreground">{filteredPurchaseInvoices.length}</strong></span>
-      </div>
-
       {/* VAT Section */}
       <div className="card-elevated p-6">
-        <div className="flex items-center gap-2 mb-6">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Calculator className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h2 className="text-lg font-heading font-semibold text-foreground">{t('taxReports.vatCalculation')}</h2>
-            <p className="text-sm text-muted-foreground">{t('taxReports.vatAt', { rate: VAT_RATE * 100 })}</p>
-          </div>
+        <div className="mb-6">
+          <h2 className="text-lg font-heading font-semibold text-foreground mb-1">{t('taxReports.vatCalculation')}</h2>
+          <p className="text-sm text-muted-foreground">{t('taxReports.vatAt', { rate: VAT_RATE * 100 })}</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            {t('taxReports.salesTransactions') || 'Sales'}: {filteredSalesInvoices.length} | {t('taxReports.purchaseTransactions') || 'Purchases'}: {filteredPurchaseInvoices.length}
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -391,107 +343,12 @@ export const TaxReports = () => {
             </p>
           </div>
         </div>
-
-        <div className="flex items-center gap-4 p-4 bg-section rounded-lg">
-          <Calendar className="w-5 h-5 text-muted-foreground" />
-          <div>
-            <p className="text-sm font-medium text-foreground">{t('taxReports.nextVatDeclarationDue')}</p>
-            <p className="text-xs text-muted-foreground">{t('taxReports.before20thNextMonth')}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Corporate Tax Section */}
-      <div className="card-elevated p-6">
-        <div className="flex items-center gap-2 mb-6">
-          <div className="p-2 rounded-lg bg-info/10">
-            <FileSpreadsheet className="w-5 h-5 text-info" />
-          </div>
-          <div>
-            <h2 className="text-lg font-heading font-semibold text-foreground">{t('taxReports.corporateTax')}</h2>
-            <p className="text-sm text-muted-foreground">{t('taxReports.moroccanCorporateTaxEstimator')}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Input Section */}
-          <div className="space-y-4">
-            <h3 className="font-medium text-foreground">{t('taxReports.financialSummary')}</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between py-2 border-b border-border gap-4 overflow-visible">
-                <span className="text-muted-foreground flex-shrink-0">{t('taxReports.grossRevenue')}</span>
-                <span className="font-medium break-words overflow-visible whitespace-normal text-right min-w-0">
-                  <CurrencyDisplay amount={grossRevenue} />
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b border-border gap-4 overflow-visible">
-                <span className="text-muted-foreground flex-shrink-0">{t('taxReports.totalExpenses')}</span>
-                <span className="font-medium text-destructive break-words overflow-visible whitespace-normal text-right min-w-0">
-                  -<CurrencyDisplay amount={expenses} />
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b border-border gap-4 overflow-visible">
-                <span className="font-medium text-foreground flex-shrink-0">{t('taxReports.netProfit')}</span>
-                <span className={`font-bold break-words overflow-visible whitespace-normal text-right min-w-0 ${netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {netProfit < 0 && '-'}<CurrencyDisplay amount={Math.abs(netProfit)} />
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Tax Calculation */}
-          <div className="p-6 bg-section rounded-lg">
-            <h3 className="font-medium text-foreground mb-4">{t('taxReports.isTaxCalculation')}</h3>
-            <div className="space-y-3">
-              <div className="text-sm text-muted-foreground">
-                <p className="mb-2">{t('taxReports.moroccanIsRates')}</p>
-                <ul className="space-y-1 ml-4">
-                  <li>{t('taxReports.isRate10')}</li>
-                  <li>{t('taxReports.isRate20')}</li>
-                  <li>{t('taxReports.isRate31')}</li>
-                  <li>{t('taxReports.isRate35')}</li>
-                </ul>
-              </div>
-              <div className="pt-4 border-t border-border">
-                <div className="flex items-center justify-between mb-2 gap-4 overflow-visible">
-                  <span className="text-muted-foreground flex-shrink-0">{t('taxReports.taxableIncome')}</span>
-                  <span className="font-medium break-words overflow-visible whitespace-normal text-right min-w-0">
-                    <CurrencyDisplay amount={Math.max(0, netProfit)} />
-                  </span>
-                </div>
-                <div className="flex items-center justify-between py-3 px-4 bg-primary/10 rounded-lg gap-4 overflow-visible">
-                  <span className="font-medium text-foreground flex-shrink-0">{t('taxReports.estimatedIsTax')}</span>
-                  <span className="text-lg sm:text-xl font-heading font-bold text-primary break-words overflow-visible whitespace-normal leading-tight text-right">
-                    <CurrencyDisplay amount={estimatedIS} />
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tax Calendar */}
-        <div className="mt-6 p-4 bg-warning/5 border border-warning/20 rounded-lg">
-          <div className="flex items-start gap-3">
-            <TrendingUp className="w-5 h-5 text-warning mt-0.5" />
-            <div>
-              <p className="font-medium text-foreground">{t('taxReports.importantTaxDeadlines')}</p>
-              <ul className="mt-2 text-sm text-muted-foreground space-y-1">
-                <li>{t('taxReports.q1IsAdvance')}</li>
-                <li>{t('taxReports.q2IsAdvance')}</li>
-                <li>{t('taxReports.q3IsAdvance')}</li>
-                <li>{t('taxReports.q4IsAdvance')}</li>
-                <li>{t('taxReports.annualIsDeclaration')}</li>
-              </ul>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="flex gap-4 flex-wrap">
         <button
-          className="card-elevated p-4 text-left hover:shadow-elevated transition-shadow"
+          className="flex-1 min-w-[200px] card-elevated p-4 text-left hover:shadow-elevated transition-shadow"
           onClick={handleGenerateVATReport}
         >
           <FileSpreadsheet className="w-6 h-6 text-primary mb-2" />
@@ -499,118 +356,14 @@ export const TaxReports = () => {
           <p className="text-sm text-muted-foreground">{t('taxReports.monthlyVatDeclaration')}</p>
         </button>
         <button
-          className="card-elevated p-4 text-left hover:shadow-elevated transition-shadow"
-          onClick={() => setShowISSimulation(true)}
-        >
-          <Calculator className="w-6 h-6 text-info mb-2" />
-          <p className="font-medium text-foreground">{t('taxReports.isSimulation')}</p>
-          <p className="text-sm text-muted-foreground">{t('taxReports.annualTaxProjection')}</p>
-        </button>
-        <button
-          className="card-elevated p-4 text-left hover:shadow-elevated transition-shadow"
+          className="flex-1 min-w-[200px] card-elevated p-4 text-left hover:shadow-elevated transition-shadow"
           onClick={handleExportLedger}
         >
           <Download className="w-6 h-6 text-success mb-2" />
           <p className="font-medium text-foreground">{t('taxReports.exportLedger')}</p>
           <p className="text-sm text-muted-foreground">{t('taxReports.forAccountantReview')}</p>
         </button>
-        <button
-          className="card-elevated p-4 text-left hover:shadow-elevated transition-shadow"
-          onClick={() => setShowTaxCalendar(true)}
-        >
-          <Calendar className="w-6 h-6 text-warning mb-2" />
-          <p className="font-medium text-foreground">{t('taxReports.taxCalendar')}</p>
-          <p className="text-sm text-muted-foreground">{t('taxReports.upcomingDeadlines')}</p>
-        </button>
       </div>
-
-      {/* IS Simulation Modal */}
-      <Dialog open={showISSimulation} onOpenChange={setShowISSimulation}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('taxReports.isSimulation')}</DialogTitle>
-            <DialogDescription>
-              {t('taxReports.annualProjectionBased') || 'Annual projection based on current period data'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="text-sm text-muted-foreground mb-4">
-              {t('taxReports.basedOnMonths', { months: annualProjection.monthsCompleted }) ||
-                `Based on ${annualProjection.monthsCompleted} months of data`}
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">{t('taxReports.projectedRevenue') || 'Projected Annual Revenue'}</span>
-                <span className="font-medium"><CurrencyDisplay amount={annualProjection.projectedAnnualRevenue} /></span>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">{t('taxReports.projectedExpenses') || 'Projected Annual Expenses'}</span>
-                <span className="font-medium text-destructive">-<CurrencyDisplay amount={annualProjection.projectedAnnualExpenses} /></span>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="font-medium">{t('taxReports.projectedProfit') || 'Projected Net Profit'}</span>
-                <span className={`font-bold ${annualProjection.projectedNetProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  <CurrencyDisplay amount={annualProjection.projectedNetProfit} />
-                </span>
-              </div>
-              <div className="flex justify-between py-3 px-4 bg-primary/10 rounded-lg">
-                <span className="font-medium">{t('taxReports.projectedIS') || 'Projected IS Tax'}</span>
-                <span className="font-bold text-primary"><CurrencyDisplay amount={annualProjection.projectedIS} /></span>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-4">
-              {t('taxReports.projectionDisclaimer') ||
-                '* This is an estimate based on current data extrapolated to a full year. Actual tax liability may vary.'}
-            </p>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Tax Calendar Modal */}
-      <Dialog open={showTaxCalendar} onOpenChange={setShowTaxCalendar}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('taxReports.taxCalendar')}</DialogTitle>
-            <DialogDescription>
-              {t('taxReports.moroccanTaxDeadlines') || 'Moroccan tax deadlines and important dates'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="space-y-3">
-              <div className="p-3 bg-section rounded-lg">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-2 h-2 rounded-full bg-primary" />
-                  <span className="font-medium">{t('taxReports.vatDeclaration') || 'VAT Declaration'}</span>
-                </div>
-                <p className="text-sm text-muted-foreground ml-4">
-                  {t('taxReports.vatDeadlineDesc') || 'Before the 20th of each month for the previous month'}
-                </p>
-              </div>
-              <div className="p-3 bg-section rounded-lg">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-2 h-2 rounded-full bg-info" />
-                  <span className="font-medium">{t('taxReports.isQuarterlyAdvances') || 'IS Quarterly Advances'}</span>
-                </div>
-                <ul className="text-sm text-muted-foreground ml-4 space-y-1">
-                  <li>Q1: {t('taxReports.q1Deadline') || 'Before March 31'}</li>
-                  <li>Q2: {t('taxReports.q2Deadline') || 'Before June 30'}</li>
-                  <li>Q3: {t('taxReports.q3Deadline') || 'Before September 30'}</li>
-                  <li>Q4: {t('taxReports.q4Deadline') || 'Before December 31'}</li>
-                </ul>
-              </div>
-              <div className="p-3 bg-section rounded-lg">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-2 h-2 rounded-full bg-warning" />
-                  <span className="font-medium">{t('taxReports.annualDeclaration') || 'Annual IS Declaration'}</span>
-                </div>
-                <p className="text-sm text-muted-foreground ml-4">
-                  {t('taxReports.annualDeadlineDesc') || 'Before March 31 of the following year'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

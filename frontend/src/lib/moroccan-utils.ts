@@ -55,40 +55,22 @@ export const calculateAmountWithoutVAT = (totalWithVAT: number): number => {
   return roundTo2Decimals(totalWithVAT / (1 + VAT_RATE));
 };
 
-// Moroccan Corporate Tax (IS) rates - 2025 rates
-// Progressive tax brackets based on net taxable profit
+// Moroccan Corporate Tax (IS) rates - 2026 rates (simplified two-tier system)
 export const calculateCorporateTax = (profit: number): number => {
-  // 2025 Moroccan IS rates:
-  // - 17.5% for profit up to 300,000 MAD
-  // - 20% for profit between 300,001 and 1,000,000 MAD
-  // - 22.75% for profit between 1,000,001 and 100,000,000 MAD
-  // - 31.25% for profit above 100,000,000 MAD
+  // 2026 Moroccan IS rates (simplified system):
+  // - 20% for profit up to 99,999,999 MAD
+  // - 35% for profit above 100,000,000 MAD
 
   if (profit <= 0) return 0;
 
-  if (profit <= 300000) {
-    return roundTo2Decimals(profit * 0.175);
+  if (profit <= 99999999) {
+    return roundTo2Decimals(profit * 0.20);
   }
 
-  if (profit <= 1000000) {
-    const tax1 = 300000 * 0.175; // 52,500
-    const tax2 = (profit - 300000) * 0.20;
-    return roundTo2Decimals(tax1 + tax2);
-  }
-
-  if (profit <= 100000000) {
-    const tax1 = 300000 * 0.175;  // 52,500
-    const tax2 = 700000 * 0.20;   // 140,000
-    const tax3 = (profit - 1000000) * 0.2275;
-    return roundTo2Decimals(tax1 + tax2 + tax3);
-  }
-
-  // Above 100M MAD
-  const tax1 = 300000 * 0.175;      // 52,500
-  const tax2 = 700000 * 0.20;       // 140,000
-  const tax3 = 99000000 * 0.2275;   // 22,522,500
-  const tax4 = (profit - 100000000) * 0.3125;
-  return roundTo2Decimals(tax1 + tax2 + tax3 + tax4);
+  // Above 99,999,999 MAD
+  const tax1 = 99999999 * 0.20;
+  const tax2 = (profit - 99999999) * 0.35;
+  return roundTo2Decimals(tax1 + tax2);
 };
 
 // Moroccan Business Identifier Validation
