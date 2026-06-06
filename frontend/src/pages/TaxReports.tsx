@@ -102,49 +102,43 @@ export const TaxReports = () => {
     [purchaseInvoices, selectedYear, selectedQuarter]
   );
 
-  // Calculate VAT from sales invoices (VAT Collected from customers)
+  // Helper: get HT (pre-tax) amount from a document
+  // Prefers subtotal (HT) field; falls back to total / 1.20 if subtotal missing
+  const getHT = (inv: { total: number; subtotal?: number }) => {
+    const ttc = Number(inv.total) || 0;
+    const ht = inv.subtotal != null ? Number(inv.subtotal) : ttc / (1 + VAT_RATE);
+    return ht;
+  };
+
+  // VAT Collected = TTC - HT for each sales invoice
   const vatCollected = useMemo(() => {
     return filteredSalesInvoices.reduce((sum, inv) => {
-      // Each invoice item contributes to VAT
-      const items = inv.items || [];
-      const invoiceVat = items.reduce((itemSum, item) => {
-        const itemTotal = Number(item?.total) || 0;
-        return itemSum + (itemTotal * VAT_RATE);
-      }, 0);
-      return sum + invoiceVat;
+      const ttc = Number(inv.total) || 0;
+      const ht = getHT(inv);
+      return sum + (ttc - ht);
     }, 0);
   }, [filteredSalesInvoices]);
 
-  // Calculate VAT from purchase invoices (VAT Paid to suppliers)
+  // VAT Paid = TTC - HT for each purchase invoice
   const vatPaid = useMemo(() => {
     return filteredPurchaseInvoices.reduce((sum, inv) => {
-      // Each invoice item contributes to VAT
-      const items = inv.items || [];
-      const invoiceVat = items.reduce((itemSum, item) => {
-        const itemTotal = Number(item?.total) || 0;
-        return itemSum + (itemTotal * VAT_RATE);
-      }, 0);
-      return sum + invoiceVat;
+      const ttc = Number(inv.total) || 0;
+      const ht = getHT(inv);
+      return sum + (ttc - ht);
     }, 0);
   }, [filteredPurchaseInvoices]);
 
   // VAT Due = VAT Collected - VAT Paid
   const vatDue = vatCollected - vatPaid;
 
-  // Gross Revenue = sum of sales invoice totals
+  // Gross Revenue = sum of HT sales (excluding VAT — correct for tax reporting)
   const grossRevenue = useMemo(() => {
-    return filteredSalesInvoices.reduce((sum, inv) => {
-      const total = Number(inv?.total) || 0;
-      return sum + total;
-    }, 0);
+    return filteredSalesInvoices.reduce((sum, inv) => sum + getHT(inv), 0);
   }, [filteredSalesInvoices]);
 
-  // Expenses = sum of purchase invoice totals
+  // Expenses = sum of HT purchases (excluding VAT)
   const expenses = useMemo(() => {
-    return filteredPurchaseInvoices.reduce((sum, inv) => {
-      const total = Number(inv?.total) || 0;
-      return sum + total;
-    }, 0);
+    return filteredPurchaseInvoices.reduce((sum, inv) => sum + getHT(inv), 0);
   }, [filteredPurchaseInvoices]);
 
   // Net Profit = Gross Revenue - Expenses
@@ -157,13 +151,17 @@ export const TaxReports = () => {
 
     filteredSalesInvoices.forEach(inv => {
       const m = new Date(inv.date).getMonth();
-      months[m].revenue += Number(inv.total) || 0;
-      months[m].vatCollected += (inv.items || []).reduce((s, item) => s + ((Number(item?.total) || 0) * VAT_RATE), 0);
+      const ttc = Number(inv.total) || 0;
+      const ht = inv.subtotal != null ? Number(inv.subtotal) : ttc / (1 + VAT_RATE);
+      months[m].revenue += ht;
+      months[m].vatCollected += ttc - ht;
     });
     filteredPurchaseInvoices.forEach(inv => {
       const m = new Date(inv.date).getMonth();
-      months[m].expenses += Number(inv.total) || 0;
-      months[m].vatPaid += (inv.items || []).reduce((s, item) => s + ((Number(item?.total) || 0) * VAT_RATE), 0);
+      const ttc = Number(inv.total) || 0;
+      const ht = inv.subtotal != null ? Number(inv.subtotal) : ttc / (1 + VAT_RATE);
+      months[m].expenses += ht;
+      months[m].vatPaid += ttc - ht;
     });
 
     // Only return months that have data (or all if quarter filter applied)
