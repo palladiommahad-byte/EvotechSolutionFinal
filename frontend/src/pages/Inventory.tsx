@@ -238,7 +238,7 @@ export const Inventory = () => {
       .forEach(p => updateProduct(p.id, { ...p, category: 'Uncategorized' }));
     if (categoryFilter === category) setCategoryFilter('all');
     setDeletingCategory(null);
-    toast({ title: 'Catégorie supprimée', description: `"${category}" a été supprimée.`, variant: 'default' });
+    toast({ title: 'Catégorie supprimée', description: `"${category}" a été supprimée.`, variant: 'destructive' });
   };
 
   const handleViewProduct = (product: Product) => {
