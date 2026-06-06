@@ -59,7 +59,7 @@ export const ContactsProvider = ({ children }: { children: ReactNode }) => {
   const { data: contactsData = [], isLoading } = useQuery({
     queryKey: ['contacts'],
     queryFn: () => contactsService.getAll(),
-    staleTime: 30000, // 30 seconds
+    staleTime: 0, // Instant refresh on invalidation — CRM edits apply immediately across Sales/Purchases
   });
 
   // Convert to UI format and filter
