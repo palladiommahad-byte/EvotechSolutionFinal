@@ -1679,9 +1679,21 @@ export const Sales = () => {
     });
   };
 
+  // ── Avoir-aware invoice dataset (used by relevé + stats) ─────────────────
+  // Exclude invoices replaced by an avoir, then add the avoirs as paid entries
+  const invoicesWithoutAvoirs = invoices.filter(inv => !findLinkedCreditNote(inv));
+  const linkedAvoirs = creditNotes.filter(cn => cn.originalInvoice && cn.status !== 'cancelled');
+  const invoicesForStats = [
+    ...invoicesWithoutAvoirs,
+    ...linkedAvoirs.map(cn => {
+      const origInv = invoices.find(inv => inv.id === cn.originalInvoice || inv.documentId === cn.originalInvoice);
+      return { ...cn, type: 'invoice' as const, status: 'paid' as const, paymentMethod: origInv?.paymentMethod || 'cash' };
+    }),
+  ];
+
   // ── Relevé filtered list ─────────────────────────────────────────────────
   const filteredStatementInvoices = useMemo(() => {
-    return invoices
+    return invoicesForStats
       .filter(inv => {
         if (stmtClientFilter !== 'all' && inv.client !== stmtClientFilter) return false;
         if (stmtDateFrom && inv.date < stmtDateFrom) return false;
@@ -1692,43 +1704,28 @@ export const Sales = () => {
         return true;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [invoices, stmtClientFilter, stmtDateFrom, stmtDateTo, stmtTypeFilter]);
+  }, [invoicesForStats, stmtClientFilter, stmtDateFrom, stmtDateTo, stmtTypeFilter]);
 
   const statementClients = useMemo(() => {
     const seen = new Set<string>();
-    return invoices
+    return invoicesForStats
       .map(inv => ({ name: inv.client, data: inv.clientData }))
       .filter(c => { if (!c.name || seen.has(c.name)) return false; seen.add(c.name); return true; });
-  }, [invoices]);
+  }, [invoicesForStats]);
 
-  const totalRevenue = [...invoices, ...deliveryNotes].reduce((sum, o) => {
+  const totalRevenue = [...invoicesForStats, ...deliveryNotes].reduce((sum, o) => {
     const amount = typeof o.total === 'number' ? o.total : parseFloat(o.total as any) || 0;
     return sum + amount;
   }, 0);
 
-  const pendingRevenue = invoices
+  const pendingRevenue = invoicesForStats
     .filter(o => o.status !== 'paid')
     .reduce((sum, o) => {
       const amount = typeof o.total === 'number' ? o.total : parseFloat(o.total as any) || 0;
       return sum + amount;
     }, 0);
 
-  // Invoice Statistics Calculations
-  // Exclude invoices that have been replaced by an avoir (credit note)
-  const invoicesWithoutAvoirs = invoices.filter(inv => !findLinkedCreditNote(inv));
-
-  // Avoirs linked to invoices (non-cancelled) — treated as paid replacements in stats
-  const linkedAvoirs = creditNotes.filter(cn => cn.originalInvoice && cn.status !== 'cancelled');
-
-  // Combined dataset: invoices not replaced by avoirs + avoirs as paid entries
-  const invoicesForStats = [
-    ...invoicesWithoutAvoirs,
-    ...linkedAvoirs.map(cn => {
-      const origInv = invoices.find(inv => inv.id === cn.originalInvoice || inv.documentId === cn.originalInvoice);
-      return { ...cn, type: 'invoice' as const, status: 'paid' as const, paymentMethod: origInv?.paymentMethod || 'cash' };
-    }),
-  ];
-
+  // Invoice Statistics Calculations (uses invoicesForStats defined above)
   const invoiceStats = {
     totalInvoices: invoicesForStats.length,
     paidInvoices: invoicesForStats.filter(inv => inv.status === 'paid').length,
