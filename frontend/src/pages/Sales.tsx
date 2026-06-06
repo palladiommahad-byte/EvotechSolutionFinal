@@ -1714,23 +1714,26 @@ export const Sales = () => {
     }, 0);
 
   // Invoice Statistics Calculations
+  // Exclude invoices that have been replaced by an avoir (credit note)
+  const invoicesWithoutAvoirs = invoices.filter(inv => !findLinkedCreditNote(inv));
+
   const invoiceStats = {
-    totalInvoices: invoices.length,
-    paidInvoices: invoices.filter(inv => inv.status === 'paid').length,
-    unpaidInvoices: invoices.filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled').length,
-    overdueInvoices: invoices.filter(inv => inv.status === 'overdue').length,
-    draftInvoices: invoices.filter(inv => inv.status === 'draft').length,
-    cancelledInvoices: invoices.filter(inv => inv.status === 'cancelled').length,
-    totalAmount: invoices.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
-    paidAmount: invoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
-    unpaidAmount: invoices.filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
-    overdueAmount: invoices.filter(inv => inv.status === 'overdue').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
+    totalInvoices: invoicesWithoutAvoirs.length,
+    paidInvoices: invoicesWithoutAvoirs.filter(inv => inv.status === 'paid').length,
+    unpaidInvoices: invoicesWithoutAvoirs.filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled').length,
+    overdueInvoices: invoicesWithoutAvoirs.filter(inv => inv.status === 'overdue').length,
+    draftInvoices: invoicesWithoutAvoirs.filter(inv => inv.status === 'draft').length,
+    cancelledInvoices: invoicesWithoutAvoirs.filter(inv => inv.status === 'cancelled').length,
+    totalAmount: invoicesWithoutAvoirs.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
+    paidAmount: invoicesWithoutAvoirs.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
+    unpaidAmount: invoicesWithoutAvoirs.filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
+    overdueAmount: invoicesWithoutAvoirs.filter(inv => inv.status === 'overdue').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
     paymentMethodBreakdown: {
-      cash: invoices.filter(inv => inv.paymentMethod === 'cash').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
-      check: invoices.filter(inv => inv.paymentMethod === 'check').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
-      bank_transfer: invoices.filter(inv => inv.paymentMethod === 'bank_transfer').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
+      cash: invoicesWithoutAvoirs.filter(inv => inv.paymentMethod === 'cash').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
+      check: invoicesWithoutAvoirs.filter(inv => inv.paymentMethod === 'check').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
+      bank_transfer: invoicesWithoutAvoirs.filter(inv => inv.paymentMethod === 'bank_transfer').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
     },
-    clientBreakdown: invoices.reduce((acc, inv) => {
+    clientBreakdown: invoicesWithoutAvoirs.reduce((acc, inv) => {
       const client = inv.client;
       if (!acc[client]) {
         acc[client] = { total: 0, paid: 0, unpaid: 0, count: 0, paidCount: 0, unpaidCount: 0 };
@@ -4762,14 +4765,14 @@ export const Sales = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {invoices.length === 0 ? (
+                    {invoicesWithoutAvoirs.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center py-8 text-muted-foreground" align="center">
                           {t('documents.noDocumentsFound')}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      invoices.slice(0, 10).map((inv) => (
+                      invoicesWithoutAvoirs.slice(0, 10).map((inv) => (
                         <TableRow key={inv.id} className="hover:bg-section/50">
                           <TableCell className="font-mono">{inv.id}</TableCell>
                           <TableCell>{inv.client}</TableCell>

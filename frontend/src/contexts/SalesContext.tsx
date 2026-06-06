@@ -1016,6 +1016,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'creditNotes'] });
+      queryClient.invalidateQueries({ queryKey: ['credit_notes'] });
       queryClient.invalidateQueries({ queryKey: ['treasury'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Credit note created successfully' });
@@ -1055,6 +1056,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'creditNotes'] });
+      queryClient.invalidateQueries({ queryKey: ['credit_notes'] });
       queryClient.invalidateQueries({ queryKey: ['treasury'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Credit note updated successfully' });
@@ -1074,6 +1076,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'creditNotes'] });
+      queryClient.invalidateQueries({ queryKey: ['credit_notes'] });
       queryClient.invalidateQueries({ queryKey: ['treasury'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({ title: 'Credit note deleted successfully' });
