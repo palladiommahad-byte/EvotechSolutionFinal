@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { VAT_RATE } from '@/lib/moroccan-utils';
+import { formatMAD, VAT_RATE } from '@/lib/moroccan-utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
