@@ -924,7 +924,6 @@ export const generateTaxReportPDF = (data: {
   grossRevenue: number;
   expenses: number;
   netProfit: number;
-  estimatedIS: number;
   vatCollected?: number;
   vatPaid?: number;
   vatDue?: number;
@@ -993,14 +992,6 @@ export const generateTaxReportPDF = (data: {
     doc.text(`Nombre de transactions achats: ${data.purchasesCount || 0}`, 20, yPos);
     yPos += 15;
   }
-
-  // IS Section
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Impôt sur les Sociétés (IS)', 20, yPos);
-  yPos += 8;
-  doc.setFontSize(14);
-  doc.text(`IS estimé: ${formatMADFull(data.estimatedIS)}`, 20, yPos);
 
   yPos = 270;
   doc.setFontSize(8);

@@ -185,7 +185,6 @@ export const generateTaxReportExcel = (data: {
   grossRevenue: number;
   expenses: number;
   netProfit: number;
-  estimatedIS: number;
   vatCollected?: number;
   vatPaid?: number;
   vatDue?: number;
@@ -217,9 +216,6 @@ export const generateTaxReportExcel = (data: {
       ['Nombre d\'achats', data.purchasesCount || 0],
       [''],
     ] : []),
-    ['Impôt sur les Sociétés (IS)'],
-    ['IS estimé', formatMADFull(data.estimatedIS)],
-    [''],
     [`Généré le ${new Date().toLocaleDateString('fr-MA')}`]
   ];
 
