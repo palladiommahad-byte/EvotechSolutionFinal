@@ -365,35 +365,35 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
   const { data: invoicesData = [], isLoading: isLoadingInvoices } = useQuery({
     queryKey: ['sales', 'invoices'],
     queryFn: () => invoicesService.getAll(),
-    staleTime: 30000,
+    staleTime: 0,
   });
 
   // Fetch estimates
   const { data: estimatesData = [], isLoading: isLoadingEstimates } = useQuery({
     queryKey: ['sales', 'estimates'],
     queryFn: () => estimatesService.getAll(),
-    staleTime: 30000,
+    staleTime: 0,
   });
 
   // Fetch delivery notes (includes both delivery_note and divers)
   const { data: deliveryNotesData = [], isLoading: isLoadingDeliveryNotes } = useQuery({
     queryKey: ['sales', 'deliveryNotes'],
     queryFn: () => deliveryNotesService.getAll(),
-    staleTime: 30000,
+    staleTime: 0,
   });
 
   // Fetch credit notes
   const { data: creditNotesData = [], isLoading: isLoadingCreditNotes } = useQuery({
     queryKey: ['sales', 'creditNotes'],
     queryFn: () => creditNotesService.getAll(),
-    staleTime: 30000,
+    staleTime: 0,
   });
 
   // Fetch prelevements
   const { data: prelevementsData = [], isLoading: isLoadingPrelevements } = useQuery({
     queryKey: ['sales', 'prelevements'],
     queryFn: () => prelevementsService.getAll(),
-    staleTime: 30000,
+    staleTime: 0,
   });
 
   const isLoading = isLoadingInvoices || isLoadingEstimates || isLoadingDeliveryNotes || isLoadingCreditNotes || isLoadingPrelevements;
