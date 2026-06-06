@@ -40,6 +40,7 @@ interface DocumentData {
   taxEnabled?: boolean;  // For BL/Divers: whether to display and compute VAT
   clientPoNumber?: string; // Bon de commande client
   linkedBLs?: { id?: string; document_id: string; date: string; items?: { id: string; description: string; quantity: number; unit?: string; unit_price: number; total: number }[] }[]; // Linked BLs for invoices
+  originalInvoice?: string; // For credit notes: reference to the original invoice ID
   discountType?: 'percentage' | 'fixed';
   discountValue?: number;
   language?: string;
@@ -158,6 +159,7 @@ export const generatePDFFromTemplate = async (data: DocumentData): Promise<void>
       companyInfo: companyInfo as any,
       discountType: data.discountType,
       discountValue: data.discountValue,
+      originalInvoice: data.originalInvoice,
       language: currentLanguage,
     });
 
@@ -474,6 +476,7 @@ export const generatePDFBlobFromTemplate = async (data: DocumentData): Promise<B
     companyInfo: companyInfo as any,
     discountType: data.discountType,
     discountValue: data.discountValue,
+    originalInvoice: data.originalInvoice,
     language: currentLanguage,
   });
 

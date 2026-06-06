@@ -209,10 +209,10 @@ export const Treasury = () => {
   };
 
   const toggleSelectAllInvoices = () => {
-    if (selectedInvoices.size === allInvoicesData.length) {
+    if (selectedInvoices.size === invoicesForTaxTable.length) {
       setSelectedInvoices(new Set());
     } else {
-      setSelectedInvoices(new Set(allInvoicesData.map(i => i.id)));
+      setSelectedInvoices(new Set(invoicesForTaxTable.map(i => i.id)));
     }
   };
 
@@ -430,6 +430,8 @@ export const Treasury = () => {
     updatePaymentStatus,
     deleteBankAccount,
     isLoading,
+    creditNotesData,
+    invoicesWithAvoirDocIds,
   } = useTreasury();
   const { warehouses } = useWarehouse();
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
@@ -599,6 +601,18 @@ export const Treasury = () => {
   const existingInvoiceDocumentIds = useMemo(() => {
     return new Set(allInvoicesData.map(inv => inv.document_id));
   }, [allInvoicesData]);
+
+  // Invoices filtered for tax table: exclude those replaced by an avoir
+  const invoicesForTaxTable = useMemo(() =>
+    allInvoicesData.filter(inv => !invoicesWithAvoirDocIds.has(inv.document_id)),
+    [allInvoicesData, invoicesWithAvoirDocIds]
+  );
+
+  // Credit notes for tax table (only those linked to an invoice)
+  const creditNotesForTaxTable = useMemo(() =>
+    creditNotesData.filter((cn: any) => cn.invoice_document_id && cn.status !== 'cancelled'),
+    [creditNotesData]
+  );
 
   // Filter sales and purchase payments for display
   // Only show payments that have a corresponding invoice in the database
@@ -1214,7 +1228,7 @@ export const Treasury = () => {
               <TableRow className="data-table-header hover:bg-card">
                 <TableHead className="w-[50px] min-w-[50px] px-2 py-2 bg-card">
                   <Checkbox
-                    checked={allInvoicesData.length > 0 && selectedInvoices.size === allInvoicesData.length}
+                    checked={invoicesForTaxTable.length > 0 && selectedInvoices.size === invoicesForTaxTable.length}
                     onCheckedChange={handleSelectAllInvoices}
                     className="border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                   />
@@ -1230,63 +1244,80 @@ export const Treasury = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {allInvoicesData.length === 0 ? (
+              {invoicesForTaxTable.length === 0 && creditNotesForTaxTable.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8 text-sm text-muted-foreground">
                     {t('treasury.tax.table.noInvoices')}
                   </TableCell>
                 </TableRow>
               ) : (
-                allInvoicesData
+                [
+                  ...invoicesForTaxTable.map(invoice => ({ ...invoice, _rowType: 'invoice' as const })),
+                  ...creditNotesForTaxTable.map((cn: any) => ({ ...cn, _rowType: 'avoir' as const, document_id: cn.document_id, subtotal: cn.subtotal, vat_amount: cn.vat_amount, total: cn.total, client_id: cn.client_id, status: cn.status, date: cn.date }))
+                ]
                   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                  .map((invoice) => {
-                    const client = clients.find(c => c.id === invoice.client_id);
-                    const clientName = client?.company || client?.name || t('treasury.tax.table.unknownClient');
-                    const payment = salesPayments.find(p => p.invoiceNumber === invoice.document_id);
+                  .map((row) => {
+                    const client = clients.find(c => c.id === row.client_id);
+                    const clientName = client?.company || client?.name || (row._rowType === 'avoir' ? (row as any).client?.company || (row as any).client?.name : '') || t('treasury.tax.table.unknownClient');
+                    const payment = salesPayments.find(p => p.invoiceNumber === row.document_id);
+                    const isAvoir = row._rowType === 'avoir';
 
                     return (
-                      <TableRow key={invoice.id} className="hover:bg-section/50">
+                      <TableRow key={`${isAvoir ? 'av' : 'inv'}-${row.id}`} className={`hover:bg-section/50 ${isAvoir ? 'bg-orange-50/30 dark:bg-orange-900/10' : ''}`}>
                         <TableCell className="w-[50px] min-w-[50px] px-2 py-2">
-                          <Checkbox
-                            checked={selectedInvoices.has(invoice.id)}
-                            onCheckedChange={() => handleSelectInvoice(invoice.id)}
-                            className="border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                          />
+                          {!isAvoir && (
+                            <Checkbox
+                              checked={selectedInvoices.has(row.id)}
+                              onCheckedChange={() => handleSelectInvoice(row.id)}
+                              className="border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                            />
+                          )}
                         </TableCell>
                         <TableCell className="font-mono text-xs px-3 py-3 whitespace-nowrap font-medium">
-                          {invoice.document_id}
+                          <div className="flex items-center gap-1.5">
+                            {row.document_id}
+                            {isAvoir && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400">
+                                AV
+                              </span>
+                            )}
+                          </div>
+                          {isAvoir && (row as any).invoice_document_id && (
+                            <div className="text-[10px] text-muted-foreground mt-0.5">Réf: {(row as any).invoice_document_id}</div>
+                          )}
                         </TableCell>
                         <TableCell className="px-3 py-3 text-xs max-w-[150px] truncate" title={clientName}>
                           {clientName}
                         </TableCell>
                         <TableCell className="px-3 py-3 text-xs whitespace-nowrap">
-                          {formatDate(invoice.date)}
+                          {formatDate(row.date)}
                         </TableCell>
                         <TableCell className="px-3 py-3 text-xs text-right font-medium whitespace-nowrap">
-                          <CurrencyDisplay amount={invoice.subtotal} />
+                          <CurrencyDisplay amount={row.subtotal} />
                         </TableCell>
                         <TableCell className="px-3 py-3 text-xs text-right font-medium whitespace-nowrap text-warning">
-                          <CurrencyDisplay amount={invoice.vat_amount} />
+                          <CurrencyDisplay amount={row.vat_amount} />
                         </TableCell>
-                        <TableCell className="px-3 py-3 text-xs text-right font-bold whitespace-nowrap text-success">
-                          <CurrencyDisplay amount={invoice.total} />
+                        <TableCell className={`px-3 py-3 text-xs text-right font-bold whitespace-nowrap ${isAvoir ? 'text-orange-600' : 'text-success'}`}>
+                          <CurrencyDisplay amount={row.total} />
                         </TableCell>
                         <TableCell className="px-3 py-3 whitespace-nowrap">
                           <div className="scale-90 origin-left">
                             <StatusBadge
                               status={
-                                invoice.status === 'paid' ? 'success' :
-                                  invoice.status === 'overdue' ? 'danger' :
-                                    invoice.status === 'sent' ? 'info' :
-                                      invoice.status === 'cancelled' ? 'default' :
+                                row.status === 'paid' || row.status === 'applied' ? 'success' :
+                                  row.status === 'overdue' ? 'danger' :
+                                    row.status === 'sent' ? 'info' :
+                                      row.status === 'cancelled' ? 'default' :
                                         'warning'
                               }
                             >
-                              {invoice.status === 'sent' ? 'Sent' :
-                                invoice.status === 'paid' ? 'Paid' :
-                                  invoice.status === 'overdue' ? 'Overdue' :
-                                    invoice.status === 'cancelled' ? 'Cancelled' :
-                                      'Draft'}
+                              {row.status === 'sent' ? 'Envoyé' :
+                                row.status === 'paid' ? 'Payé' :
+                                  row.status === 'applied' ? 'Appliqué' :
+                                    row.status === 'overdue' ? 'En retard' :
+                                      row.status === 'cancelled' ? 'Annulé' :
+                                        'Brouillon'}
                             </StatusBadge>
                           </div>
                         </TableCell>
@@ -1297,7 +1328,7 @@ export const Treasury = () => {
                               <span className="capitalize text-xs">{payment.paymentMethod.replace('_', ' ')}</span>
                             </div>
                           ) : (
-                            <span className="text-xs text-muted-foreground">Not tracked</span>
+                            <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
                       </TableRow>
@@ -1311,19 +1342,28 @@ export const Treasury = () => {
         <div className="mt-4 pt-4 border-t border-border">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-3 bg-section/50 rounded-lg">
-              <div className="text-xs text-muted-foreground mb-1">{t('treasury.tax.totalInvoices', { defaultValue: 'Total Invoices' })}</div>
-              <div className="text-lg font-semibold text-foreground">{allInvoicesData.length}</div>
+              <div className="text-xs text-muted-foreground mb-1">{t('treasury.tax.totalInvoices', { defaultValue: 'Total Documents' })}</div>
+              <div className="text-lg font-semibold text-foreground">{invoicesForTaxTable.length + creditNotesForTaxTable.length}</div>
+              {creditNotesForTaxTable.length > 0 && (
+                <div className="text-[11px] text-orange-600 mt-0.5">{creditNotesForTaxTable.length} avoir(s)</div>
+              )}
             </div>
             <div className="p-3 bg-section/50 rounded-lg">
-              <div className="text-xs text-muted-foreground mb-1">{t('treasury.tax.totalVatCollected', { defaultValue: 'Total VAT Collected' })}</div>
+              <div className="text-xs text-muted-foreground mb-1">{t('treasury.tax.totalVatCollected', { defaultValue: 'Total VAT' })}</div>
               <div className="text-lg font-semibold text-warning">
-                <CurrencyDisplay amount={allInvoicesData.reduce((sum, inv) => sum + (Number(inv.vat_amount) || 0), 0)} />
+                <CurrencyDisplay amount={
+                  invoicesForTaxTable.reduce((sum, inv) => sum + (Number(inv.vat_amount) || 0), 0) +
+                  creditNotesForTaxTable.reduce((sum: number, cn: any) => sum + (Number(cn.vat_amount) || 0), 0)
+                } />
               </div>
             </div>
             <div className="p-3 bg-section/50 rounded-lg">
-              <div className="text-xs text-muted-foreground mb-1">{t('treasury.tax.totalInvoiceValue', { defaultValue: 'Total Invoice Value' })}</div>
+              <div className="text-xs text-muted-foreground mb-1">{t('treasury.tax.totalInvoiceValue', { defaultValue: 'Total TTC' })}</div>
               <div className="text-lg font-semibold text-success">
-                <CurrencyDisplay amount={allInvoicesData.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0)} />
+                <CurrencyDisplay amount={
+                  invoicesForTaxTable.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0) +
+                  creditNotesForTaxTable.reduce((sum: number, cn: any) => sum + (Number(cn.total) || 0), 0)
+                } />
               </div>
             </div>
           </div>

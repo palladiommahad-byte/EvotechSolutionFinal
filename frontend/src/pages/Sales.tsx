@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, TrendingUp, FileText, Download, Users, Package, Receipt, FileCheck, Calculator, Trash2, Send, FileX, Eye, Edit, Check, FileSpreadsheet, ChevronDown, Printer, CheckSquare, ArrowRightLeft, Copy } from 'lucide-react';
+import { Plus, Search, TrendingUp, FileText, Download, Users, Package, Receipt, FileCheck, Calculator, Trash2, Send, FileX, Eye, Edit, Check, FileSpreadsheet, ChevronDown, Printer, CheckSquare, ArrowRightLeft, Copy, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -207,6 +207,7 @@ export const Sales = () => {
   // Tab State Control for Smart Redirection
   const [deliveryNoteTab, setDeliveryNoteTab] = useState("create");
   const [invoiceTab, setInvoiceTab] = useState("create");
+  const [creditNoteTab, setCreditNoteTab] = useState("create");
 
   // Manual Document ID state
   const [manualDocumentId, setManualDocumentId] = useState('');
@@ -249,6 +250,52 @@ export const Sales = () => {
     }
 
     return linked;
+  };
+
+  /** Find credit note that was created from a given invoice */
+  const findLinkedCreditNote = (invoice: SalesDocument): SalesDocument | undefined => {
+    if (invoice.type !== 'invoice') return undefined;
+    return creditNotes.find(cn => cn.originalInvoice === invoice.id || cn.originalInvoice === invoice.documentId);
+  };
+
+  /** Switch to credit_note tab and highlight the linked avoir */
+  const handleSwitchToAvoir = (invoice: SalesDocument) => {
+    const creditNote = findLinkedCreditNote(invoice);
+    if (!creditNote) return;
+    setActiveTab('credit_note');
+    setDocumentType('credit_note');
+    setCreditNoteTab('list');
+    setSearchQuery(creditNote.id);
+    setHighlightedDocId(creditNote.id);
+    setTimeout(() => setHighlightedDocId(null), 2000);
+    toast({
+      title: "Avoir trouvé",
+      description: `Navigué vers l'avoir ${creditNote.id}`,
+      variant: "success",
+    });
+  };
+
+  /** Find invoice that a credit note was generated from */
+  const findLinkedInvoiceForCreditNote = (creditNote: SalesDocument): SalesDocument | undefined => {
+    if (creditNote.type !== 'credit_note' || !creditNote.originalInvoice) return undefined;
+    return invoices.find(inv => inv.id === creditNote.originalInvoice || inv.documentId === creditNote.originalInvoice);
+  };
+
+  /** Switch to invoice tab and highlight the original invoice */
+  const handleSwitchToOriginalInvoice = (creditNote: SalesDocument) => {
+    const invoice = findLinkedInvoiceForCreditNote(creditNote);
+    if (!invoice) return;
+    setActiveTab('invoice');
+    setDocumentType('invoice');
+    setInvoiceTab('list');
+    setSearchQuery(invoice.id);
+    setHighlightedDocId(invoice.id);
+    setTimeout(() => setHighlightedDocId(null), 2000);
+    toast({
+      title: "Facture trouvée",
+      description: `Navigué vers la facture ${invoice.id}`,
+      variant: "success",
+    });
   };
 
   /** Billing status badge — shown in BL list rows */
@@ -797,7 +844,7 @@ export const Sales = () => {
           await generatePrelevementPDF({ ...docWithItems as any, companyInfo });
           break;
         case 'credit_note':
-          generateCreditNotePDF(doc);
+          await generateCreditNotePDF({ ...docWithItems as any, companyInfo, originalInvoice: (docWithItems as any).originalInvoice || (docWithItems as any).original_invoice });
           break;
         case 'statement':
           generateStatementPDF(doc);
@@ -848,6 +895,7 @@ export const Sales = () => {
         companyInfo: companyInfo as any,
         discountType: (docWithClientData as any).discountType,
         discountValue: (docWithClientData as any).discountValue,
+        originalInvoice: (docWithClientData as any).originalInvoice || (docWithClientData as any).original_invoice,
       });
 
       const url = URL.createObjectURL(blob);
@@ -1263,6 +1311,7 @@ export const Sales = () => {
         discountValue: formDiscountValue || 0,
         clientPoNumber: (documentType === 'delivery_note' || documentType === 'divers') ? (formClientPoNumber || undefined) : undefined,
         warehouseId: formWarehouse,
+        originalInvoice: documentType === 'credit_note' ? (formOriginalInvoice || undefined) : undefined,
       };
 
       // Create in database (except statements which are mock)
@@ -1726,7 +1775,7 @@ export const Sales = () => {
                   }
 
                   // Map activeTab to report type
-                  let docType = activeTab === 'invoice' ? 'sales-invoice' :
+                  const docType = activeTab === 'invoice' ? 'sales-invoice' :
                     activeTab === 'estimate' ? 'sales-estimate' :
                       activeTab === 'delivery_note' ? 'sales-delivery_note' :
                         activeTab === 'divers' ? 'sales-divers' :
@@ -2352,7 +2401,20 @@ export const Sales = () => {
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono font-medium max-w-[120px] truncate" title={doc.id}>{doc.id}</TableCell>
+                            <TableCell className="font-mono font-medium max-w-[150px]" title={doc.id}>
+                              <div className="flex items-center gap-1.5">
+                                <span className="truncate">{doc.id}</span>
+                                {activeTab === 'invoice' && findLinkedCreditNote(doc) && (
+                                  <button
+                                    onClick={() => handleSwitchToAvoir(doc)}
+                                    title={`Voir l'avoir lié: ${findLinkedCreditNote(doc)?.id}`}
+                                    className="flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/40 dark:text-orange-400 dark:hover:bg-orange-900/60 transition-colors cursor-pointer"
+                                  >
+                                    AV
+                                  </button>
+                                )}
+                              </div>
+                            </TableCell>
                             <TableCell className="max-w-[200px] truncate" title={doc.client}>{doc.client}</TableCell>
                             <TableCell className="max-w-[120px] truncate" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
                             <TableCell className="text-center number-cell">
@@ -2441,6 +2503,18 @@ export const Sales = () => {
                                     title="View Associated Invoice"
                                   >
                                     <Receipt className="w-4 h-4" />
+                                  </Button>
+                                )}
+                                {/* Credit note → original invoice link */}
+                                {activeTab === 'credit_note' && findLinkedInvoiceForCreditNote(doc) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                                    onClick={() => handleSwitchToOriginalInvoice(doc)}
+                                    title={`Voir la facture d'origine: ${doc.originalInvoice}`}
+                                  >
+                                    <RotateCcw className="w-4 h-4" />
                                   </Button>
                                 )}
                               </div>
@@ -3582,7 +3656,20 @@ export const Sales = () => {
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono font-medium max-w-[120px] truncate" title={doc.id}>{doc.id}</TableCell>
+                            <TableCell className="font-mono font-medium max-w-[150px]" title={doc.id}>
+                              <div className="flex items-center gap-1.5">
+                                <span className="truncate">{doc.id}</span>
+                                {findLinkedCreditNote(doc) && (
+                                  <button
+                                    onClick={() => handleSwitchToAvoir(doc)}
+                                    title={`Voir l'avoir lié: ${findLinkedCreditNote(doc)?.id}`}
+                                    className="flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/40 dark:text-orange-400 dark:hover:bg-orange-900/60 transition-colors cursor-pointer"
+                                  >
+                                    AV
+                                  </button>
+                                )}
+                              </div>
+                            </TableCell>
                             <TableCell className="max-w-[200px] truncate" title={doc.client}>{doc.client}</TableCell>
                             <TableCell className="max-w-[120px] truncate" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
                             <TableCell className="text-center number-cell">
@@ -3651,6 +3738,17 @@ export const Sales = () => {
                                     title="View Associated Delivery Note"
                                   >
                                     <Package className="w-4 h-4" />
+                                  </Button>
+                                )}
+                                {findLinkedCreditNote(doc) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                                    onClick={() => handleSwitchToAvoir(doc)}
+                                    title={`Voir l'avoir: ${findLinkedCreditNote(doc)?.id}`}
+                                  >
+                                    <RotateCcw className="w-4 h-4" />
                                   </Button>
                                 )}
                               </div>
@@ -4069,7 +4167,7 @@ export const Sales = () => {
           </Tabs>
         </TabsContent>
         <TabsContent value="credit_note" className="space-y-6">
-          <Tabs defaultValue="create" className="space-y-6">
+          <Tabs value={creditNoteTab} onValueChange={setCreditNoteTab} className="space-y-6">
             <TabsList className="bg-section border border-border rounded-lg p-1.5 gap-1.5">
               <TabsTrigger
                 value="create"
@@ -4387,7 +4485,8 @@ export const Sales = () => {
                             key={doc.id}
                             className={cn(
                               "hover:bg-section/50",
-                              selectedDocuments.has(doc.id) && "bg-primary/5"
+                              selectedDocuments.has(doc.id) && "bg-primary/5",
+                              highlightedDocId === doc.id && "animate-highlight-glow"
                             )}
                           >
                             <TableCell className="w-[70px] min-w-[70px] px-3 text-center">
@@ -4399,7 +4498,16 @@ export const Sales = () => {
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono font-medium max-w-[120px] truncate" title={doc.id}>{doc.id}</TableCell>
+                            <TableCell className="font-mono font-medium max-w-[150px]" title={doc.id}>
+                              <div className="flex flex-col gap-0.5">
+                                <span className="truncate">{doc.id}</span>
+                                {doc.originalInvoice && (
+                                  <span className="text-[10px] text-muted-foreground truncate">
+                                    Réf: {doc.originalInvoice}
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
                             <TableCell className="max-w-[200px] truncate" title={doc.client}>{doc.client}</TableCell>
                             <TableCell className="max-w-[120px] truncate" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
                             <TableCell className="text-right font-medium number-cell">
@@ -4408,7 +4516,7 @@ export const Sales = () => {
                             <TableCell className="text-center">
                               {renderStatusSelect(doc)}
                             </TableCell>
-                            <TableCell className="w-[220px]">
+                            <TableCell className="w-[240px]">
                               <div className="flex items-center justify-center gap-1">
                                 <Button
                                   variant="ghost"
@@ -4455,6 +4563,17 @@ export const Sales = () => {
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
+                                {findLinkedInvoiceForCreditNote(doc) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                                    onClick={() => handleSwitchToOriginalInvoice(doc)}
+                                    title={`Voir la facture d'origine: ${doc.originalInvoice}`}
+                                  >
+                                    <RotateCcw className="w-4 h-4" />
+                                  </Button>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>

@@ -2,6 +2,7 @@ import React, { createContext, useContext, ReactNode, useCallback, useMemo } fro
 import { treasuryService, BankAccount as ServiceBankAccount, TreasuryPayment } from '@/services/treasury.service';
 import { invoicesService } from '@/services/invoices.service';
 import { purchaseInvoicesService } from '@/services/purchase-invoices.service';
+import { creditNotesService } from '@/services/credit-notes.service';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // UI-friendly interfaces (camelCase)
@@ -71,6 +72,9 @@ interface TreasuryContextType {
   totalUpcomingPayments: number;
   bankStatementData: Array<Omit<Payment, 'type'> & { transactionType: 'credit' | 'debit'; description: string; runningBalance: number }>;
   refreshData: () => Promise<void>;
+  // Credit note (avoir) awareness
+  creditNotesData: any[];
+  invoicesWithAvoirDocIds: Set<string>;
 }
 
 const TreasuryContext = createContext<TreasuryContextType | undefined>(undefined);
@@ -156,6 +160,22 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
     queryFn: () => purchaseInvoicesService.getAll(),
     staleTime: 0,
   });
+
+  // Fetch credit notes to exclude invoices that have avoirs from calculations
+  const { data: creditNotesData = [] } = useQuery({
+    queryKey: ['credit_notes', 'treasury'],
+    queryFn: () => creditNotesService.getAll(),
+    staleTime: 0,
+  });
+
+  // Set of invoice document_ids that have a linked credit note (avoir)
+  const invoicesWithAvoirDocIds = useMemo(() => {
+    const ids = new Set<string>();
+    creditNotesData.forEach((cn: any) => {
+      if (cn.invoice_document_id) ids.add(cn.invoice_document_id);
+    });
+    return ids;
+  }, [creditNotesData]);
 
   const isLoading = isLoadingBankAccounts || isLoadingWarehouseCash || isLoadingSalesPayments || isLoadingPurchasePayments;
 
@@ -318,8 +338,8 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const clearedSalesPayments = useMemo(
-    () => salesPayments.filter(p => p.status === 'cleared'),
-    [salesPayments]
+    () => salesPayments.filter(p => p.status === 'cleared' && !invoicesWithAvoirDocIds.has(p.invoiceNumber)),
+    [salesPayments, invoicesWithAvoirDocIds]
   );
   const totalCashedSales = useMemo(
     () => clearedSalesPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0),
@@ -344,12 +364,18 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
     [totalBank, totalWarehouseCashValue]
   );
 
-  // Calculate collected TVA from sales invoices (only paid invoices)
+  // Calculate collected TVA from sales invoices (only paid invoices, excluding those replaced by avoirs)
   const collectedTVA = useMemo(() => {
-    return invoicesData
-      .filter(inv => inv.status === 'paid')
+    // Sum VAT from paid invoices that have no linked avoir
+    const invoiceTVA = invoicesData
+      .filter(inv => inv.status === 'paid' && !invoicesWithAvoirDocIds.has(inv.document_id))
       .reduce((sum, inv) => sum + Number(inv.vat_amount || 0), 0);
-  }, [invoicesData]);
+    // Add VAT from credit notes (applied/sent — non-cancelled) linked to those invoices
+    const creditNoteTVA = creditNotesData
+      .filter((cn: any) => cn.invoice_document_id && cn.status !== 'cancelled')
+      .reduce((sum: number, cn: any) => sum + Number(cn.vat_amount || 0), 0);
+    return invoiceTVA + creditNoteTVA;
+  }, [invoicesData, creditNotesData, invoicesWithAvoirDocIds]);
 
   // Calculate recoverable TVA from purchase invoices (only paid/received invoices)
   // Assuming 'paid' purchase invoices are fully paid
@@ -389,11 +415,12 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
     const existingSalesInvoiceIds = new Set(salesPayments.map(p => p.invoiceNumber));
     const existingPurchaseInvoiceIds = new Set(purchasePayments.map(p => p.invoiceNumber));
 
-    // Implicit sales payments (from Paid invoices not in treasury)
+    // Implicit sales payments (from Paid invoices not in treasury, excluding those replaced by avoirs)
     const implicitSales = invoicesData
       .filter(inv =>
         inv.status === 'paid' &&
         !existingSalesInvoiceIds.has(inv.document_id) &&
+        !invoicesWithAvoirDocIds.has(inv.document_id) &&
         (inv.payment_method === 'bank_transfer' || inv.payment_method === 'check' || inv.payment_method === 'cash')
       )
       .map(inv => ({
@@ -409,6 +436,28 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
         transactionType: 'credit' as const,
         description: `${inv.document_id} - ${inv.client?.name || inv.client?.company || 'Client'}`,
         runningBalance: 0 // placeholder
+      }));
+
+    // Implicit credit note entries (avoirs replace the original invoices in the statement)
+    const implicitAvoirs = creditNotesData
+      .filter((cn: any) =>
+        cn.invoice_document_id &&
+        cn.status !== 'cancelled' &&
+        !existingSalesInvoiceIds.has(cn.document_id)
+      )
+      .map((cn: any) => ({
+        id: `implicit-avoir-${cn.id}`,
+        invoiceId: cn.id,
+        invoiceNumber: cn.document_id,
+        entity: cn.client?.name || cn.client?.company || 'Unknown Client',
+        amount: Number(cn.total) || 0,
+        paymentMethod: 'bank_transfer' as const,
+        bank: undefined,
+        date: cn.date,
+        status: 'cleared' as const,
+        transactionType: 'credit' as const,
+        description: `${cn.document_id} (Avoir / Réf: ${cn.invoice_document_id}) - ${cn.client?.name || cn.client?.company || 'Client'}`,
+        runningBalance: 0
       }));
 
     // Implicit purchase payments (from Paid purchase invoices not in treasury)
@@ -435,7 +484,11 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
 
     const allPayments = [
       ...salesPayments
-        .filter(p => p.status === 'cleared' && (p.paymentMethod === 'bank_transfer' || (p.paymentMethod === 'check' && p.bank) || p.paymentMethod === 'cash'))
+        .filter(p =>
+          p.status === 'cleared' &&
+          !invoicesWithAvoirDocIds.has(p.invoiceNumber) &&
+          (p.paymentMethod === 'bank_transfer' || (p.paymentMethod === 'check' && p.bank) || p.paymentMethod === 'cash')
+        )
         .map(p => ({
           ...p,
           transactionType: 'credit' as const,
@@ -449,6 +502,7 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
           description: `${p.invoiceNumber} - ${p.entity}`,
         })),
       ...implicitSales,
+      ...implicitAvoirs,
       ...implicitPurchases
     ];
 
@@ -483,7 +537,7 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return statementEntries;
-  }, [salesPayments, purchasePayments, netLiquidity, invoicesData, purchaseInvoicesData]);
+  }, [salesPayments, purchasePayments, netLiquidity, invoicesData, purchaseInvoicesData, creditNotesData, invoicesWithAvoirDocIds]);
 
   const value: TreasuryContextType = {
     bankAccounts,
@@ -515,6 +569,8 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
     totalUpcomingPayments,
     bankStatementData,
     refreshData,
+    creditNotesData,
+    invoicesWithAvoirDocIds,
   };
 
   return (

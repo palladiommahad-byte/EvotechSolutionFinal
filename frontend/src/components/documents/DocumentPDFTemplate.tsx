@@ -21,6 +21,7 @@ interface DocumentPDFTemplateProps {
   taxEnabled?: boolean;  // For BL/Divers: whether to show and compute VAT
   clientPoNumber?: string; // Bon de commande client reference
   linkedBLs?: { id?: string; document_id: string; date: string; items?: { id: string; description: string; quantity: number; unit?: string; unit_price: number; total: number }[] }[]; // Linked BLs for invoices
+  originalInvoice?: string; // For credit notes: reference to the original invoice ID
   companyInfo: CompanyInfo;
   language?: string;
   discountType?: 'percentage' | 'fixed';
@@ -316,6 +317,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
   taxEnabled,
   clientPoNumber,
   linkedBLs,
+  originalInvoice,
   companyInfo,
   language,
   discountType,
@@ -605,6 +607,14 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
                 <Text style={styles.invoiceDetailValue}>{formatDate(date)}</Text>
               </Text>
             </View>
+            {type === 'credit_note' && originalInvoice && (
+              <View style={styles.invoiceDetailRow}>
+                <Text>
+                  <Text style={styles.invoiceDetailLabel}>Réf. Facture: </Text>
+                  <Text style={styles.invoiceDetailValue}>{originalInvoice}</Text>
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -775,10 +785,12 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
     </View>
   );
 
-  const renderAmountInWordsSection = () => type === 'invoice' ? (
+  const renderAmountInWordsSection = () => (type === 'invoice' || type === 'credit_note') ? (
     <View style={{ marginTop: scale < 1 ? 4 : 'auto', marginBottom: scale < 1 ? 6 : 15, paddingLeft: 8 }} wrap={false}>
       <Text style={{ fontSize: scale < 1 ? 8 : 9, color: '#374151' }}>
-        Arrêté la présente facture à la somme de :
+        {type === 'credit_note'
+          ? 'Arrêté le présent avoir à la somme de :'
+          : 'Arrêté la présente facture à la somme de :'}
       </Text>
       <Text style={{ fontSize: scale < 1 ? 9 : 11, fontWeight: 'bold', color: primaryColor, marginTop: 3 }}>
         {amountToFrenchWords(showVAT ? totals.total : totals.subtotal)}

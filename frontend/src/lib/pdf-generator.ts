@@ -430,47 +430,42 @@ export const generateEstimatePDFLegacy = (document: {
 };
 
 // Generate Credit Note PDF
-export const generateCreditNotePDF = (document: {
+export const generateCreditNotePDF = async (document: {
   id: string;
-  client: string;
+  client?: string;
+  supplier?: string;
+  clientData?: any;
+  supplierData?: any;
   date: string;
-  items: number;
+  items: number | InvoiceItem[];
   total: number;
   status?: string;
+  originalInvoice?: string;
+  note?: string;
+  companyInfo?: CompanyInfo;
+  discountType?: 'percentage' | 'fixed';
+  discountValue?: number;
 }) => {
-  const doc = new jsPDF();
-  let yPos = 20;
+  const items: InvoiceItem[] = Array.isArray(document.items)
+    ? document.items
+    : createFallbackItems(document.items as number, document.total);
 
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text('AVOIR', 105, yPos, { align: 'center' });
-  yPos += 10;
-
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  yPos = addWrappedText(doc, `Avoir N°: ${document.id}`, 20, yPos, 90, 5);
-  yPos = addWrappedText(doc, `Date: ${document.date}`, 20, yPos, 90, 5);
-  yPos = addWrappedText(doc, `Client: ${document.client}`, 20, yPos, 90, 5);
-
-  yPos += 10;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Résumé', 20, yPos);
-  yPos += 5;
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Nombre d'articles: ${document.items}`, 20, yPos);
-  yPos += 5;
-
-  yPos += 5;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text(`Total: ${formatMADFull(document.total)}`, 20, yPos);
-
-  yPos = 270;
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'italic');
-  doc.text('Avoir', 105, yPos, { align: 'center' });
-
-  doc.save(`${document.id}.pdf`);
+  await generatePDFFromTemplate({
+    type: 'credit_note',
+    documentId: document.id,
+    date: document.date,
+    client: document.client,
+    supplier: document.supplier,
+    clientData: document.clientData,
+    supplierData: document.supplierData,
+    items,
+    note: document.note,
+    originalInvoice: document.originalInvoice,
+    language: i18n.language || 'en',
+    companyInfo: document.companyInfo,
+    discountType: document.discountType,
+    discountValue: document.discountValue,
+  });
 };
 
 // Generate Statement PDF

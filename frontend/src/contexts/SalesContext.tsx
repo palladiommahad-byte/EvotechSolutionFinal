@@ -77,6 +77,8 @@ export interface SalesDocument {
   /** Global discount applied to the document */
   discountType?: 'percentage' | 'fixed';
   discountValue?: number;
+  /** For credit notes: reference to the original invoice ID */
+  originalInvoice?: string;
 }
 
 interface SalesContextType {
@@ -314,6 +316,7 @@ const creditNoteToSalesDocument = (creditNote: CreditNoteWithItems): SalesDocume
     type: 'credit_note',
     note: creditNote.note || undefined,
     _internalId: creditNote.id,
+    originalInvoice: (creditNote as any).invoice_document_id || undefined,
   };
 };
 
@@ -989,9 +992,18 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
         throw new Error(`Invalid client ID format. Expected UUID, got: ${clientId}. Please select a valid client from the database.`);
       }
 
+      // Resolve original invoice document_id → internal UUID for FK
+      let invoiceUUID: string | undefined;
+      const originalInvoiceRef = (data as any).originalInvoice as string | undefined;
+      if (originalInvoiceRef) {
+        const matchedInv = invoicesData.find((inv: any) => inv.document_id === originalInvoiceRef);
+        invoiceUUID = matchedInv?.id;
+      }
+
       return creditNotesService.create({
         document_id: data.documentId,
         client_id: clientId,
+        invoice_id: invoiceUUID || undefined,
         date: data.date,
         note: data.note,
         items: data.items.map(item => ({

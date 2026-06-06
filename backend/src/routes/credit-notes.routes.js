@@ -16,12 +16,14 @@ router.get('/', asyncHandler(async (req, res) => {
     const { status, clientId, invoiceId, startDate, endDate } = req.query;
 
     let sql = `
-    SELECT cn.*, 
+    SELECT cn.*,
            c.id as client_id, c.name as client_name, c.company as client_company,
            c.email as client_email, c.phone as client_phone, c.ice as client_ice,
-           c.if_number as client_if_number, c.rc as client_rc
+           c.if_number as client_if_number, c.rc as client_rc,
+           inv.document_id as invoice_document_id
     FROM credit_notes cn
     LEFT JOIN contacts c ON cn.client_id = c.id
+    LEFT JOIN invoices inv ON cn.invoice_id = inv.id
     WHERE 1=1
   `;
     const params = [];
@@ -67,9 +69,11 @@ router.get('/:id', asyncHandler(async (req, res) => {
     const noteResult = await query(
         `SELECT cn.*, c.id as client_id, c.name as client_name, c.company as client_company,
             c.email as client_email, c.phone as client_phone, c.ice as client_ice,
-            c.if_number as client_if_number, c.rc as client_rc
+            c.if_number as client_if_number, c.rc as client_rc,
+            inv.document_id as invoice_document_id
      FROM credit_notes cn
      LEFT JOIN contacts c ON cn.client_id = c.id
+     LEFT JOIN invoices inv ON cn.invoice_id = inv.id
      WHERE cn.id = $1`,
         [id]
     );
