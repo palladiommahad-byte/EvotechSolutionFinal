@@ -77,7 +77,14 @@ export const Inventory = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [ageFilter, setAgeFilter] = useState<'all' | 'new' | 'old'>('all');
-  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [customCategories, setCustomCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('inventory_custom_categories');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const productImageInputRef = useRef<HTMLInputElement>(null);
@@ -160,7 +167,7 @@ export const Inventory = () => {
     }
   };
 
-  const productCategories = [...new Set(products.map(p => p.category))];
+  const productCategories = [...new Set(products.map(p => p.category).filter(Boolean))];
   const allCategories = [...new Set([...productCategories, ...customCategories])].sort();
 
   // Get stock for a product based on selected warehouse
@@ -184,10 +191,11 @@ export const Inventory = () => {
   const handleCreateCategory = () => {
     const trimmedName = newCategoryName.trim();
     if (trimmedName && !allCategories.includes(trimmedName)) {
-      setCustomCategories([...customCategories, trimmedName]);
+      const updated = [...customCategories, trimmedName];
+      setCustomCategories(updated);
+      localStorage.setItem('inventory_custom_categories', JSON.stringify(updated));
       setNewCategoryName('');
       setIsCategoryDialogOpen(false);
-      // Set the new category as the active filter
       setCategoryFilter(trimmedName);
       toast({
         title: t('inventory.categoryCreated'),
