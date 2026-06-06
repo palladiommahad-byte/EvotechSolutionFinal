@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Search, TrendingUp, FileText, Download, Users, Package, Receipt, FileCheck, Calculator, Trash2, Send, FileX, Eye, Edit, Check, FileSpreadsheet, ChevronDown, Printer, CheckSquare, ArrowRightLeft, Copy } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -156,6 +156,32 @@ export const Sales = () => {
   const [formDiscountType, setFormDiscountType] = useState<'percentage' | 'fixed'>('fixed');
   const [formDiscountValue, setFormDiscountValue] = useState<number>(0);
   const [formOriginalInvoice, setFormOriginalInvoice] = useState('');
+
+  // Auto-populate credit note items when an original invoice is selected
+  useEffect(() => {
+    if (!formOriginalInvoice) return;
+    const originalInv = invoices.find(inv => inv.id === formOriginalInvoice);
+    if (!originalInv) return;
+
+    // Populate client if not already set
+    if (!formClient && originalInv.clientData?.id) {
+      setFormClient(originalInv.clientData.id);
+    }
+
+    // Populate items from the original invoice
+    if (originalInv.items && originalInv.items.length > 0) {
+      setItems(originalInv.items.map((item, idx) => ({
+        id: `cn-${idx}-${Date.now()}`,
+        productId: item.productId || '',
+        description: item.description || '',
+        quantity: Number(item.quantity) || 1,
+        unit: item.unit || '',
+        unitPrice: Number(item.unitPrice) || 0,
+        total: Number(item.total) || 0,
+      })));
+    }
+  }, [formOriginalInvoice, invoices]);
+
   const [selectedStatementDocs, setSelectedStatementDocs] = useState<Set<string>>(new Set());
   // Relevé filters
   const [stmtDateFrom, setStmtDateFrom] = useState('');
@@ -4134,10 +4160,10 @@ export const Sales = () => {
                           </SelectTrigger>
                           <SelectContent>
                             {invoices
-                              .filter(inv => (inv.clientData?.id || inv.client) === formClient)
+                              .filter(inv => !formClient || inv.clientData?.id === formClient || inv.client === formClient)
                               .map((inv) => (
                                 <SelectItem key={inv.id} value={inv.id}>
-                                  {inv.documentId || inv.id}
+                                  {inv.documentId || inv.id} — {inv.client}
                                 </SelectItem>
                               ))}
                           </SelectContent>
