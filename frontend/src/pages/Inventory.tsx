@@ -770,14 +770,14 @@ export const Inventory = () => {
                     {category !== 'Uncategorized' && (
                       <div className="ml-auto flex items-center gap-1 mr-2" onClick={e => e.stopPropagation()}>
                         <button
-                          className="p-1.5 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                          className="p-1.5 rounded bg-success/10 text-success hover:bg-success/20 transition-colors"
                           title="Renommer"
                           onClick={() => { setRenamingCategory(category); setRenameValue(category); }}
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
-                          className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                          className="p-1.5 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
                           title="Supprimer"
                           onClick={() => setDeletingCategory(category)}
                         >
