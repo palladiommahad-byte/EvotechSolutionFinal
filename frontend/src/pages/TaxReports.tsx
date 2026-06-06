@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { FileSpreadsheet, Download, FileText, ChevronDown, Loader2, Save } from 'lucide-react';
+import { FileSpreadsheet, Download, FileText, ChevronDown, Loader2, Save, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -23,6 +23,9 @@ import { generateTaxReportExcel, generateLedgerExcel } from '@/lib/excel-generat
 import { generateTaxReportCSV } from '@/lib/csv-generator';
 import { useSales } from '@/contexts/SalesContext';
 import { usePurchases } from '@/contexts/PurchasesContext';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
+} from 'recharts';
 
 // Helper to filter documents by year and quarter
 const filterByPeriod = <T extends { date: string }>(
@@ -146,6 +149,44 @@ export const TaxReports = () => {
 
   // Net Profit = Gross Revenue - Expenses
   const netProfit = grossRevenue - expenses;
+
+  // Monthly breakdown for bar chart
+  const monthlyData = useMemo(() => {
+    const MONTHS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+    const months = MONTHS.map((name, i) => ({ name, revenue: 0, expenses: 0, vatCollected: 0, vatPaid: 0 }));
+
+    filteredSalesInvoices.forEach(inv => {
+      const m = new Date(inv.date).getMonth();
+      months[m].revenue += Number(inv.total) || 0;
+      months[m].vatCollected += (inv.items || []).reduce((s, item) => s + ((Number(item?.total) || 0) * VAT_RATE), 0);
+    });
+    filteredPurchaseInvoices.forEach(inv => {
+      const m = new Date(inv.date).getMonth();
+      months[m].expenses += Number(inv.total) || 0;
+      months[m].vatPaid += (inv.items || []).reduce((s, item) => s + ((Number(item?.total) || 0) * VAT_RATE), 0);
+    });
+
+    // Only return months that have data (or all if quarter filter applied)
+    if (selectedQuarter === 'all') {
+      return months.filter(m => m.revenue > 0 || m.expenses > 0);
+    }
+    const quarterMonths: Record<string, number[]> = { q1: [0,1,2], q2: [3,4,5], q3: [6,7,8], q4: [9,10,11] };
+    return quarterMonths[selectedQuarter]?.map(i => months[i]) ?? [];
+  }, [filteredSalesInvoices, filteredPurchaseInvoices, selectedQuarter]);
+
+  // VAT pie chart data
+  const vatPieData = useMemo(() => [
+    { name: t('taxReports.vatCollected') || 'TVA Collectée', value: vatCollected },
+    { name: t('taxReports.vatPaid') || 'TVA Déductible', value: vatPaid },
+  ], [vatCollected, vatPaid, t]);
+
+  const PIE_COLORS = ['#22c55e', '#ef4444'];
+
+  const formatYAxis = (value: number) => {
+    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
+    return value.toString();
+  };
 
   // Prepare data for exports
   const taxReportData = {
@@ -312,38 +353,136 @@ export const TaxReports = () => {
         </div>
       </div>
 
+      {/* Summary KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="card-elevated p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-muted-foreground">{t('taxReports.grossRevenue') || 'Revenus bruts'}</p>
+            <TrendingUp className="w-4 h-4 text-success" />
+          </div>
+          <p className="text-xl font-heading font-bold text-success">{formatMAD(grossRevenue)}</p>
+          <p className="text-xs text-muted-foreground mt-1">{filteredSalesInvoices.length} factures</p>
+        </div>
+        <div className="card-elevated p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-muted-foreground">{t('taxReports.totalExpenses') || 'Dépenses totales'}</p>
+            <TrendingDown className="w-4 h-4 text-destructive" />
+          </div>
+          <p className="text-xl font-heading font-bold text-destructive">{formatMAD(expenses)}</p>
+          <p className="text-xs text-muted-foreground mt-1">{filteredPurchaseInvoices.length} achats</p>
+        </div>
+        <div className="card-elevated p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-muted-foreground">{t('taxReports.netProfit') || 'Bénéfice net'}</p>
+            {netProfit >= 0
+              ? <TrendingUp className="w-4 h-4 text-primary" />
+              : <TrendingDown className="w-4 h-4 text-destructive" />}
+          </div>
+          <p className={`text-xl font-heading font-bold ${netProfit >= 0 ? 'text-primary' : 'text-destructive'}`}>
+            {netProfit < 0 && '-'}{formatMAD(Math.abs(netProfit))}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {grossRevenue > 0 ? `${((netProfit / grossRevenue) * 100).toFixed(1)}% marge` : '—'}
+          </p>
+        </div>
+        <div className="card-elevated p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-muted-foreground">{t('taxReports.vatDue') || 'TVA due'}</p>
+            <Minus className="w-4 h-4 text-muted-foreground" />
+          </div>
+          <p className={`text-xl font-heading font-bold ${vatDue >= 0 ? 'text-foreground' : 'text-success'}`}>
+            {vatDue >= 0 ? formatMAD(vatDue) : `(${formatMAD(Math.abs(vatDue))})`}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {vatDue >= 0 ? 'À payer à la DGI' : 'Crédit TVA récupérable'}
+          </p>
+        </div>
+      </div>
+
       {/* VAT Section */}
       <div className="card-elevated p-6">
         <div className="mb-6">
           <h2 className="text-lg font-heading font-semibold text-foreground mb-1">{t('taxReports.vatCalculation')}</h2>
           <p className="text-sm text-muted-foreground">{t('taxReports.vatAt', { rate: VAT_RATE * 100 })}</p>
-          <p className="text-xs text-muted-foreground mt-2">
-            {t('taxReports.salesTransactions') || 'Sales'}: {filteredSalesInvoices.length} | {t('taxReports.purchaseTransactions') || 'Purchases'}: {filteredPurchaseInvoices.length}
+          <p className="text-xs text-muted-foreground mt-1">
+            {filteredSalesInvoices.length} ventes · {filteredPurchaseInvoices.length} achats
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="p-4 rounded-lg bg-success/5 border border-success/20 overflow-visible">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="p-4 rounded-lg bg-success/5 border border-success/20">
             <p className="text-sm text-muted-foreground mb-1">{t('taxReports.vatCollected')}</p>
-            <p className="text-xl sm:text-2xl font-heading font-bold text-success break-words overflow-visible whitespace-normal leading-tight">{formatMAD(vatCollected)}</p>
+            <p className="text-2xl font-heading font-bold text-success">{formatMAD(vatCollected)}</p>
             <p className="text-xs text-muted-foreground mt-1">{t('taxReports.fromCustomerInvoices')}</p>
           </div>
-          <div className="p-4 rounded-lg bg-destructive/5 border border-destructive/20 overflow-visible">
+          <div className="p-4 rounded-lg bg-destructive/5 border border-destructive/20">
             <p className="text-sm text-muted-foreground mb-1">{t('taxReports.vatPaid')}</p>
-            <p className="text-xl sm:text-2xl font-heading font-bold text-destructive break-words overflow-visible whitespace-normal leading-tight">{formatMAD(vatPaid)}</p>
+            <p className="text-2xl font-heading font-bold text-destructive">{formatMAD(vatPaid)}</p>
             <p className="text-xs text-muted-foreground mt-1">{t('taxReports.fromSupplierInvoices')}</p>
           </div>
-          <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 overflow-visible">
+          <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
             <p className="text-sm text-muted-foreground mb-1">{t('taxReports.vatDue')}</p>
-            <p className={`text-xl sm:text-2xl font-heading font-bold break-words overflow-visible whitespace-normal leading-tight ${vatDue >= 0 ? 'text-primary' : 'text-success'}`}>
+            <p className={`text-2xl font-heading font-bold ${vatDue >= 0 ? 'text-primary' : 'text-success'}`}>
               {vatDue >= 0 ? formatMAD(vatDue) : `(${formatMAD(Math.abs(vatDue))})`}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {vatDue >= 0 ? t('taxReports.toBePaidToTaxAuthority') : t('taxReports.vatCredit') || 'VAT Credit (Recoverable)'}
+              {vatDue >= 0 ? t('taxReports.toBePaidToTaxAuthority') : t('taxReports.vatCredit') || 'Crédit TVA'}
             </p>
           </div>
         </div>
+
+        {/* VAT Pie Chart */}
+        {(vatCollected > 0 || vatPaid > 0) && (
+          <div className="mt-4 h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={vatPieData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={3}
+                  dataKey="value"
+                >
+                  {vatPieData.map((_, index) => (
+                    <Cell key={index} fill={PIE_COLORS[index]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: number) => formatMAD(value)} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
+
+      {/* Monthly Revenue vs Expenses Chart */}
+      {monthlyData.length > 0 && (
+        <div className="card-elevated p-6">
+          <h2 className="text-lg font-heading font-semibold text-foreground mb-1">Revenus vs Dépenses</h2>
+          <p className="text-sm text-muted-foreground mb-6">Par mois sur la période sélectionnée</p>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthlyData} barCategoryGap="30%">
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={48} />
+                <Tooltip
+                  formatter={(value: number, name: string) => [
+                    formatMAD(value),
+                    name === 'revenue' ? 'Revenus' : 'Dépenses',
+                  ]}
+                  contentStyle={{ fontSize: 12 }}
+                />
+                <Legend formatter={(value) => value === 'revenue' ? 'Revenus' : 'Dépenses'} />
+                <Bar dataKey="revenue" fill="#22c55e" radius={[4, 4, 0, 0]} name="revenue" />
+                <Bar dataKey="expenses" fill="#ef4444" radius={[4, 4, 0, 0]} name="expenses" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="flex gap-4 flex-wrap">
