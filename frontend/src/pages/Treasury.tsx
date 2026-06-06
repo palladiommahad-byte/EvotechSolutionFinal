@@ -450,20 +450,20 @@ export const Treasury = () => {
   const { data: allInvoicesData = [] } = useQuery({
     queryKey: ['invoices', 'all'],
     queryFn: () => invoicesService.getAll(),
-    staleTime: 30000,
+    staleTime: 0,
   });
 
   // Fetch purchase orders and purchase invoices for insights
   const { data: purchaseOrdersData = [] } = useQuery({
     queryKey: ['purchases', 'purchase_orders', 'treasury'],
     queryFn: () => purchaseOrdersService.getAll(),
-    staleTime: 30000,
+    staleTime: 0,
   });
 
   const { data: purchaseInvoicesData = [] } = useQuery({
     queryKey: ['purchases', 'purchase_invoices', 'treasury'],
     queryFn: () => purchaseInvoicesService.getAll(),
-    staleTime: 30000,
+    staleTime: 0,
   });
 
   // Form state for Add Payment dialog

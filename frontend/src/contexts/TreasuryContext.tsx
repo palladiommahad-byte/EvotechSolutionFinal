@@ -119,42 +119,42 @@ export const TreasuryProvider = ({ children }: { children: ReactNode }) => {
   const { data: bankAccountsData = [], isLoading: isLoadingBankAccounts } = useQuery({
     queryKey: ['treasury', 'bankAccounts'],
     queryFn: () => treasuryService.getAllBankAccounts(),
-    staleTime: 30000,
+    staleTime: 0,
   });
 
   // Fetch warehouse cash
   const { data: warehouseCashData = [], isLoading: isLoadingWarehouseCash } = useQuery({
     queryKey: ['treasury', 'warehouseCash'],
     queryFn: () => treasuryService.getAllWarehouseCash(),
-    staleTime: 30000,
+    staleTime: 0,
   });
 
   // Fetch sales payments
   const { data: salesPaymentsData = [], isLoading: isLoadingSalesPayments } = useQuery({
     queryKey: ['treasury', 'payments', 'sales'],
     queryFn: () => treasuryService.getAllPayments('sales'),
-    staleTime: 30000,
+    staleTime: 0,
   });
 
   // Fetch purchase payments
   const { data: purchasePaymentsData = [], isLoading: isLoadingPurchasePayments } = useQuery({
     queryKey: ['treasury', 'payments', 'purchase'],
     queryFn: () => treasuryService.getAllPayments('purchase'),
-    staleTime: 30000,
+    staleTime: 0,
   });
 
   // Fetch invoices for TVA calculation (only cleared payments)
   const { data: invoicesData = [] } = useQuery({
     queryKey: ['invoices', 'treasury', 'tva'],
     queryFn: () => invoicesService.getAll(),
-    staleTime: 30000,
+    staleTime: 0,
   });
 
   // Fetch purchase invoices for TVA calculation (only cleared payments)
   const { data: purchaseInvoicesData = [] } = useQuery({
     queryKey: ['purchase_invoices', 'treasury', 'tva'],
     queryFn: () => purchaseInvoicesService.getAll(),
-    staleTime: 30000,
+    staleTime: 0,
   });
 
   const isLoading = isLoadingBankAccounts || isLoadingWarehouseCash || isLoadingSalesPayments || isLoadingPurchasePayments;
