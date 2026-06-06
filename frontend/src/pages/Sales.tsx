@@ -1717,23 +1717,35 @@ export const Sales = () => {
   // Exclude invoices that have been replaced by an avoir (credit note)
   const invoicesWithoutAvoirs = invoices.filter(inv => !findLinkedCreditNote(inv));
 
+  // Avoirs linked to invoices (non-cancelled) — treated as paid replacements in stats
+  const linkedAvoirs = creditNotes.filter(cn => cn.originalInvoice && cn.status !== 'cancelled');
+
+  // Combined dataset: invoices not replaced by avoirs + avoirs as paid entries
+  const invoicesForStats = [
+    ...invoicesWithoutAvoirs,
+    ...linkedAvoirs.map(cn => {
+      const origInv = invoices.find(inv => inv.id === cn.originalInvoice || inv.documentId === cn.originalInvoice);
+      return { ...cn, type: 'invoice' as const, status: 'paid' as const, paymentMethod: origInv?.paymentMethod || 'cash' };
+    }),
+  ];
+
   const invoiceStats = {
-    totalInvoices: invoicesWithoutAvoirs.length,
-    paidInvoices: invoicesWithoutAvoirs.filter(inv => inv.status === 'paid').length,
-    unpaidInvoices: invoicesWithoutAvoirs.filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled').length,
-    overdueInvoices: invoicesWithoutAvoirs.filter(inv => inv.status === 'overdue').length,
-    draftInvoices: invoicesWithoutAvoirs.filter(inv => inv.status === 'draft').length,
-    cancelledInvoices: invoicesWithoutAvoirs.filter(inv => inv.status === 'cancelled').length,
-    totalAmount: invoicesWithoutAvoirs.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
-    paidAmount: invoicesWithoutAvoirs.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
-    unpaidAmount: invoicesWithoutAvoirs.filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
-    overdueAmount: invoicesWithoutAvoirs.filter(inv => inv.status === 'overdue').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
+    totalInvoices: invoicesForStats.length,
+    paidInvoices: invoicesForStats.filter(inv => inv.status === 'paid').length,
+    unpaidInvoices: invoicesForStats.filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled').length,
+    overdueInvoices: invoicesForStats.filter(inv => inv.status === 'overdue').length,
+    draftInvoices: invoicesForStats.filter(inv => inv.status === 'draft').length,
+    cancelledInvoices: invoicesForStats.filter(inv => inv.status === 'cancelled').length,
+    totalAmount: invoicesForStats.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
+    paidAmount: invoicesForStats.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
+    unpaidAmount: invoicesForStats.filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
+    overdueAmount: invoicesForStats.filter(inv => inv.status === 'overdue').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
     paymentMethodBreakdown: {
-      cash: invoicesWithoutAvoirs.filter(inv => inv.paymentMethod === 'cash').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
-      check: invoicesWithoutAvoirs.filter(inv => inv.paymentMethod === 'check').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
-      bank_transfer: invoicesWithoutAvoirs.filter(inv => inv.paymentMethod === 'bank_transfer').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
+      cash: invoicesForStats.filter(inv => inv.paymentMethod === 'cash').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
+      check: invoicesForStats.filter(inv => inv.paymentMethod === 'check').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
+      bank_transfer: invoicesForStats.filter(inv => inv.paymentMethod === 'bank_transfer').reduce((sum, inv) => sum + (Number(inv.total) || 0), 0),
     },
-    clientBreakdown: invoicesWithoutAvoirs.reduce((acc, inv) => {
+    clientBreakdown: invoicesForStats.reduce((acc, inv) => {
       const client = inv.client;
       if (!acc[client]) {
         acc[client] = { total: 0, paid: 0, unpaid: 0, count: 0, paidCount: 0, unpaidCount: 0 };
@@ -4715,7 +4727,7 @@ export const Sales = () => {
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm text-muted-foreground">{t('paymentMethods.cash')}</p>
                       <span className="text-xs font-medium text-muted-foreground">
-                        {invoices.filter(inv => inv.paymentMethod === 'cash').length} {t('documents.invoices')}
+                        {invoicesForStats.filter(inv => inv.paymentMethod === 'cash').length} {t('documents.invoices')}
                       </span>
                     </div>
                     <p className="text-xl font-heading font-bold text-foreground">
@@ -4726,7 +4738,7 @@ export const Sales = () => {
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm text-muted-foreground">{t('paymentMethods.check')}</p>
                       <span className="text-xs font-medium text-muted-foreground">
-                        {invoices.filter(inv => inv.paymentMethod === 'check').length} {t('documents.invoices')}
+                        {invoicesForStats.filter(inv => inv.paymentMethod === 'check').length} {t('documents.invoices')}
                       </span>
                     </div>
                     <p className="text-xl font-heading font-bold text-foreground">
@@ -4737,7 +4749,7 @@ export const Sales = () => {
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm text-muted-foreground">{t('paymentMethods.bankTransfer')}</p>
                       <span className="text-xs font-medium text-muted-foreground">
-                        {invoices.filter(inv => inv.paymentMethod === 'bank_transfer').length} {t('documents.invoices')}
+                        {invoicesForStats.filter(inv => inv.paymentMethod === 'bank_transfer').length} {t('documents.invoices')}
                       </span>
                     </div>
                     <p className="text-xl font-heading font-bold text-foreground">
@@ -4765,22 +4777,27 @@ export const Sales = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {invoicesWithoutAvoirs.length === 0 ? (
+                    {invoicesForStats.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center py-8 text-muted-foreground" align="center">
                           {t('documents.noDocumentsFound')}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      invoicesWithoutAvoirs.slice(0, 10).map((inv) => (
+                      invoicesForStats.slice(0, 10).map((inv) => (
                         <TableRow key={inv.id} className="hover:bg-section/50">
-                          <TableCell className="font-mono">{inv.id}</TableCell>
+                          <TableCell className="font-mono flex items-center gap-1.5">
+                            {inv.id}
+                            {(inv as any).originalInvoice && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700">AV</span>
+                            )}
+                          </TableCell>
                           <TableCell>{inv.client}</TableCell>
                           <TableCell>{formatDate(inv.date)}</TableCell>
                           <TableCell className="text-right font-medium">
                             <CurrencyDisplay amount={inv.total} />
                           </TableCell>
-                          <TableCell>{t(`paymentMethods.${inv.paymentMethod}`)}</TableCell>
+                          <TableCell>{inv.paymentMethod ? t(`paymentMethods.${inv.paymentMethod}`) : '—'}</TableCell>
                           <TableCell className="text-center">
                             {getStatusBadge(inv.status)}
                           </TableCell>
