@@ -1,9 +1,7 @@
 import { useState, useMemo } from 'react';
-import { FileSpreadsheet, Download, FileText, ChevronDown, Loader2, Save, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { FileSpreadsheet, Download, FileText, ChevronDown, Loader2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
-import { taxReportsService } from '@/services/tax-reports.service';
 import {
   Select,
   SelectContent,
@@ -80,8 +78,6 @@ export const TaxReports = () => {
 
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedQuarter, setSelectedQuarter] = useState<string>('all');
-  const [isSaving, setIsSaving] = useState(false);
-  const { toast } = useToast();
 
   const isLoading = salesLoading || purchasesLoading;
 
@@ -202,32 +198,6 @@ export const TaxReports = () => {
     purchasesCount: filteredPurchaseInvoices.length,
   };
 
-  // Handle quick actions
-  const handleSaveReport = async () => {
-    setIsSaving(true);
-    try {
-      await taxReportsService.save({
-        year: selectedYear,
-        quarter: selectedQuarter,
-        data: taxReportData,
-        status: 'draft' // Default to draft
-      });
-
-      toast({
-        title: "Report Saved",
-        description: `Tax report for ${selectedQuarter === 'all' ? 'Annual' : selectedQuarter} ${selectedYear} has been saved.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save tax report. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleGenerateVATReport = () => {
     generateVATReportPDF({
       vatCollected,
@@ -316,15 +286,6 @@ export const TaxReports = () => {
               <SelectItem value="q4">Q4</SelectItem>
             </SelectContent>
           </Select>
-          <Button
-            variant="default"
-            className="gap-2"
-            onClick={handleSaveReport}
-            disabled={isSaving}
-          >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {t('common.save') || 'Save'}
-          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2">
