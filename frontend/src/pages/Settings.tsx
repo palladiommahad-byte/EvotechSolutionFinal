@@ -158,8 +158,7 @@ export const Settings = () => {
       };
     }
   });
-  const [showLogo, setShowLogo] = useState(true);
-  const [autoNumber, setAutoNumber] = useState(companyInfo?.autoNumberDocuments ?? true);
+  const [showLogo, setShowLogo] = useState(companyInfo?.showLogo ?? true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Convert database users to TeamUser format for compatibility
@@ -298,14 +297,14 @@ export const Settings = () => {
         return prev;
       });
 
-      // Update autoNumber state
-      if (companyInfo.autoNumberDocuments !== undefined) {
-        setAutoNumber(companyInfo.autoNumberDocuments);
+      // Sync showLogo from companyInfo
+      if (companyInfo.showLogo !== undefined) {
+        setShowLogo(companyInfo.showLogo);
       }
     } catch (error) {
       console.error('Error syncing formData:', error);
     }
-  }, [companyInfoString, companyInfo?.autoNumberDocuments]);
+  }, [companyInfoString, companyInfo?.showLogo]);
 
   // Warehouse management states
   const [warehouseToDelete, setWarehouseToDelete] = useState<WarehouseInfo | null>(null);
@@ -395,7 +394,7 @@ export const Settings = () => {
       await updateCompanyInfo({
         logo: formData.logo,
         footerText: formData.footerText,
-        autoNumberDocuments: autoNumber,
+        showLogo,
         pdfPrimaryColor: formData.pdfPrimaryColor,
         pdfTitleColor: formData.pdfTitleColor,
       });
@@ -1050,13 +1049,6 @@ export const Settings = () => {
                     <p className="text-sm text-muted-foreground">Display company logo on all documents</p>
                   </div>
                   <Switch checked={showLogo} onCheckedChange={setShowLogo} />
-                </div>
-                <div className="flex items-center justify-between p-4 bg-section rounded-lg">
-                  <div>
-                    <p className="font-medium text-foreground">Auto-number Documents</p>
-                    <p className="text-sm text-muted-foreground">Automatically generate document numbers</p>
-                  </div>
-                  <Switch checked={autoNumber} onCheckedChange={setAutoNumber} />
                 </div>
               </div>
             </div>

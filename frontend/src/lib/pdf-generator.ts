@@ -18,6 +18,7 @@ interface CompanyInfo {
   cnss: string;
   logo?: string | null;
   footerText?: string;
+  showLogo?: boolean;
 }
 
 // Helper to add text with wrapping
@@ -674,7 +675,7 @@ export const exportRelevePDF = (options: {
   const ci = options.companyInfo;
   let textX = leftM;
 
-  if (ci?.logo && ci.logo.startsWith('data:')) {
+  if (ci?.logo && ci.logo.startsWith('data:') && ci.showLogo !== false) {
     try {
       doc.addImage(ci.logo, 'AUTO', leftM, y, 28, 18);
       textX = leftM + 31;

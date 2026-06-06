@@ -16,6 +16,7 @@ export interface CompanyInfo {
   logo?: string | null;
   footerText?: string;
   autoNumberDocuments?: boolean;
+  showLogo?: boolean;
   pdfPrimaryColor?: string;
   pdfTitleColor?: string;
 }
@@ -41,6 +42,7 @@ const defaultCompanyInfo: CompanyInfo = {
   logo: null,
   footerText: 'Merci pour votre confiance. Paiement à 30 jours. TVA 20%.',
   autoNumberDocuments: true,
+  showLogo: true,
   pdfPrimaryColor: '#3b82f6',
   pdfTitleColor: '#3b82f6',
 };
@@ -73,6 +75,7 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
       logo: dbSettings.logo ?? defaultCompanyInfo.logo,
       footerText: dbSettings.footer_text ?? defaultCompanyInfo.footerText,
       autoNumberDocuments: dbSettings.auto_number_documents ?? defaultCompanyInfo.autoNumberDocuments,
+      showLogo: dbSettings.show_logo ?? defaultCompanyInfo.showLogo,
       pdfPrimaryColor: dbSettings.pdf_primary_color ?? defaultCompanyInfo.pdfPrimaryColor,
       pdfTitleColor: dbSettings.pdf_title_color ?? defaultCompanyInfo.pdfTitleColor,
     };
@@ -96,6 +99,7 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (info.logo !== undefined) dbUpdate.logo = info.logo;
     if (info.footerText !== undefined) dbUpdate.footer_text = info.footerText;
     if (info.autoNumberDocuments !== undefined) dbUpdate.auto_number_documents = info.autoNumberDocuments;
+    if (info.showLogo !== undefined) dbUpdate.show_logo = info.showLogo;
     if (info.pdfPrimaryColor !== undefined) dbUpdate.pdf_primary_color = info.pdfPrimaryColor;
     if (info.pdfTitleColor !== undefined) dbUpdate.pdf_title_color = info.pdfTitleColor;
 
