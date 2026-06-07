@@ -2358,7 +2358,7 @@ export const Sales = () => {
 
 
                 <div className="card-elevated overflow-hidden">
-                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
+                  <div className="overflow-x-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
                     <TableRow className="data-table-header hover:bg-section">
@@ -2949,7 +2949,7 @@ export const Sales = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
+                  <div className="overflow-x-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
@@ -3172,7 +3172,7 @@ export const Sales = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden border border-border">
-                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
+                  <div className="overflow-x-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="bg-muted/50">
@@ -3619,7 +3619,7 @@ export const Sales = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
+                  <div className="overflow-x-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
@@ -4059,7 +4059,7 @@ export const Sales = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
+                  <div className="overflow-x-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
@@ -4463,7 +4463,7 @@ export const Sales = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
+                  <div className="overflow-x-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
@@ -4813,6 +4813,7 @@ export const Sales = () => {
                   <h3 className="font-heading font-semibold text-foreground">{t('sales.invoiceBreakdownByClient')}</h3>
                   <p className="text-sm text-muted-foreground mt-1">{t('sales.summaryInvoicesPerClient')}</p>
                 </div>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="data-table-header hover:bg-section">
@@ -4863,6 +4864,7 @@ export const Sales = () => {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </div>
 
               {/* Summary Sections */}
@@ -5111,11 +5113,11 @@ export const Sales = () => {
                       </Button>
                     </div>
                   </div>
-                  <div className="max-h-[600px] overflow-y-auto">
+                  <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
                     <Table>
                       <TableHeader className="sticky top-0 z-10 bg-background">
                         <TableRow className="data-table-header hover:bg-section">
-                          <TableHead className="text-center px-4" style={{ width: '52px', minWidth: '52px' }}>
+                          <TableHead className="text-center px-4 whitespace-nowrap" style={{ width: '52px', minWidth: '52px' }}>
                             <div className="flex items-center justify-center">
                               <Checkbox
                                 checked={filteredStatementInvoices.length > 0 && filteredStatementInvoices.every(inv => selectedStatementDocs.has(inv.id))}
@@ -5242,13 +5244,14 @@ export const Sales = () => {
                   <div className="mt-6">
                     <Label className="text-muted-foreground mb-3 block">Item Details</Label>
                     <div className="border border-border rounded-lg overflow-hidden">
+                      <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Description</TableHead>
-                            <TableHead className="text-right">Quantity</TableHead>
-                            <TableHead className="text-right">Unit Price</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
+                            <TableHead className="whitespace-nowrap">Description</TableHead>
+                            <TableHead className="text-right whitespace-nowrap">Quantity</TableHead>
+                            <TableHead className="text-right whitespace-nowrap">Unit Price</TableHead>
+                            <TableHead className="text-right whitespace-nowrap">Total</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -5262,6 +5265,7 @@ export const Sales = () => {
                           ))}
                         </TableBody>
                       </Table>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -5273,12 +5277,13 @@ export const Sales = () => {
                       BLs liés ({(viewingDocument as any).linked_bls.length})
                     </Label>
                     <div className="border border-border rounded-lg overflow-hidden">
+                      <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>N° BL</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead className="text-right">Montant HT</TableHead>
+                            <TableHead className="whitespace-nowrap">N° BL</TableHead>
+                            <TableHead className="whitespace-nowrap">Date</TableHead>
+                            <TableHead className="text-right whitespace-nowrap">Montant HT</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -5291,6 +5296,7 @@ export const Sales = () => {
                           ))}
                         </TableBody>
                       </Table>
+                      </div>
                     </div>
                   </div>
                 )}

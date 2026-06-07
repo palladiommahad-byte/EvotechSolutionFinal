@@ -1927,7 +1927,7 @@ export const Purchases = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
+                  <div className="overflow-x-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
@@ -2454,7 +2454,7 @@ export const Purchases = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
+                  <div className="overflow-x-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
@@ -3192,7 +3192,7 @@ export const Purchases = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
+                  <div className="overflow-x-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
@@ -3476,15 +3476,16 @@ export const Purchases = () => {
                   <h3 className="font-heading font-semibold text-foreground">{t('purchases.invoiceBreakdownByStatus')}</h3>
                   <p className="text-sm text-muted-foreground mt-1">{t('purchases.detailedViewPurchaseInvoices')}</p>
                 </div>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="data-table-header hover:bg-section">
-                      <TableHead>{t('documents.invoiceNumber')}</TableHead>
-                      <TableHead>{t('documents.supplier')}</TableHead>
-                      <TableHead>{t('common.date')}</TableHead>
-                      <TableHead className="text-right">{t('documents.amountMAD')}</TableHead>
-                      <TableHead>{t('documents.paymentMethod')}</TableHead>
-                      <TableHead className="text-center">{t('common.status')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('documents.invoiceNumber')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('documents.supplier')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('common.date')}</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">{t('documents.amountMAD')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('documents.paymentMethod')}</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">{t('common.status')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -3514,6 +3515,7 @@ export const Purchases = () => {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </div>
 
               {/* Supplier Breakdown */}
@@ -3522,16 +3524,17 @@ export const Purchases = () => {
                   <h3 className="font-heading font-semibold text-foreground">{t('purchases.invoiceBreakdownBySupplier', { defaultValue: 'Invoice Breakdown by Supplier' })}</h3>
                   <p className="text-sm text-muted-foreground mt-1">{t('purchases.summaryInvoicesPerSupplier', { defaultValue: 'Summary of invoices per supplier with paid/unpaid amounts' })}</p>
                 </div>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="data-table-header hover:bg-section">
-                      <TableHead>{t('documents.supplier')}</TableHead>
-                      <TableHead className="text-right">{t('sales.totalInvoices')}</TableHead>
-                      <TableHead className="text-right">{t('documents.paid')}</TableHead>
-                      <TableHead className="text-right">{t('documents.unpaid')}</TableHead>
-                      <TableHead className="text-right">{t('sales.totalAmount')}</TableHead>
-                      <TableHead className="text-right">{t('sales.paidAmount')}</TableHead>
-                      <TableHead className="text-right">{t('sales.unpaidAmount')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('documents.supplier')}</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">{t('sales.totalInvoices')}</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">{t('documents.paid')}</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">{t('documents.unpaid')}</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">{t('sales.totalAmount')}</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">{t('sales.paidAmount')}</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">{t('sales.unpaidAmount')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -3572,6 +3575,7 @@ export const Purchases = () => {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </div>
 
               {/* Status Summary */}
@@ -3801,11 +3805,11 @@ export const Purchases = () => {
                       </Button>
                     </div>
                   </div>
-                  <div className="max-h-[600px] overflow-y-auto">
+                  <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
                     <Table>
                       <TableHeader className="sticky top-0 z-10 bg-background">
                         <TableRow className="data-table-header hover:bg-section">
-                          <TableHead className="text-center px-4" style={{ width: '52px', minWidth: '52px' }}>
+                          <TableHead className="text-center px-4 whitespace-nowrap" style={{ width: '52px', minWidth: '52px' }}>
                             <div className="flex items-center justify-center">
                               <Checkbox
                                 checked={filteredStatementInvoices.length > 0 && filteredStatementInvoices.every(inv => selectedStatementDocs.has(inv.id))}
@@ -3910,13 +3914,14 @@ export const Purchases = () => {
                   <div className="mt-6">
                     <Label className="text-muted-foreground mb-3 block">Item Details</Label>
                     <div className="border border-border rounded-lg overflow-hidden">
+                      <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Description</TableHead>
-                            <TableHead className="text-right">Quantity</TableHead>
-                            <TableHead className="text-right">Unit Price</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
+                            <TableHead className="whitespace-nowrap">Description</TableHead>
+                            <TableHead className="text-right whitespace-nowrap">Quantity</TableHead>
+                            <TableHead className="text-right whitespace-nowrap">Unit Price</TableHead>
+                            <TableHead className="text-right whitespace-nowrap">Total</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -3930,6 +3935,7 @@ export const Purchases = () => {
                           ))}
                         </TableBody>
                       </Table>
+                      </div>
                     </div>
                   </div>
                 )}
