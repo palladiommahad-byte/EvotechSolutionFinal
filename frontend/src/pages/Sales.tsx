@@ -4762,15 +4762,16 @@ export const Sales = () => {
                   <h3 className="font-heading font-semibold text-foreground">{t('sales.invoiceBreakdownByStatus')}</h3>
                   <p className="text-sm text-muted-foreground mt-1">{t('sales.detailedViewInvoices')}</p>
                 </div>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="data-table-header hover:bg-section">
-                      <TableHead>{t('documents.invoiceNumber')}</TableHead>
-                      <TableHead>{t('documents.client')}</TableHead>
-                      <TableHead>{t('common.date')}</TableHead>
-                      <TableHead className="text-right">{t('documents.amountMAD')}</TableHead>
-                      <TableHead>{t('documents.paymentMethod')}</TableHead>
-                      <TableHead className="text-center">{t('common.status')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('documents.invoiceNumber')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('documents.client')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('common.date')}</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">{t('documents.amountMAD')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('documents.paymentMethod')}</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">{t('common.status')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -4781,7 +4782,7 @@ export const Sales = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      invoicesForStats.slice(0, 10).map((inv) => (
+                      invoicesForStats.map((inv) => (
                         <TableRow key={inv.id} className="hover:bg-section/50">
                           <TableCell className="font-mono flex items-center gap-1.5">
                             {inv.id}
@@ -4803,6 +4804,7 @@ export const Sales = () => {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </div>
 
               {/* Client Breakdown Table */}
