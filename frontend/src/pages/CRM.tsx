@@ -186,15 +186,16 @@ const ContactTable = ({ contacts, type, onView, onEdit, onDelete }: ContactTable
   const { t } = useTranslation();
   return (
     <div className="card-elevated overflow-hidden">
+      <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
       <Table>
         <TableHeader>
           <TableRow className="data-table-header hover:bg-section">
-            <TableHead>{t('crm.company')}</TableHead>
-            <TableHead>{t('crm.contact')}</TableHead>
-            <TableHead>{t('common.city')}</TableHead>
-            <TableHead>{t('crm.ice')}</TableHead>
-            <TableHead className="text-center">{t('crm.transactions')}</TableHead>
-            <TableHead className="text-center">{t('common.status')}</TableHead>
+            <TableHead className="whitespace-nowrap">{t('crm.company')}</TableHead>
+            <TableHead className="whitespace-nowrap">{t('crm.contact')}</TableHead>
+            <TableHead className="whitespace-nowrap">{t('common.city')}</TableHead>
+            <TableHead className="whitespace-nowrap">{t('crm.ice')}</TableHead>
+            <TableHead className="text-center whitespace-nowrap">{t('crm.transactions')}</TableHead>
+            <TableHead className="text-center whitespace-nowrap">{t('common.status')}</TableHead>
             <TableHead className="text-center">{t('common.actions')}</TableHead>
           </TableRow>
         </TableHeader>
@@ -272,6 +273,7 @@ const ContactTable = ({ contacts, type, onView, onEdit, onDelete }: ContactTable
           ))}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 };

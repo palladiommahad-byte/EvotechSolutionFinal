@@ -1068,7 +1068,7 @@ export const Treasury = () => {
               </Button>
             )}
           </div>
-          <div className="overflow-y-auto h-[450px] border rounded-md relative">
+          <div className="border rounded-t-md overflow-y-auto h-[450px] relative">
             <Table>
               <TableHeader className="sticky top-0 bg-card z-20 shadow-sm ring-1 ring-border/50">
                 <TableRow className="data-table-header hover:bg-card">
@@ -1128,26 +1128,32 @@ export const Treasury = () => {
                   ))
                 )}
               </TableBody>
-              {filteredBankStatementData.length > 0 && (
-                <TableFooter className="bg-section sticky bottom-0 z-10 shadow-[0_-1px_0_0_rgba(0,0,0,0.1)]">
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-xs font-semibold px-2 py-2 text-right">
-                      {t('common.total')}
-                    </TableCell>
-                    <TableCell className="px-2 py-2 whitespace-nowrap text-right">
-                      <div className="flex flex-col gap-0.5 items-end">
-                        <span className="text-[10px] text-muted-foreground">Crédit: <span className="text-success font-medium">{formatMAD(filteredBankStatementData.filter(d => d.transactionType === 'credit').reduce((sum, i) => sum + (Number(i.amount) || 0), 0))}</span></span>
-                        <span className="text-[10px] text-muted-foreground">Débit: <span className="text-red-600 font-medium">{formatMAD(filteredBankStatementData.filter(d => d.transactionType === 'debit').reduce((sum, i) => sum + (Number(i.amount) || 0), 0))}</span></span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right px-2 py-2 text-xs font-bold whitespace-nowrap">
-                      <CurrencyDisplay amount={filteredBankStatementData.reduce((acc, curr) => curr.transactionType === 'credit' ? acc + (Number(curr.amount) || 0) : acc - (Number(curr.amount) || 0), 0)} />
-                    </TableCell>
-                  </TableRow>
-                </TableFooter>
-              )}
             </Table>
           </div>
+          {filteredBankStatementData.length > 0 && (
+            <div className="border border-t-0 rounded-b-md px-4 py-3">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-3 bg-section/50 rounded-lg">
+                  <div className="text-xs text-muted-foreground mb-1">Crédit</div>
+                  <div className="text-lg font-semibold text-success">
+                    {formatMAD(filteredBankStatementData.filter(d => d.transactionType === 'credit').reduce((sum, i) => sum + (Number(i.amount) || 0), 0))}
+                  </div>
+                </div>
+                <div className="p-3 bg-section/50 rounded-lg">
+                  <div className="text-xs text-muted-foreground mb-1">Débit</div>
+                  <div className="text-lg font-semibold text-red-600">
+                    {formatMAD(filteredBankStatementData.filter(d => d.transactionType === 'debit').reduce((sum, i) => sum + (Number(i.amount) || 0), 0))}
+                  </div>
+                </div>
+                <div className="p-3 bg-section/50 rounded-lg">
+                  <div className="text-xs text-muted-foreground mb-1">{t('common.total')}</div>
+                  <div className="text-lg font-semibold text-foreground">
+                    <CurrencyDisplay amount={filteredBankStatementData.reduce((acc, curr) => curr.transactionType === 'credit' ? acc + (Number(curr.amount) || 0) : acc - (Number(curr.amount) || 0), 0)} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Net TVA Due Widget */}
