@@ -1927,7 +1927,7 @@ export const Purchases = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <div className="overflow-x-auto">
+                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
@@ -2454,7 +2454,7 @@ export const Purchases = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <div className="overflow-x-auto">
+                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
@@ -3192,7 +3192,7 @@ export const Purchases = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <div className="overflow-x-auto">
+                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
@@ -3476,7 +3476,7 @@ export const Purchases = () => {
                   <h3 className="font-heading font-semibold text-foreground">{t('purchases.invoiceBreakdownByStatus')}</h3>
                   <p className="text-sm text-muted-foreground mt-1">{t('purchases.detailedViewPurchaseInvoices')}</p>
                 </div>
-                <div className="overflow-x-auto">
+                <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
                 <Table>
                   <TableHeader>
                     <TableRow className="data-table-header hover:bg-section">
@@ -3524,7 +3524,7 @@ export const Purchases = () => {
                   <h3 className="font-heading font-semibold text-foreground">{t('purchases.invoiceBreakdownBySupplier', { defaultValue: 'Invoice Breakdown by Supplier' })}</h3>
                   <p className="text-sm text-muted-foreground mt-1">{t('purchases.summaryInvoicesPerSupplier', { defaultValue: 'Summary of invoices per supplier with paid/unpaid amounts' })}</p>
                 </div>
-                <div className="overflow-x-auto">
+                <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
                 <Table>
                   <TableHeader>
                     <TableRow className="data-table-header hover:bg-section">
@@ -3914,7 +3914,7 @@ export const Purchases = () => {
                   <div className="mt-6">
                     <Label className="text-muted-foreground mb-3 block">Item Details</Label>
                     <div className="border border-border rounded-lg overflow-hidden">
-                      <div className="overflow-x-auto">
+                      <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
                       <Table>
                         <TableHeader>
                           <TableRow>

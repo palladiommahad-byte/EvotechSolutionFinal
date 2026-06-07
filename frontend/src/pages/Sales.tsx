@@ -2358,7 +2358,7 @@ export const Sales = () => {
 
 
                 <div className="card-elevated overflow-hidden">
-                  <div className="overflow-x-auto">
+                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
                   <Table className="min-w-[700px]">
                     <TableHeader>
                     <TableRow className="data-table-header hover:bg-section">
@@ -2949,7 +2949,7 @@ export const Sales = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <div className="overflow-x-auto">
+                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
@@ -3172,7 +3172,7 @@ export const Sales = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden border border-border">
-                  <div className="overflow-x-auto">
+                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="bg-muted/50">
@@ -3619,7 +3619,7 @@ export const Sales = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <div className="overflow-x-auto">
+                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
@@ -4059,7 +4059,7 @@ export const Sales = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <div className="overflow-x-auto">
+                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
@@ -4463,7 +4463,7 @@ export const Sales = () => {
                 )}
 
                 <div className="card-elevated overflow-hidden">
-                  <div className="overflow-x-auto">
+                  <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-section">
@@ -4762,7 +4762,7 @@ export const Sales = () => {
                   <h3 className="font-heading font-semibold text-foreground">{t('sales.invoiceBreakdownByStatus')}</h3>
                   <p className="text-sm text-muted-foreground mt-1">{t('sales.detailedViewInvoices')}</p>
                 </div>
-                <div className="overflow-x-auto">
+                <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
                 <Table>
                   <TableHeader>
                     <TableRow className="data-table-header hover:bg-section">
@@ -4813,7 +4813,7 @@ export const Sales = () => {
                   <h3 className="font-heading font-semibold text-foreground">{t('sales.invoiceBreakdownByClient')}</h3>
                   <p className="text-sm text-muted-foreground mt-1">{t('sales.summaryInvoicesPerClient')}</p>
                 </div>
-                <div className="overflow-x-auto">
+                <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
                 <Table>
                   <TableHeader>
                     <TableRow className="data-table-header hover:bg-section">
@@ -5244,7 +5244,7 @@ export const Sales = () => {
                   <div className="mt-6">
                     <Label className="text-muted-foreground mb-3 block">Item Details</Label>
                     <div className="border border-border rounded-lg overflow-hidden">
-                      <div className="overflow-x-auto">
+                      <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -5277,7 +5277,7 @@ export const Sales = () => {
                       BLs liés ({(viewingDocument as any).linked_bls.length})
                     </Label>
                     <div className="border border-border rounded-lg overflow-hidden">
-                      <div className="overflow-x-auto">
+                      <div className={cn("overflow-x-auto", filteredDocuments.length > 15 && "max-h-[560px] overflow-y-auto")}>
                       <Table>
                         <TableHeader>
                           <TableRow>
