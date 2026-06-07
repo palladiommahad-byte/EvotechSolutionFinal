@@ -27,6 +27,15 @@ export interface CompanySettings {
   auto_number_documents?: boolean;
   pdf_primary_color?: string;
   pdf_title_color?: string;
+  pdf_font_size?: number;
+  pdf_font_family?: string;
+  pdf_body_text_color?: string;
+  pdf_border_color?: string;
+  pdf_logo_size?: string;
+  pdf_logo_position?: string;
+  pdf_table_spacing?: string;
+  pdf_show_borders?: boolean;
+  show_logo?: boolean;
   created_at?: string;
   updated_at?: string;
 }

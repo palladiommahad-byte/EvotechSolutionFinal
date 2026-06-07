@@ -33,7 +33,7 @@ router.put('/company', asyncHandler(async (req, res) => {
     // Build dynamic UPDATE query with only the fields present in the request body
     // This allows fields to be explicitly set to null (e.g., removing logo)
     // and avoids overwriting fields that were not sent
-    const allowedFields = ['name', 'legal_form', 'email', 'phone', 'address', 'ice', 'if_number', 'rc', 'tp', 'patente', 'cnss', 'logo', 'footer_text', 'auto_number_documents', 'pdf_primary_color', 'pdf_title_color', 'show_logo'];
+    const allowedFields = ['name', 'legal_form', 'email', 'phone', 'address', 'ice', 'if_number', 'rc', 'tp', 'patente', 'cnss', 'logo', 'footer_text', 'auto_number_documents', 'pdf_primary_color', 'pdf_title_color', 'show_logo', 'pdf_font_size', 'pdf_font_family', 'pdf_body_text_color', 'pdf_border_color', 'pdf_logo_size', 'pdf_logo_position', 'pdf_table_spacing', 'pdf_show_borders'];
     const updates = [];
     const params = [];
     let idx = 1;

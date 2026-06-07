@@ -48,17 +48,40 @@ const getLayoutScale = (itemCount: number): number => {
   return 0.55;
 };
 
-const createStyles = (scale: number) => {
+interface StyleOpts {
+  fontFamily: string;
+  baseFontSize: number;
+  bodyTextColor: string;
+  borderColor: string;
+  tableSpacing: 'compact' | 'normal' | 'spacious';
+  showBorders: boolean;
+}
+
+const DEFAULT_STYLE_OPTS: StyleOpts = {
+  fontFamily: 'Helvetica',
+  baseFontSize: 10,
+  bodyTextColor: '#374151',
+  borderColor: '#3b82f6',
+  tableSpacing: 'normal',
+  showBorders: true,
+};
+
+const createStyles = (scale: number, opts: StyleOpts = DEFAULT_STYLE_OPTS) => {
   const s = (v: number) => Math.max(1, Math.round(v * scale));
+  const cellPad = opts.tableSpacing === 'compact' ? s(2) : opts.tableSpacing === 'spacious' ? s(7) : s(4);
+  const headerPad = opts.tableSpacing === 'compact' ? s(3) : opts.tableSpacing === 'spacious' ? s(8) : s(5);
+  const tableBorder = opts.showBorders ? `1px solid ${opts.borderColor}` : '0px solid transparent';
+  const rowBorder = opts.showBorders ? '1px solid #E5E7EB' : '0px solid transparent';
+  const boldFamily = opts.fontFamily === 'Times-Roman' ? 'Times-Bold' : opts.fontFamily === 'Courier' ? 'Courier-Bold' : 'Helvetica-Bold';
   return StyleSheet.create({
   page: {
     paddingTop: s(8),
     paddingRight: 56,
     paddingBottom: 42,
     paddingLeft: 56,
-    fontSize: 15,
-    fontFamily: 'Helvetica',
-    color: '#1F2937',
+    fontSize: opts.baseFontSize,
+    fontFamily: opts.fontFamily,
+    color: opts.bodyTextColor,
     lineHeight: scale < 0.85 ? 1.2 : 1.6,
     flexDirection: 'column',
   },
@@ -101,7 +124,7 @@ const createStyles = (scale: number) => {
     fontWeight: 700,
     color: '#111827',
     marginBottom: s(4),
-    fontFamily: 'Helvetica-Bold',
+    fontFamily: boldFamily,
     lineHeight: 1.3,
     letterSpacing: -0.01,
   },
@@ -171,15 +194,15 @@ const createStyles = (scale: number) => {
   },
   table: {
     marginBottom: s(10),
-    border: '1px solid #3b82f6',
+    border: tableBorder,
     borderRadius: 4,
   },
   tableHeader: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: opts.borderColor,
     flexDirection: 'row',
   },
   tableHeaderCell: {
-    padding: `${s(5)}px ${s(6)}px`,
+    padding: `${headerPad}px ${s(6)}px`,
     fontSize: s(9),
     fontWeight: 700,
     color: '#FFFFFF',
@@ -189,12 +212,12 @@ const createStyles = (scale: number) => {
   },
   tableRow: {
     flexDirection: 'row',
-    borderBottom: '1px solid #E5E7EB',
+    borderBottom: rowBorder,
   },
   tableCell: {
-    padding: `${s(4)}px ${s(6)}px`,
+    padding: `${cellPad}px ${s(6)}px`,
     fontSize: s(10),
-    color: '#374151',
+    color: opts.bodyTextColor,
     lineHeight: 1.2,
     flexWrap: 'nowrap',
   },
@@ -214,7 +237,7 @@ const createStyles = (scale: number) => {
     backgroundColor: '#f1f5f9',
   },
   summaryBox: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: opts.borderColor,
     padding: `${s(8)}px ${s(14)}px`,
     borderRadius: 6,
     minWidth: 220,
@@ -331,6 +354,19 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
   const primaryColor = companyInfo.pdfPrimaryColor || '#3b82f6';
   const titleColor = companyInfo.pdfTitleColor || '#3b82f6';
 
+  // PDF Design Studio settings
+  const styleOpts: StyleOpts = {
+    fontFamily: companyInfo.pdfFontFamily || 'Helvetica',
+    baseFontSize: companyInfo.pdfFontSize || 10,
+    bodyTextColor: companyInfo.pdfBodyTextColor || '#374151',
+    borderColor: companyInfo.pdfBorderColor || primaryColor,
+    tableSpacing: companyInfo.pdfTableSpacing || 'normal',
+    showBorders: companyInfo.pdfShowBorders !== false,
+  };
+
+  const logoSizePx = companyInfo.pdfLogoSize === 'small' ? 50 : companyInfo.pdfLogoSize === 'large' ? 110 : 76;
+  const logoPosition = companyInfo.pdfLogoPosition || 'left';
+
   // For BL-grouped invoices, compute totals from BL items (same data shown in the table).
   // This ensures subtotal always matches the displayed line rows, even if invoice_items diverge.
   const hasGroupedBLsEarly = type === 'invoice' && linkedBLs && linkedBLs.length > 0
@@ -359,7 +395,7 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
 
   // For multi-page use a comfortable fixed scale; for single-page use auto-shrink
   const scale = isMultiPage ? 0.88 : getLayoutScale(totalItemCount);
-  const styles = createStyles(scale);
+  const styles = createStyles(scale, styleOpts);
 
   // Dynamic font size for company name — shrinks to fit long names on one line.
   // Only applied to the company-name texts; no other font sizes are affected.
@@ -563,17 +599,23 @@ export const DocumentPDFTemplate: React.FC<DocumentPDFTemplateProps> = ({
     </View>
   );
 
+  const shouldShowLogo = companyInfo.showLogo !== false && companyInfo.logo && companyInfo.logo.trim();
+
+  const renderLogo = () => shouldShowLogo ? (
+    <Image
+      src={companyInfo.logo as string}
+      style={{ height: logoSizePx, maxWidth: logoSizePx * 2, flexShrink: 0 }}
+      cache={false}
+    />
+  ) : null;
+
   const renderHeader = () => (
     <View style={styles.header}>
-      <View style={styles.headerRow}>
-        {/* Company Info - Logo Only */}
+      <View style={[styles.headerRow, logoPosition === 'right' ? { flexDirection: 'row-reverse' } : {}]}>
+        {/* Company Info - Logo or company name text */}
         <View style={styles.companyInfo}>
-          {companyInfo.logo && companyInfo.logo.trim() ? (
-            <Image
-              src={companyInfo.logo}
-              style={styles.logo}
-              cache={false}
-            />
+          {shouldShowLogo ? (
+            renderLogo()
           ) : (
             <View style={{ flex: 1 }}>
               <Text style={[styles.companyName, { color: titleColor, fontSize: dynCompanyFontSize(companyInfo.name || '', 18) }]}>{(companyInfo.name || 'COMPANY NAME').toUpperCase()}</Text>

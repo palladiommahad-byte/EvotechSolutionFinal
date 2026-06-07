@@ -19,6 +19,15 @@ export interface CompanyInfo {
   showLogo?: boolean;
   pdfPrimaryColor?: string;
   pdfTitleColor?: string;
+  // PDF Design Studio fields
+  pdfFontSize?: number;
+  pdfFontFamily?: 'Helvetica' | 'Times-Roman' | 'Courier';
+  pdfBodyTextColor?: string;
+  pdfBorderColor?: string;
+  pdfLogoSize?: 'small' | 'medium' | 'large';
+  pdfLogoPosition?: 'left' | 'right';
+  pdfTableSpacing?: 'compact' | 'normal' | 'spacious';
+  pdfShowBorders?: boolean;
 }
 
 interface CompanyContextType {
@@ -26,6 +35,19 @@ interface CompanyContextType {
   updateCompanyInfo: (info: Partial<CompanyInfo>) => Promise<void>;
   isLoading: boolean;
 }
+
+export const PDF_DESIGN_DEFAULTS = {
+  pdfPrimaryColor: '#3b82f6',
+  pdfTitleColor: '#3b82f6',
+  pdfFontSize: 10,
+  pdfFontFamily: 'Helvetica' as const,
+  pdfBodyTextColor: '#374151',
+  pdfBorderColor: '#3b82f6',
+  pdfLogoSize: 'medium' as const,
+  pdfLogoPosition: 'left' as const,
+  pdfTableSpacing: 'normal' as const,
+  pdfShowBorders: true,
+};
 
 const defaultCompanyInfo: CompanyInfo = {
   name: 'EVOTECH Solutions SARL',
@@ -43,8 +65,7 @@ const defaultCompanyInfo: CompanyInfo = {
   footerText: 'Merci pour votre confiance. Paiement à 30 jours. TVA 20%.',
   autoNumberDocuments: true,
   showLogo: true,
-  pdfPrimaryColor: '#3b82f6',
-  pdfTitleColor: '#3b82f6',
+  ...PDF_DESIGN_DEFAULTS,
 };
 
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
@@ -78,6 +99,14 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
       showLogo: dbSettings.show_logo ?? defaultCompanyInfo.showLogo,
       pdfPrimaryColor: dbSettings.pdf_primary_color ?? defaultCompanyInfo.pdfPrimaryColor,
       pdfTitleColor: dbSettings.pdf_title_color ?? defaultCompanyInfo.pdfTitleColor,
+      pdfFontSize: dbSettings.pdf_font_size ?? defaultCompanyInfo.pdfFontSize,
+      pdfFontFamily: (dbSettings.pdf_font_family as CompanyInfo['pdfFontFamily']) ?? defaultCompanyInfo.pdfFontFamily,
+      pdfBodyTextColor: dbSettings.pdf_body_text_color ?? defaultCompanyInfo.pdfBodyTextColor,
+      pdfBorderColor: dbSettings.pdf_border_color ?? defaultCompanyInfo.pdfBorderColor,
+      pdfLogoSize: (dbSettings.pdf_logo_size as CompanyInfo['pdfLogoSize']) ?? defaultCompanyInfo.pdfLogoSize,
+      pdfLogoPosition: (dbSettings.pdf_logo_position as CompanyInfo['pdfLogoPosition']) ?? defaultCompanyInfo.pdfLogoPosition,
+      pdfTableSpacing: (dbSettings.pdf_table_spacing as CompanyInfo['pdfTableSpacing']) ?? defaultCompanyInfo.pdfTableSpacing,
+      pdfShowBorders: dbSettings.pdf_show_borders ?? defaultCompanyInfo.pdfShowBorders,
     };
   }, [dbSettings]);
 
@@ -102,6 +131,14 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (info.showLogo !== undefined) dbUpdate.show_logo = info.showLogo;
     if (info.pdfPrimaryColor !== undefined) dbUpdate.pdf_primary_color = info.pdfPrimaryColor;
     if (info.pdfTitleColor !== undefined) dbUpdate.pdf_title_color = info.pdfTitleColor;
+    if (info.pdfFontSize !== undefined) dbUpdate.pdf_font_size = info.pdfFontSize;
+    if (info.pdfFontFamily !== undefined) dbUpdate.pdf_font_family = info.pdfFontFamily;
+    if (info.pdfBodyTextColor !== undefined) dbUpdate.pdf_body_text_color = info.pdfBodyTextColor;
+    if (info.pdfBorderColor !== undefined) dbUpdate.pdf_border_color = info.pdfBorderColor;
+    if (info.pdfLogoSize !== undefined) dbUpdate.pdf_logo_size = info.pdfLogoSize;
+    if (info.pdfLogoPosition !== undefined) dbUpdate.pdf_logo_position = info.pdfLogoPosition;
+    if (info.pdfTableSpacing !== undefined) dbUpdate.pdf_table_spacing = info.pdfTableSpacing;
+    if (info.pdfShowBorders !== undefined) dbUpdate.pdf_show_borders = info.pdfShowBorders;
 
     try {
       await updateMutation.mutateAsync(dbUpdate);

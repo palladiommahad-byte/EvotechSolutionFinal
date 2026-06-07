@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, ChangeEvent } from 'react';
-import { Building2, Upload, Users, Shield, Save, Palette, Trash2, Warehouse, Plus, Edit, MapPin, Phone, Mail, User, Bell, CheckCheck, CheckCircle2, AlertTriangle, X, Info, Filter, XCircle, Circle, Eye, EyeOff } from 'lucide-react';
+import { Building2, Upload, Users, Shield, Save, Palette, Trash2, Warehouse, Plus, Edit, MapPin, Phone, Mail, User, Bell, CheckCheck, CheckCircle2, AlertTriangle, X, Info, Filter, XCircle, Circle, Eye, EyeOff, FileText, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +15,8 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ThemeCustomizer } from '@/components/settings/ThemeCustomizer';
-import { useCompany } from '@/contexts/CompanyContext';
+import { PDFLivePreview, PDFDesignSettings } from '@/components/settings/PDFLivePreview';
+import { useCompany, PDF_DESIGN_DEFAULTS } from '@/contexts/CompanyContext';
 import { useWarehouse, WarehouseInfo } from '@/contexts/WarehouseContext';
 import { useNotifications, NotificationType } from '@/contexts/NotificationContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -160,6 +161,52 @@ export const Settings = () => {
   });
   const [showLogo, setShowLogo] = useState(companyInfo?.showLogo ?? true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // PDF Design Studio state
+  const [pdfDesign, setPdfDesign] = useState<PDFDesignSettings>({
+    pdfPrimaryColor: companyInfo?.pdfPrimaryColor || PDF_DESIGN_DEFAULTS.pdfPrimaryColor,
+    pdfTitleColor: companyInfo?.pdfTitleColor || PDF_DESIGN_DEFAULTS.pdfTitleColor,
+    pdfFontSize: companyInfo?.pdfFontSize ?? PDF_DESIGN_DEFAULTS.pdfFontSize,
+    pdfFontFamily: companyInfo?.pdfFontFamily ?? PDF_DESIGN_DEFAULTS.pdfFontFamily,
+    pdfBodyTextColor: companyInfo?.pdfBodyTextColor || PDF_DESIGN_DEFAULTS.pdfBodyTextColor,
+    pdfBorderColor: companyInfo?.pdfBorderColor || PDF_DESIGN_DEFAULTS.pdfBorderColor,
+    pdfLogoSize: companyInfo?.pdfLogoSize ?? PDF_DESIGN_DEFAULTS.pdfLogoSize,
+    pdfLogoPosition: companyInfo?.pdfLogoPosition ?? PDF_DESIGN_DEFAULTS.pdfLogoPosition,
+    pdfTableSpacing: companyInfo?.pdfTableSpacing ?? PDF_DESIGN_DEFAULTS.pdfTableSpacing,
+    pdfShowBorders: companyInfo?.pdfShowBorders ?? PDF_DESIGN_DEFAULTS.pdfShowBorders,
+    showLogo: companyInfo?.showLogo ?? true,
+    logo: companyInfo?.logo,
+    companyName: companyInfo?.name,
+    footerText: companyInfo?.footerText,
+  });
+
+  // Sync pdfDesign when companyInfo loads from DB
+  useEffect(() => {
+    if (!companyInfo) return;
+    setPdfDesign(prev => ({
+      ...prev,
+      pdfPrimaryColor: companyInfo.pdfPrimaryColor || PDF_DESIGN_DEFAULTS.pdfPrimaryColor,
+      pdfTitleColor: companyInfo.pdfTitleColor || PDF_DESIGN_DEFAULTS.pdfTitleColor,
+      pdfFontSize: companyInfo.pdfFontSize ?? PDF_DESIGN_DEFAULTS.pdfFontSize,
+      pdfFontFamily: companyInfo.pdfFontFamily ?? PDF_DESIGN_DEFAULTS.pdfFontFamily,
+      pdfBodyTextColor: companyInfo.pdfBodyTextColor || PDF_DESIGN_DEFAULTS.pdfBodyTextColor,
+      pdfBorderColor: companyInfo.pdfBorderColor || PDF_DESIGN_DEFAULTS.pdfBorderColor,
+      pdfLogoSize: companyInfo.pdfLogoSize ?? PDF_DESIGN_DEFAULTS.pdfLogoSize,
+      pdfLogoPosition: companyInfo.pdfLogoPosition ?? PDF_DESIGN_DEFAULTS.pdfLogoPosition,
+      pdfTableSpacing: companyInfo.pdfTableSpacing ?? PDF_DESIGN_DEFAULTS.pdfTableSpacing,
+      pdfShowBorders: companyInfo.pdfShowBorders ?? PDF_DESIGN_DEFAULTS.pdfShowBorders,
+      showLogo: companyInfo.showLogo ?? true,
+      logo: companyInfo.logo,
+      companyName: companyInfo.name,
+      footerText: companyInfo.footerText,
+    }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyInfo?.pdfPrimaryColor, companyInfo?.pdfFontFamily, companyInfo?.name]);
+
+  // Keep preview logo in sync when logo is uploaded/removed
+  useEffect(() => {
+    setPdfDesign(prev => ({ ...prev, logo: formData.logo, companyName: formData.name }));
+  }, [formData.logo, formData.name]);
 
   // Convert database users to TeamUser format for compatibility
   // Ensure all values are primitives to prevent object-to-primitive errors
@@ -410,6 +457,38 @@ export const Settings = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleSavePDFDesign = async () => {
+    try {
+      await updateCompanyInfo({
+        logo: formData.logo,
+        footerText: formData.footerText,
+        showLogo,
+        pdfPrimaryColor: pdfDesign.pdfPrimaryColor,
+        pdfTitleColor: pdfDesign.pdfTitleColor,
+        pdfFontSize: pdfDesign.pdfFontSize,
+        pdfFontFamily: pdfDesign.pdfFontFamily,
+        pdfBodyTextColor: pdfDesign.pdfBodyTextColor,
+        pdfBorderColor: pdfDesign.pdfBorderColor,
+        pdfLogoSize: pdfDesign.pdfLogoSize,
+        pdfLogoPosition: pdfDesign.pdfLogoPosition,
+        pdfTableSpacing: pdfDesign.pdfTableSpacing,
+        pdfShowBorders: pdfDesign.pdfShowBorders,
+      });
+      toast({ title: t('settings.pdfDesign.saveSuccess'), variant: 'success' });
+    } catch {
+      toast({ title: t('settings.pdfDesign.saveError'), variant: 'destructive' });
+    }
+  };
+
+  const handleResetPDFDesign = () => {
+    setShowLogo(true);
+    setPdfDesign(prev => ({
+      ...prev,
+      ...PDF_DESIGN_DEFAULTS,
+      showLogo: true,
+    }));
   };
 
   const handleUpdateProfile = async () => {
@@ -838,9 +917,9 @@ export const Settings = () => {
             <Building2 className="w-4 h-4" />
             {t('settings.company')}
           </TabsTrigger>
-          <TabsTrigger value="branding" className="gap-2 rounded-md">
-            <Upload className="w-4 h-4" />
-            {t('settings.branding')}
+          <TabsTrigger value="pdf-design" className="gap-2 rounded-md">
+            <FileText className="w-4 h-4" />
+            {t('settings.pdfDesign.tab')}
           </TabsTrigger>
           <TabsTrigger value="appearance" className="gap-2 rounded-md">
             <Palette className="w-4 h-4" />
@@ -988,132 +1067,269 @@ export const Settings = () => {
           </div>
         </TabsContent>
 
-        {/* Branding Settings */}
-        <TabsContent value="branding" className="animate-fade-in">
-          <div className="card-elevated p-6">
-            <h3 className="text-lg font-heading font-semibold text-foreground mb-6">Branding & Logo</h3>
+        {/* PDF Design Studio */}
+        <TabsContent value="pdf-design" className="animate-fade-in">
+          <div className="flex flex-col lg:flex-row gap-6">
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Logo Upload */}
-              <div>
-                <Label className="mb-3 block">Company Logo</Label>
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                  {formData.logo ? (
-                    <div className="space-y-4">
-                      <img src={formData.logo} alt="Company logo" className="max-h-32 mx-auto" />
-                      <Button variant="outline" size="sm" onClick={handleRemoveLogo}>
-                        Remove Logo
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="w-16 h-16 rounded-lg bg-primary/10 mx-auto flex items-center justify-center">
-                        <Upload className="w-8 h-8 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Upload your logo</p>
-                        <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 2MB</p>
-                      </div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/png,image/jpeg,image/jpg"
-                        className="hidden"
-                        onChange={handleLogoUpload}
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        Choose File
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
+            {/* ── Controls panel ── */}
+            <div className="flex-1 space-y-5">
+              <div className="card-elevated p-6 space-y-5">
 
-              {/* Invoice Settings */}
-              <div className="space-y-6">
-                <div>
-                  <Label className="mb-3 block">Documents place (City)</Label>
-                  <Input
-                    placeholder="e.g., Marrakech, Casablanca..."
-                    value={formData.footerText || ''}
-                    onChange={(e) => handleInputChange('footerText', e.target.value)}
-                  />
-                </div>
-                <div className="flex items-center justify-between p-4 bg-section rounded-lg">
+                {/* Header + actions */}
+                <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-foreground">Show Logo on Invoices</p>
-                    <p className="text-sm text-muted-foreground">Display company logo on all documents</p>
+                    <h3 className="text-lg font-heading font-semibold text-foreground">{t('settings.pdfDesign.title')}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t('settings.pdfDesign.subtitle')}</p>
                   </div>
-                  <Switch checked={showLogo} onCheckedChange={setShowLogo} />
+                  <Button variant="outline" size="sm" className="gap-2" onClick={handleResetPDFDesign}>
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    {t('settings.pdfDesign.resetDefault')}
+                  </Button>
+                </div>
+
+                {/* ── Logo & Identité ── */}
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">{t('settings.pdfDesign.logoIdentity')}</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Logo upload */}
+                    <div>
+                      <Label className="text-xs mb-2 block">{t('settings.pdfDesign.companyLogo')}</Label>
+                      <div className="border-2 border-dashed border-border rounded-lg p-4 text-center">
+                        {formData.logo ? (
+                          <div className="space-y-2">
+                            <img src={formData.logo} alt="logo" className="max-h-16 mx-auto object-contain" />
+                            <Button variant="outline" size="sm" className="text-xs h-7" onClick={handleRemoveLogo}>
+                              <Trash2 className="w-3 h-3 mr-1" /> {t('settings.pdfDesign.logoRemove')}
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="w-10 h-10 rounded-lg bg-primary/10 mx-auto flex items-center justify-center">
+                              <Upload className="w-5 h-5 text-primary" />
+                            </div>
+                            <p className="text-xs text-muted-foreground">{t('settings.pdfDesign.logoHint')}</p>
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/png,image/jpeg,image/jpg"
+                              className="hidden"
+                              onChange={handleLogoUpload}
+                            />
+                            <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => fileInputRef.current?.click()}>
+                              {t('settings.pdfDesign.logoChoose')}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {/* City + show logo */}
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-xs mb-1.5 block">{t('settings.pdfDesign.city')}</Label>
+                        <Input
+                          placeholder={t('settings.pdfDesign.cityPlaceholder')}
+                          value={formData.footerText || ''}
+                          onChange={e => {
+                            handleInputChange('footerText', e.target.value);
+                            setPdfDesign(prev => ({ ...prev, footerText: e.target.value }));
+                          }}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-section rounded-lg">
+                        <div>
+                          <p className="text-xs font-medium text-foreground">{t('settings.pdfDesign.showLogo')}</p>
+                          <p className="text-[10px] text-muted-foreground">{t('settings.pdfDesign.showLogoHint')}</p>
+                        </div>
+                        <Switch
+                          checked={showLogo}
+                          onCheckedChange={v => {
+                            setShowLogo(v);
+                            setPdfDesign(prev => ({ ...prev, showLogo: v }));
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Couleurs ── */}
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">{t('settings.pdfDesign.colors')}</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    {([
+                      { labelKey: 'settings.pdfDesign.primaryColor', key: 'pdfPrimaryColor' },
+                      { labelKey: 'settings.pdfDesign.titleColor', key: 'pdfTitleColor' },
+                      { labelKey: 'settings.pdfDesign.borderColor', key: 'pdfBorderColor' },
+                      { labelKey: 'settings.pdfDesign.textColor', key: 'pdfBodyTextColor' },
+                    ] as { labelKey: string; key: keyof PDFDesignSettings }[]).map(({ labelKey, key }) => (
+                      <div key={key} className="space-y-1.5">
+                        <Label className="text-xs">{t(labelKey)}</Label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={String(pdfDesign[key])}
+                            onChange={e => setPdfDesign(prev => ({ ...prev, [key]: e.target.value }))}
+                            className="w-8 h-8 rounded cursor-pointer border border-border"
+                          />
+                          <Input
+                            value={String(pdfDesign[key])}
+                            onChange={e => setPdfDesign(prev => ({ ...prev, [key]: e.target.value }))}
+                            className="h-8 text-xs font-mono"
+                            maxLength={7}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ── Typographie ── */}
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">{t('settings.pdfDesign.typography')}</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{t('settings.pdfDesign.fontFamily')}</Label>
+                      <div className="flex gap-2">
+                        {(['Helvetica', 'Times-Roman', 'Courier'] as const).map(f => (
+                          <button
+                            key={f}
+                            onClick={() => setPdfDesign(prev => ({ ...prev, pdfFontFamily: f }))}
+                            className={cn(
+                              'flex-1 py-1.5 text-xs rounded border transition-colors',
+                              pdfDesign.pdfFontFamily === f
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-border hover:border-primary/50'
+                            )}
+                          >
+                            {f === 'Times-Roman' ? 'Times' : f}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{t('settings.pdfDesign.fontSize')} — {pdfDesign.pdfFontSize}pt</Label>
+                      <input
+                        type="range"
+                        min={8}
+                        max={13}
+                        step={1}
+                        value={pdfDesign.pdfFontSize}
+                        onChange={e => setPdfDesign(prev => ({ ...prev, pdfFontSize: Number(e.target.value) }))}
+                        className="w-full accent-primary"
+                      />
+                      <div className="flex justify-between text-[10px] text-muted-foreground">
+                        <span>8pt</span><span>13pt</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Logo ── */}
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">{t('settings.pdfDesign.logo')}</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{t('settings.pdfDesign.logoSize')}</Label>
+                      <div className="flex gap-2">
+                        {(['small', 'medium', 'large'] as const).map(s => (
+                          <button
+                            key={s}
+                            onClick={() => setPdfDesign(prev => ({ ...prev, pdfLogoSize: s }))}
+                            className={cn(
+                              'flex-1 py-1.5 text-xs rounded border capitalize transition-colors',
+                              pdfDesign.pdfLogoSize === s
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-border hover:border-primary/50'
+                            )}
+                          >
+                            {s === 'small' ? t('settings.pdfDesign.logoSizeSmall') : s === 'medium' ? t('settings.pdfDesign.logoSizeMedium') : t('settings.pdfDesign.logoSizeLarge')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{t('settings.pdfDesign.logoPosition')}</Label>
+                      <div className="flex gap-2">
+                        {(['left', 'right'] as const).map(p => (
+                          <button
+                            key={p}
+                            onClick={() => setPdfDesign(prev => ({ ...prev, pdfLogoPosition: p }))}
+                            className={cn(
+                              'flex-1 py-1.5 text-xs rounded border capitalize transition-colors',
+                              pdfDesign.pdfLogoPosition === p
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-border hover:border-primary/50'
+                            )}
+                          >
+                            {p === 'left' ? t('settings.pdfDesign.logoPositionLeft') : t('settings.pdfDesign.logoPositionRight')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Mise en page ── */}
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">{t('settings.pdfDesign.layout')}</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{t('settings.pdfDesign.tableSpacing')}</Label>
+                      <div className="flex gap-2">
+                        {(['compact', 'normal', 'spacious'] as const).map(sp => (
+                          <button
+                            key={sp}
+                            onClick={() => setPdfDesign(prev => ({ ...prev, pdfTableSpacing: sp }))}
+                            className={cn(
+                              'flex-1 py-1.5 text-xs rounded border capitalize transition-colors',
+                              pdfDesign.pdfTableSpacing === sp
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-border hover:border-primary/50'
+                            )}
+                          >
+                            {sp === 'compact' ? t('settings.pdfDesign.tableSpacingCompact') : sp === 'normal' ? t('settings.pdfDesign.tableSpacingNormal') : t('settings.pdfDesign.tableSpacingSpacious')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{t('settings.pdfDesign.showBorders')}</Label>
+                      <div className="flex items-center gap-3 pt-1">
+                        <Switch
+                          checked={pdfDesign.pdfShowBorders}
+                          onCheckedChange={v => setPdfDesign(prev => ({ ...prev, pdfShowBorders: v }))}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {pdfDesign.pdfShowBorders ? t('settings.pdfDesign.bordersOn') : t('settings.pdfDesign.bordersOff')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Save */}
+                <div className="flex justify-end pt-2">
+                  <Button className="gap-2 btn-primary-gradient" onClick={handleSavePDFDesign}>
+                    <Save className="w-4 h-4" />
+                    {t('settings.pdfDesign.saveDesign')}
+                  </Button>
                 </div>
               </div>
             </div>
 
-            {/* PDF Color Customization */}
-            <div className="mt-8 pt-6 border-t border-border">
-              <h4 className="text-md font-heading font-semibold text-foreground mb-4">PDF Document Colors</h4>
-              <p className="text-sm text-muted-foreground mb-6">Customize the colors used in your generated PDF documents.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {/* Primary Color */}
-                <div className="space-y-3">
-                  <Label className="block">Primary Color</Label>
-                  <p className="text-xs text-muted-foreground">Table headers, details box, summary section</p>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={formData.pdfPrimaryColor || '#3b82f6'}
-                      onChange={(e) => setFormData(prev => ({ ...prev, pdfPrimaryColor: e.target.value }))}
-                      className="w-12 h-10 rounded-md border border-border cursor-pointer"
-                    />
-                    <Input
-                      value={formData.pdfPrimaryColor || '#3b82f6'}
-                      onChange={(e) => setFormData(prev => ({ ...prev, pdfPrimaryColor: e.target.value }))}
-                      className="w-28 font-mono text-sm"
-                      maxLength={7}
-                    />
-                  </div>
+            {/* ── Live Preview panel ── */}
+            <div className="lg:w-[420px] shrink-0">
+              <div className="card-elevated p-4 sticky top-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <h4 className="text-sm font-semibold text-foreground">{t('settings.pdfDesign.preview')}</h4>
+                  <span className="text-xs text-muted-foreground ml-auto">{t('settings.pdfDesign.previewLabel')}</span>
                 </div>
-                {/* Title Color */}
-                <div className="space-y-3">
-                  <Label className="block">Document Title Color</Label>
-                  <p className="text-xs text-muted-foreground">Document name (e.g., FACTURE, DEVIS)</p>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={formData.pdfTitleColor || '#3b82f6'}
-                      onChange={(e) => setFormData(prev => ({ ...prev, pdfTitleColor: e.target.value }))}
-                      className="w-12 h-10 rounded-md border border-border cursor-pointer"
-                    />
-                    <Input
-                      value={formData.pdfTitleColor || '#3b82f6'}
-                      onChange={(e) => setFormData(prev => ({ ...prev, pdfTitleColor: e.target.value }))}
-                      className="w-28 font-mono text-sm"
-                      maxLength={7}
-                    />
-                  </div>
+                <div className="overflow-auto max-h-[680px]">
+                  <PDFLivePreview settings={pdfDesign} />
                 </div>
               </div>
-              <div className="mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setFormData(prev => ({ ...prev, pdfPrimaryColor: '#3b82f6', pdfTitleColor: '#3b82f6' }))}
-                  className="text-xs"
-                >
-                  Reset to Default Colors
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex justify-end mt-6">
-              <Button className="gap-2 btn-primary-gradient" onClick={handleSaveBranding}>
-                <Save className="w-4 h-4" />
-                Save Changes
-              </Button>
             </div>
           </div>
         </TabsContent>
