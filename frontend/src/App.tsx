@@ -14,6 +14,7 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 import { TreasuryProvider } from "@/contexts/TreasuryContext";
 import { SalesProvider } from "@/contexts/SalesContext";
 import { PurchasesProvider } from "@/contexts/PurchasesContext";
+import { RHProvider } from "@/contexts/RHContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RoleBasedRoute } from "@/components/RoleBasedRoute";
@@ -31,6 +32,16 @@ import { Treasury } from "./pages/Treasury";
 import { Settings } from "./pages/Settings";
 import { Login } from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import { RHDashboard } from "./pages/rh/RHDashboard";
+import { EmployeeList } from "./pages/rh/EmployeeList";
+import { EmployeeForm } from "./pages/rh/EmployeeForm";
+import { EmployeeDetail } from "./pages/rh/EmployeeDetail";
+import { PayrollList } from "./pages/rh/PayrollList";
+import { PayrollForm } from "./pages/rh/PayrollForm";
+import { LeaveManagement } from "./pages/rh/LeaveManagement";
+import { RegistrePersonnel } from "./pages/rh/RegistrePersonnel";
+import { LivreDePayePage } from "./pages/rh/LivreDePayePage";
+import { AttestationsPage } from "./pages/rh/AttestationsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,6 +71,7 @@ const App = () => (
                       <TreasuryProvider>
                         <SalesProvider>
                           <PurchasesProvider>
+                            <RHProvider>
                             <Toaster />
                             <Sonner />
                             <BrowserRouter>
@@ -81,6 +93,17 @@ const App = () => (
                                           <Route path="/tax-reports" element={<RoleBasedRoute><TaxReports /></RoleBasedRoute>} />
                                           <Route path="/treasury" element={<RoleBasedRoute><Treasury /></RoleBasedRoute>} />
                                           <Route path="/settings" element={<RoleBasedRoute><Settings /></RoleBasedRoute>} />
+                                          <Route path="/rh" element={<RoleBasedRoute><RHDashboard /></RoleBasedRoute>} />
+                                          <Route path="/rh/employes" element={<RoleBasedRoute><EmployeeList /></RoleBasedRoute>} />
+                                          <Route path="/rh/employes/nouveau" element={<RoleBasedRoute><EmployeeForm /></RoleBasedRoute>} />
+                                          <Route path="/rh/employes/:id" element={<RoleBasedRoute><EmployeeDetail /></RoleBasedRoute>} />
+                                          <Route path="/rh/employes/:id/edit" element={<RoleBasedRoute><EmployeeForm /></RoleBasedRoute>} />
+                                          <Route path="/rh/paie" element={<RoleBasedRoute><PayrollList /></RoleBasedRoute>} />
+                                          <Route path="/rh/paie/generer" element={<RoleBasedRoute><PayrollForm /></RoleBasedRoute>} />
+                                          <Route path="/rh/conges" element={<RoleBasedRoute><LeaveManagement /></RoleBasedRoute>} />
+                                          <Route path="/rh/registre" element={<RoleBasedRoute><RegistrePersonnel /></RoleBasedRoute>} />
+                                          <Route path="/rh/livre-de-paie" element={<RoleBasedRoute><LivreDePayePage /></RoleBasedRoute>} />
+                                          <Route path="/rh/attestations" element={<RoleBasedRoute><AttestationsPage /></RoleBasedRoute>} />
                                           <Route path="*" element={<NotFound />} />
                                         </Routes>
                                       </AppLayout>
@@ -89,6 +112,7 @@ const App = () => (
                                 />
                               </Routes>
                             </BrowserRouter>
+                            </RHProvider>
                           </PurchasesProvider>
                         </SalesProvider>
                       </TreasuryProvider>

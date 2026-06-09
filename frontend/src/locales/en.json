@@ -144,7 +144,15 @@
     "crm": "CRM",
     "invoicing": "Invoicing",
     "treasury": "Treasury",
-    "settings": "Settings"
+    "settings": "Settings",
+    "rh": "HR",
+    "rhDashboard": "HR Dashboard",
+    "employees": "Employees",
+    "payroll": "Payroll",
+    "leaves": "Leaves",
+    "personnelRegister": "Personnel Register",
+    "payrollBook": "Payroll Book",
+    "attestations": "Attestations"
   },
   "roles": {
     "admin": "Admin",

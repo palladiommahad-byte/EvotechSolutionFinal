@@ -146,7 +146,15 @@
     "crm": "CRM",
     "invoicing": "Facturation",
     "treasury": "Trésorerie",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "rh": "RH",
+    "rhDashboard": "Tableau de bord RH",
+    "employees": "Employés",
+    "payroll": "Fiches de Paie",
+    "leaves": "Congés",
+    "personnelRegister": "Registre Personnel",
+    "payrollBook": "Livre de Paie",
+    "attestations": "Attestations"
   },
   "roles": {
     "admin": "Administrateur",

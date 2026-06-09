@@ -12,8 +12,16 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   User,
   Wallet,
+  UserRound,
+  ClipboardList,
+  BookOpen,
+  CalendarDays,
+  ScrollText,
+  BookMarked,
+  Award,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
@@ -34,6 +42,16 @@ const getNavigationItems = (t: (key: string) => string) => [
   { name: t('nav.report'), href: '/tax-reports', icon: FileSpreadsheet, roles: ['admin', 'manager', 'accountant'] },
 ];
 
+const getRhSubItems = (t: (key: string) => string) => [
+  { name: t('nav.rhDashboard'),       href: '/rh',              icon: LayoutDashboard },
+  { name: t('nav.employees'),         href: '/rh/employes',     icon: UserRound },
+  { name: t('nav.payroll'),           href: '/rh/paie',         icon: FileText },
+  { name: t('nav.leaves'),            href: '/rh/conges',       icon: CalendarDays },
+  { name: t('nav.personnelRegister'), href: '/rh/registre',     icon: ClipboardList },
+  { name: t('nav.payrollBook'),       href: '/rh/livre-de-paie',icon: BookMarked },
+  { name: t('nav.attestations'),      href: '/rh/attestations', icon: Award },
+];
+
 const getSecondaryNavItems = (t: (key: string) => string) => [
   { name: t('nav.crm'), href: '/crm', icon: Users, roles: ['admin', 'manager'] },
   { name: t('nav.treasury'), href: '/treasury', icon: Wallet, roles: ['admin', 'manager', 'accountant'] },
@@ -44,6 +62,7 @@ export const AppSidebar = () => {
   const location = useLocation();
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
+  const [rhOpen, setRhOpen] = useState(location.pathname.startsWith('/rh'));
   const { user: authUser } = useAuth();
   const { companyInfo } = useCompany();
 
@@ -56,6 +75,7 @@ export const AppSidebar = () => {
   const allSecondaryNavItems = getSecondaryNavItems(t);
   const navigation = allNavigationItems.filter(item => item.roles.includes(userRole));
   const secondaryNav = allSecondaryNavItems.filter(item => item.roles.includes(userRole));
+  const rhSubItems = getRhSubItems(t);
 
   const displayName = authUser?.name || 'User';
   const displayRole = authUser?.role || 'staff';
@@ -167,7 +187,8 @@ export const AppSidebar = () => {
 
         {/* Secondary Navigation */}
         <div className={cn("space-y-1", collapsed ? "px-2" : "px-3")}>
-          {secondaryNav.map((item) => {
+          {/* CRM + Treasury (before RH) */}
+          {secondaryNav.slice(0, 2).map((item) => {
             const isActive = location.pathname === item.href;
             return (
               <NavLink
@@ -176,15 +197,94 @@ export const AppSidebar = () => {
                 title={collapsed ? item.name : undefined}
                 className={cn(
                   "flex items-center rounded-lg text-sm font-medium transition-all duration-200 relative group",
-                  collapsed
-                    ? "justify-center px-2 py-2.5 w-full"
-                    : "gap-3 px-3 py-2.5",
+                  collapsed ? "justify-center px-2 py-2.5 w-full" : "gap-3 px-3 py-2.5",
                   isActive
                     ? "bg-primary-foreground text-primary shadow-sm"
                     : "text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10"
                 )}
               >
-                <item.icon className={cn("flex-shrink-0", collapsed ? "w-5 h-5" : "w-5 h-5")} />
+                <item.icon className="flex-shrink-0 w-5 h-5" />
+                {!collapsed && <span className="truncate">{item.name}</span>}
+                {collapsed && (
+                  <span className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                    {item.name}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
+
+          {/* RH expandable item */}
+          {['admin', 'manager', 'accountant'].includes(userRole) && (
+            <div>
+              <button
+                onClick={() => { if (!collapsed) setRhOpen(o => !o); }}
+                title={collapsed ? t('nav.rh') : undefined}
+                className={cn(
+                  "flex items-center rounded-lg text-sm font-medium transition-all duration-200 w-full relative group",
+                  collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5",
+                  location.pathname.startsWith('/rh')
+                    ? "bg-primary-foreground text-primary shadow-sm"
+                    : "text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10"
+                )}
+              >
+                <UserRound className="flex-shrink-0 w-5 h-5" />
+                {!collapsed && (
+                  <>
+                    <span className="flex-1 text-left truncate">{t('nav.rh')}</span>
+                    <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", rhOpen && "rotate-180")} />
+                  </>
+                )}
+                {collapsed && (
+                  <span className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                    {t('nav.rh')}
+                  </span>
+                )}
+              </button>
+
+              {/* Sub-items */}
+              {!collapsed && rhOpen && (
+                <div className="mt-1 ml-3 space-y-0.5 border-l border-primary-foreground/20 pl-3">
+                  {rhSubItems.map(sub => {
+                    const isActive = location.pathname === sub.href || (sub.href !== '/rh' && location.pathname.startsWith(sub.href));
+                    return (
+                      <NavLink
+                        key={sub.href}
+                        to={sub.href}
+                        className={cn(
+                          "flex items-center gap-2 px-2 py-1.5 rounded text-xs font-medium transition-all duration-200",
+                          isActive
+                            ? "bg-primary-foreground text-primary"
+                            : "text-primary-foreground/60 hover:text-primary-foreground hover:bg-primary-foreground/10"
+                        )}
+                      >
+                        <sub.icon className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="truncate">{sub.name}</span>
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Settings (after RH) */}
+          {secondaryNav.slice(2).map((item) => {
+            const isActive = location.pathname === item.href;
+            return (
+              <NavLink
+                key={item.name}
+                to={item.href}
+                title={collapsed ? item.name : undefined}
+                className={cn(
+                  "flex items-center rounded-lg text-sm font-medium transition-all duration-200 relative group",
+                  collapsed ? "justify-center px-2 py-2.5 w-full" : "gap-3 px-3 py-2.5",
+                  isActive
+                    ? "bg-primary-foreground text-primary shadow-sm"
+                    : "text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10"
+                )}
+              >
+                <item.icon className="flex-shrink-0 w-5 h-5" />
                 {!collapsed && <span className="truncate">{item.name}</span>}
                 {collapsed && (
                   <span className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">

@@ -15,6 +15,9 @@ const rolePermissions: Record<string, string[]> = {
   staff: ['/', '/inventory', '/stock-tracking'], // Dashboard, Inventory, and Stock Tracking
 };
 
+// Prefix-based permissions (for modules with dynamic sub-routes)
+const rhAllowedRoles = ['admin', 'manager', 'accountant'];
+
 export const RoleBasedRoute = ({ children, allowedRoles, allowedPaths }: RoleBasedRouteProps) => {
   const { user, isAuthenticated, loading } = useAuth();
   const location = useLocation();
@@ -42,6 +45,14 @@ export const RoleBasedRoute = ({ children, allowedRoles, allowedPaths }: RoleBas
   // If specific allowed paths are provided, check them
   if (allowedPaths && !allowedPaths.includes(location.pathname)) {
     return <Navigate to="/" replace />;
+  }
+
+  // Allow RH module for designated roles (prefix match for dynamic sub-routes)
+  if (location.pathname.startsWith('/rh')) {
+    if (!rhAllowedRoles.includes(user.role)) {
+      return <Navigate to="/" replace />;
+    }
+    return <>{children}</>;
   }
 
   // Check role-based permissions for the current path
