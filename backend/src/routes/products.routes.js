@@ -83,15 +83,55 @@ router.get('/stock-items', asyncHandler(async (req, res) => {
  * Get stock movements
  */
 router.get('/movements', asyncHandler(async (req, res) => {
-    const { limit = 50 } = req.query;
+    const { limit = 200, type, start_date, end_date, search } = req.query;
 
+    const params = [];
+    const conditions = [];
+    let idx = 1;
+
+    if (type && type !== 'all') {
+        conditions.push(`sm.type = $${idx++}`);
+        params.push(type);
+    }
+    if (start_date) {
+        conditions.push(`sm.created_at >= $${idx++}`);
+        params.push(start_date);
+    }
+    if (end_date) {
+        conditions.push(`sm.created_at < ($${idx++}::date + INTERVAL '1 day')`);
+        params.push(end_date);
+    }
+    if (search) {
+        conditions.push(`(p.name ILIKE $${idx} OR p.sku ILIKE $${idx} OR sm.description ILIKE $${idx})`);
+        params.push(`%${search}%`);
+        idx++;
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    params.push(parseInt(limit));
     const result = await query(
-        `SELECT sm.*, p.name as product_name, p.sku as product_sku
-     FROM stock_movements sm
-     LEFT JOIN products p ON sm.product_id = p.id
-     ORDER BY sm.created_at DESC
-     LIMIT $1`,
-        [parseInt(limit)]
+        `SELECT sm.*,
+                p.name     AS product_name,
+                p.sku      AS product_sku,
+                p.category AS product_category,
+                -- Document number from whichever source document was linked
+                COALESCE(dn.document_id, po.document_id, pi.document_id) AS document_number,
+                -- Client name (from delivery note → client contact)
+                COALESCE(cc.name, cc.company)       AS client_name,
+                -- Supplier name (from delivery note supplier, purchase order, or purchase invoice)
+                COALESCE(cs.name, cs.company)       AS supplier_name
+         FROM stock_movements sm
+         LEFT JOIN products        p  ON sm.product_id  = p.id
+         LEFT JOIN delivery_notes  dn ON sm.reference_id = dn.id
+         LEFT JOIN purchase_orders po ON sm.reference_id = po.id
+         LEFT JOIN purchase_invoices pi ON sm.reference_id = pi.id
+         LEFT JOIN contacts cc ON cc.id = dn.client_id
+         LEFT JOIN contacts cs ON cs.id = COALESCE(dn.supplier_id, po.supplier_id, pi.supplier_id)
+         ${where}
+         ORDER BY sm.created_at DESC
+         LIMIT $${idx}`,
+        params
     );
 
     res.json(result.rows);

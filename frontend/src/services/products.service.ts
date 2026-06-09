@@ -45,6 +45,17 @@ export interface StockMovement {
   created_at: string;
   product_name?: string;
   product_sku?: string;
+  product_category?: string;
+  document_number?: string;
+  client_name?: string;
+  supplier_name?: string;
+}
+
+export interface MovementFilters {
+  type?: string;
+  start_date?: string;
+  end_date?: string;
+  search?: string;
 }
 
 export const productsService = {
@@ -186,9 +197,14 @@ export const productsService = {
   /**
    * Get stock movements
    */
-  async getMovements(limit = 50): Promise<StockMovement[]> {
+  async getMovements(limit = 200, filters?: MovementFilters): Promise<StockMovement[]> {
     try {
-      return await apiClient.get<StockMovement[]>(`/products/movements?limit=${limit}`);
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (filters?.type && filters.type !== 'all')   params.set('type', filters.type);
+      if (filters?.start_date)  params.set('start_date', filters.start_date);
+      if (filters?.end_date)    params.set('end_date', filters.end_date);
+      if (filters?.search)      params.set('search', filters.search);
+      return await apiClient.get<StockMovement[]>(`/products/movements?${params}`);
     } catch (error) {
       console.error('Error fetching stock movements:', error);
       return [];
