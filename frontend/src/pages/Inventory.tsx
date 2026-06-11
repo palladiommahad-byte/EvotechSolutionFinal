@@ -1,6 +1,10 @@
-import { useState, useRef, ChangeEvent } from 'react';
+import { useState, useRef, ChangeEvent, useMemo } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  PieChart, Pie,
+} from 'recharts';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Filter, Download, ArrowUpDown, Package, Eye, Edit, Trash2, FolderPlus, FileText, FileSpreadsheet, ChevronDown, Upload, X } from 'lucide-react';
+import { Plus, Search, Filter, Download, ArrowUpDown, Package, Eye, Edit, Trash2, FolderPlus, FileText, FileSpreadsheet, ChevronDown, Upload, X, TrendingUp, AlertTriangle, BarChart2, Activity, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -465,6 +469,33 @@ export const Inventory = () => {
     }
   };
 
+  // ── Inventory KPI & chart data ─────────────────────────────────────────
+  const inStockCount   = products.filter(p => { const s = getProductStock(p.id); return s > 0 && s >= (p.minStock || 0); }).length;
+  const lowStockCount  = products.filter(p => { const s = getProductStock(p.id); return s > 0 && s < (p.minStock || 0); }).length;
+  const outStockCount  = products.filter(p => getProductStock(p.id) === 0).length;
+  const totalInventoryValue = products.reduce((acc, p) => acc + p.price * getProductStock(p.id), 0);
+  const alertCount = lowStockCount + outStockCount;
+
+  const categoryBarData = useMemo(() => {
+    const colors = ['#6366f1','#8b5cf6','#a78bfa','#06b6d4','#3b82f6','#10b981','#f59e0b','#f97316'];
+    return allCategories
+      .map((cat, i) => ({
+        name: cat.length > 14 ? cat.slice(0, 13) + '…' : cat,
+        stock: products.filter(prd => prd.category === cat).reduce((s, prd) => s + getProductStock(prd.id), 0),
+        color: colors[i % colors.length],
+      }))
+      .filter(d => d.stock > 0)
+      .sort((a, b) => b.stock - a.stock)
+      .slice(0, 8);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products, allCategories, stockItems, activeWarehouse]);
+
+  const statusPieData = [
+    { name: 'En stock',     value: inStockCount,  color: '#10b981' },
+    { name: 'Stock faible', value: lowStockCount, color: '#f59e0b' },
+    { name: 'Rupture',      value: outStockCount, color: '#ef4444' },
+  ].filter(d => d.value > 0);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -538,6 +569,133 @@ export const Inventory = () => {
             <Plus className="w-4 h-4" />
             {t('inventory.addProduct')}
           </Button>
+        </div>
+      </div>
+
+      {/* Statistics */}
+      <div className="space-y-4">
+        {/* KPI row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="card-elevated p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-primary/10 flex-shrink-0">
+                <Package className="w-5 h-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-2xl font-bold text-foreground leading-none">{products.length}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total articles</p>
+              </div>
+            </div>
+          </div>
+          <div className="card-elevated p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-emerald-500/10 flex-shrink-0">
+                <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-base font-bold text-foreground leading-none truncate">{formatMAD(totalInventoryValue)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Valeur du stock</p>
+              </div>
+            </div>
+          </div>
+          <div className="card-elevated p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-emerald-500/10 flex-shrink-0">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 leading-none">{inStockCount}</p>
+                <p className="text-xs text-muted-foreground mt-1">En stock</p>
+              </div>
+            </div>
+          </div>
+          <div className="card-elevated p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-amber-500/10 flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 leading-none">{alertCount}</p>
+                <p className="text-xs text-muted-foreground mt-1">En alerte</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Charts row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Bar chart — stock by category */}
+          <div className="lg:col-span-2 card-elevated p-5">
+            <p className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+              <BarChart2 className="w-4 h-4 text-primary" />
+              Stock par catégorie
+            </p>
+            {categoryBarData.length > 0 ? (
+              <div style={{ height: 220 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={categoryBarData} layout="vertical" margin={{ top: 0, right: 24, left: 4, bottom: 0 }}>
+                    <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={95} />
+                    <Tooltip
+                      cursor={{ fill: 'rgba(99,102,241,0.06)' }}
+                      contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))', fontSize: 12 }}
+                      formatter={(v) => [`${v} unités`, 'Stock']}
+                    />
+                    <Bar dataKey="stock" radius={[0, 4, 4, 0]}>
+                      {categoryBarData.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">Aucune donnée disponible</div>
+            )}
+          </div>
+
+          {/* Donut chart — status distribution */}
+          <div className="card-elevated p-5">
+            <p className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" />
+              Répartition du statut
+            </p>
+            {statusPieData.length > 0 ? (
+              <div className="flex items-center justify-center gap-3" style={{ height: 220 }}>
+                <PieChart width={130} height={130}>
+                  <Pie
+                    data={statusPieData}
+                    cx={65}
+                    cy={65}
+                    innerRadius={36}
+                    outerRadius={58}
+                    paddingAngle={4}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {statusPieData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))', fontSize: 12 }}
+                    formatter={(v, name) => [`${v} articles`, name]}
+                  />
+                </PieChart>
+                <div className="flex flex-col gap-3">
+                  {statusPieData.map((entry, i) => (
+                    <div key={i} className="flex items-center gap-2 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: entry.color }} />
+                      <span className="text-xs text-muted-foreground">{entry.name}</span>
+                      <span className="text-xs font-bold text-foreground ml-auto pl-2">{entry.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">Aucune donnée disponible</div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -739,81 +897,100 @@ export const Inventory = () => {
       </div>
 
       {/* Data Table */}
-      <div className="bg-white dark:bg-card rounded-lg shadow-sm border border-border">
-        <Accordion type="multiple" defaultValue={categoryFilter === 'all' ? allCategories : [categoryFilter]} className="w-full">
+      <div className="space-y-3">
+        <Accordion type="multiple" defaultValue={categoryFilter === 'all' ? allCategories : [categoryFilter]} className="w-full space-y-3">
           {(categoryFilter === 'all' ? allCategories : [categoryFilter]).map((category) => {
             const categoryProducts = filteredProducts.filter(p => p.category === category);
+            const catInStock   = categoryProducts.filter(p => { const s = getProductStock(p.id); return s > 0 && s >= (p.minStock || 0); }).length;
+            const catAlert     = categoryProducts.filter(p => { const s = getProductStock(p.id); return s === 0 || s < (p.minStock || 0); }).length;
+            const catAllOut    = catInStock === 0 && catAlert === categoryProducts.length && categoryProducts.length > 0;
+            const accentColor  = catAlert === 0 ? '#10b981' : catAllOut ? '#ef4444' : '#f59e0b';
 
-            // If searching or filtering by status/age, and no products match in this category, 
+            // If searching or filtering by status/age, and no products match in this category,
             // we typically hide the category. However, user requested "show as dropdown even if it empty".
             // If categoryFilter is specific, we ALWAYS show it.
             // If categoryFilter is 'all', we show it if it has products OR if search/filters are empty?
             // User said: "if uuser create a category it shouuld show as dropdown even if it empty"
             // Let's go with: Always show if categoryFilter is specific.
-            // If 'all', and search is active, hide empty ones? 
-            // Decision: To satisfy "show ... even if it empty", we show it. 
+            // If 'all', and search is active, hide empty ones?
+            // Decision: To satisfy "show ... even if it empty", we show it.
             // But showing 20 empty categories when searching for "Apple" is bad UX.
             // Compromise: If searchQuery is present, hide empty categories. If no search query, show all.
             if (searchQuery && categoryProducts.length === 0) return null;
 
             return (
-              <AccordionItem key={category} value={category} className="border rounded-lg mb-4 overflow-hidden">
-                <AccordionTrigger className="hover:no-underline px-4 py-3 bg-muted/50 hover:bg-muted/70 transition-colors data-[state=open]:bg-primary/5 data-[state=open]:text-primary mb-0">
+              <AccordionItem key={category} value={category} className="border border-border rounded-xl overflow-hidden shadow-sm" style={{ borderLeftWidth: 4, borderLeftColor: accentColor }}>
+                <AccordionTrigger className="hover:no-underline px-4 py-3 bg-muted/40 hover:bg-muted/60 transition-colors data-[state=open]:bg-primary/5 data-[state=open]:border-b data-[state=open]:border-border mb-0">
                   <div className="flex items-center gap-3 flex-1">
-                    <div className="p-2 rounded-md bg-white dark:bg-card shadow-sm">
-                      {category === 'Uncategorized' ? <Package className="w-4 h-4" /> : <FolderPlus className="w-4 h-4" />}
+                    <div className="p-2 rounded-lg bg-background shadow-sm border border-border">
+                      {category === 'Uncategorized' ? <Package className="w-4 h-4 text-muted-foreground" /> : <FolderPlus className="w-4 h-4 text-primary" />}
                     </div>
-                    <span className="font-semibold text-lg tracking-tight">{category}</span>
-                    <Badge variant="secondary" className="ml-2 font-mono">
+                    <span className="font-semibold text-base tracking-tight">{category}</span>
+                    <Badge variant="secondary" className="ml-1 font-mono text-xs">
                       {categoryProducts.length}
                     </Badge>
+                    {categoryProducts.length > 0 && (
+                      <div className="flex items-center gap-2 ml-2">
+                        {catInStock > 0 && (
+                          <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            {catInStock}
+                          </span>
+                        )}
+                        {catAlert > 0 && (
+                          <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            {catAlert}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     {category !== 'Uncategorized' && (
                       <div className="ml-auto flex items-center gap-1 mr-2" onClick={e => e.stopPropagation()}>
                         <button
-                          className="p-1.5 rounded bg-success/10 text-success hover:bg-success/20 transition-colors"
+                          className="p-1.5 rounded-md bg-success/10 text-success hover:bg-success/20 transition-colors"
                           title="Renommer"
                           onClick={() => { setRenamingCategory(category); setRenameValue(category); }}
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          className="p-1.5 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+                          className="p-1.5 rounded-md bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
                           title="Supprimer"
                           onClick={() => setDeletingCategory(category)}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     )}
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="px-0 pb-0">
-                  {/* Vertical Scroll for > 6 items (approx 50px per row * 6 = 300px + header) */}
-                  <div className="border-t max-h-[400px] overflow-y-auto">
+                  <div className="border-t border-border max-h-[420px] overflow-y-auto">
                     <Table>
-                      <TableHeader className="bg-muted/5 sticky top-0 z-10 backdrop-blur-sm">
-                        <TableRow>
-                          <TableHead className="w-[40px]">
+                      <TableHeader className="bg-muted/30 sticky top-0 z-10">
+                        <TableRow className="hover:bg-transparent border-b border-border">
+                          <TableHead className="w-[40px] py-2">
                             <Checkbox
                               checked={categoryProducts.length > 0 && categoryProducts.every(p => selectedProducts.has(p.id))}
                               onCheckedChange={() => handleSelectCategory(categoryProducts.map(p => p.id))}
                               aria-label="Select all in category"
                             />
                           </TableHead>
-                          <TableHead className="min-w-[100px]">{t('inventory.sku')}</TableHead>
-                          <TableHead className="min-w-[200px]">{t('inventory.productName')}</TableHead>
-                          <TableHead className="min-w-[120px]">{t('inventory.category')}</TableHead>
-                          <TableHead className="text-center">{t('common.quantity')}</TableHead>
-                          <TableHead className="text-center">{t('inventory.minStock')}</TableHead>
-                          <TableHead className="text-right">{t('inventory.unitPrice')}</TableHead>
-                          <TableHead className="text-center">{t('common.status')}</TableHead>
-                          <TableHead className="text-center">{t('common.actions')}</TableHead>
+                          <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground min-w-[100px]">{t('inventory.sku')}</TableHead>
+                          <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground min-w-[200px]">{t('inventory.productName')}</TableHead>
+                          <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground min-w-[100px]">{t('inventory.category')}</TableHead>
+                          <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.quantity')}</TableHead>
+                          <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('inventory.minStock')}</TableHead>
+                          <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">{t('inventory.unitPrice')}</TableHead>
+                          <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.status')}</TableHead>
+                          <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.actions')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {categoryProducts.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={9} className="h-24 text-center"> {/* Updated colSpan to 9 */}
+                            <TableCell colSpan={9} className="h-24 text-center">
                               <div className="flex flex-col items-center justify-center text-muted-foreground">
                                 <Package className="w-8 h-8 mb-2 opacity-50" />
                                 <p>{t('common.noData')}</p>
@@ -821,61 +998,78 @@ export const Inventory = () => {
                             </TableCell>
                           </TableRow>
                         ) : (
-                          categoryProducts.map((product) => (
-                            <TableRow key={product.id} data-state={selectedProducts.has(product.id) && "selected"}>
-                              <TableCell>
-                                <Checkbox
-                                  checked={selectedProducts.has(product.id)}
-                                  onCheckedChange={() => handleSelectProduct(product.id)}
-                                  aria-label={`Select ${product.name}`}
-                                />
-                              </TableCell>
-                              <TableCell className="font-mono text-sm" title={product.sku}>{product.sku}</TableCell>
-                              <TableCell className="font-medium" title={product.name}>{product.name}</TableCell>
-                              <TableCell className="text-muted-foreground" title={product.category}>{product.category}</TableCell>
-                              <TableCell className="text-center font-medium number-cell">
-                                {getProductStock(product.id)} {t(`unit.${(product.unit || 'Piece').toLowerCase()}`)}
-                              </TableCell>
-                              <TableCell className="text-center text-muted-foreground number-cell">
-                                {product.minStock} {t(`unit.${(product.unit || 'Piece').toLowerCase()}`)}
-                              </TableCell>
-                              <TableCell className="text-right font-medium number-cell">
-                                <CurrencyDisplay amount={product.price} />
-                              </TableCell>
-                              <TableCell className="text-center">{getStatusBadge(product.status)}</TableCell>
-                              <TableCell className="w-[120px]">
-                                <div className="flex items-center justify-center gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() => handleViewProduct(product)}
-                                    title={t('inventory.viewProduct')}
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() => handleEditProduct(product)}
-                                    title={t('inventory.editProduct')}
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-destructive hover:text-destructive"
-                                    onClick={() => handleDeleteProduct(product)}
-                                    title={t('inventory.deleteProduct')}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))
+                          categoryProducts.map((product) => {
+                            const qtyStock = getProductStock(product.id);
+                            const qtyColor = qtyStock === 0
+                              ? 'text-red-600 dark:text-red-400 font-bold'
+                              : qtyStock < (product.minStock || 0)
+                              ? 'text-amber-600 dark:text-amber-400 font-semibold'
+                              : 'text-emerald-600 dark:text-emerald-400 font-semibold';
+                            const sDot = product.status === 'in_stock'
+                              ? { dot: 'bg-emerald-500', cls: 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800' }
+                              : product.status === 'low_stock'
+                              ? { dot: 'bg-amber-500', cls: 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800' }
+                              : { dot: 'bg-red-500', cls: 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800' };
+                            const sLabel = product.status === 'in_stock' ? t('inventory.inStock') : product.status === 'low_stock' ? t('inventory.lowStock') : t('inventory.outOfStock');
+                            return (
+                              <TableRow key={product.id} data-state={selectedProducts.has(product.id) && "selected"} className="hover:bg-muted/20 transition-colors">
+                                <TableCell className="py-2.5">
+                                  <Checkbox
+                                    checked={selectedProducts.has(product.id)}
+                                    onCheckedChange={() => handleSelectProduct(product.id)}
+                                    aria-label={`Select ${product.name}`}
+                                  />
+                                </TableCell>
+                                <TableCell className="py-2.5">
+                                  <span className="inline-block bg-muted/60 border border-border/50 rounded px-2 py-0.5 font-mono text-xs text-foreground/80" title={product.sku}>{product.sku}</span>
+                                </TableCell>
+                                <TableCell className="py-2.5 font-semibold text-sm" title={product.name}>{product.name}</TableCell>
+                                <TableCell className="py-2.5">
+                                  <span className="text-xs text-muted-foreground bg-muted/40 px-2 py-0.5 rounded-full" title={product.category}>{product.category}</span>
+                                </TableCell>
+                                <TableCell className={`py-2.5 text-center tabular-nums text-sm ${qtyColor}`}>
+                                  {qtyStock} <span className="text-xs font-normal opacity-70">{t(`unit.${(product.unit || 'Piece').toLowerCase()}`)}</span>
+                                </TableCell>
+                                <TableCell className="py-2.5 text-center text-muted-foreground text-sm tabular-nums">
+                                  {product.minStock} <span className="text-xs opacity-70">{t(`unit.${(product.unit || 'Piece').toLowerCase()}`)}</span>
+                                </TableCell>
+                                <TableCell className="py-2.5 text-right font-semibold text-sm tabular-nums">
+                                  <CurrencyDisplay amount={product.price} />
+                                </TableCell>
+                                <TableCell className="py-2.5 text-center">
+                                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${sDot.cls}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sDot.dot}`} />
+                                    {sLabel}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="py-2.5 w-[108px]">
+                                  <div className="flex items-center justify-center gap-0.5">
+                                    <button
+                                      className="p-1.5 rounded-md text-sky-500 hover:bg-sky-50 dark:hover:bg-sky-950/40 hover:text-sky-600 transition-colors"
+                                      onClick={() => handleViewProduct(product)}
+                                      title={t('inventory.viewProduct')}
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      className="p-1.5 rounded-md text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 transition-colors"
+                                      onClick={() => handleEditProduct(product)}
+                                      title={t('inventory.editProduct')}
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      className="p-1.5 rounded-md text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 transition-colors"
+                                      onClick={() => handleDeleteProduct(product)}
+                                      title={t('inventory.deleteProduct')}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
                         )}
                       </TableBody>
                     </Table>
@@ -887,50 +1081,38 @@ export const Inventory = () => {
         </Accordion>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="card-elevated p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-success/10">
-            <Package className="w-5 h-5 text-success" />
-          </div>
+      {/* Filtered summary footer */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="flex items-center gap-3 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-3">
+          <div className="w-1 self-stretch rounded-full bg-emerald-500 flex-shrink-0" />
           <div>
-            <p className="text-2xl font-heading font-bold text-foreground">
-              {products.filter(p => {
-                const stock = getProductStock(p.id);
-                return stock > 0 && stock >= p.minStock;
-              }).length}
+            <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
+              {filteredProducts.filter(p => { const s = getProductStock(p.id); return s > 0 && s >= (p.minStock || 0); }).length}
             </p>
-            <p className="text-sm text-muted-foreground">
-              {t('inventory.inStock')} {!isAllWarehouses ? `(${warehouseInfo?.city})` : `(${t('common.all')})`}
+            <p className="text-xs text-emerald-600 dark:text-emerald-500">
+              {t('inventory.inStock')} {!isAllWarehouses ? `· ${warehouseInfo?.city}` : ''}
             </p>
           </div>
         </div>
-        <div className="card-elevated p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-warning/10">
-            <Package className="w-5 h-5 text-warning" />
-          </div>
+        <div className="flex items-center gap-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-4 py-3">
+          <div className="w-1 self-stretch rounded-full bg-amber-500 flex-shrink-0" />
           <div>
-            <p className="text-2xl font-heading font-bold text-foreground">
-              {products.filter(p => {
-                const stock = getProductStock(p.id);
-                return stock > 0 && stock < p.minStock;
-              }).length}
+            <p className="text-xl font-bold text-amber-700 dark:text-amber-400">
+              {filteredProducts.filter(p => { const s = getProductStock(p.id); return s > 0 && s < (p.minStock || 0); }).length}
             </p>
-            <p className="text-sm text-muted-foreground">
-              {t('inventory.lowStock')} {!isAllWarehouses ? `(${warehouseInfo?.city})` : `(${t('common.all')})`}
+            <p className="text-xs text-amber-600 dark:text-amber-500">
+              {t('inventory.lowStock')} {!isAllWarehouses ? `· ${warehouseInfo?.city}` : ''}
             </p>
           </div>
         </div>
-        <div className="card-elevated p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-destructive/10">
-            <Package className="w-5 h-5 text-destructive" />
-          </div>
+        <div className="flex items-center gap-3 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-4 py-3">
+          <div className="w-1 self-stretch rounded-full bg-red-500 flex-shrink-0" />
           <div>
-            <p className="text-2xl font-heading font-bold text-foreground">
-              {products.filter(p => getProductStock(p.id) === 0).length}
+            <p className="text-xl font-bold text-red-700 dark:text-red-400">
+              {filteredProducts.filter(p => getProductStock(p.id) === 0).length}
             </p>
-            <p className="text-sm text-muted-foreground">
-              {t('inventory.outOfStock')} {!isAllWarehouses ? `(${warehouseInfo?.city})` : `(${t('common.all')})`}
+            <p className="text-xs text-red-600 dark:text-red-500">
+              {t('inventory.outOfStock')} {!isAllWarehouses ? `· ${warehouseInfo?.city}` : ''}
             </p>
           </div>
         </div>
@@ -1154,7 +1336,7 @@ export const Inventory = () => {
                     <Label htmlFor="edit-unit">{t('inventory.unit')}</Label>
                     <div className="flex gap-2">
                       <Select
-                        value={(editFormData.unit && productUnits.includes(editFormData.unit as any)) ? editFormData.unit : 'Custom'}
+                        value={(editFormData.unit && productUnits.includes(editFormData.unit as typeof productUnits[number])) ? editFormData.unit : 'Custom'}
                         onValueChange={(value) => {
                           if (value === 'Custom') {
                             setEditFormData({ ...editFormData, unit: '' });
@@ -1163,7 +1345,7 @@ export const Inventory = () => {
                           }
                         }}
                       >
-                        <SelectTrigger id="edit-unit" className={!(editFormData.unit && productUnits.includes(editFormData.unit as any)) ? "w-[120px]" : "w-full"}>
+                        <SelectTrigger id="edit-unit" className={!(editFormData.unit && productUnits.includes(editFormData.unit as typeof productUnits[number])) ? "w-[120px]" : "w-full"}>
                           <SelectValue placeholder={t('inventory.unit')} />
                         </SelectTrigger>
                         <SelectContent>
@@ -1173,7 +1355,7 @@ export const Inventory = () => {
                           <SelectItem value="Custom">Autre</SelectItem>
                         </SelectContent>
                       </Select>
-                      {!(editFormData.unit && productUnits.includes(editFormData.unit as any)) && (
+                      {!(editFormData.unit && productUnits.includes(editFormData.unit as typeof productUnits[number])) && (
                         <Input
                           placeholder={t('common.custom') || 'Unité custom'}
                           value={editFormData.unit || ''}
@@ -1406,7 +1588,7 @@ export const Inventory = () => {
                 <Label htmlFor="new-unit">{t('inventory.unit')}</Label>
                 <div className="flex gap-2">
                   <Select
-                    value={(newProductData.unit && productUnits.includes(newProductData.unit as any)) ? newProductData.unit : 'Custom'}
+                    value={(newProductData.unit && productUnits.includes(newProductData.unit as typeof productUnits[number])) ? newProductData.unit : 'Custom'}
                     onValueChange={(value) => {
                       if (value === 'Custom') {
                         setNewProductData({ ...newProductData, unit: '' });
@@ -1415,7 +1597,7 @@ export const Inventory = () => {
                       }
                     }}
                   >
-                    <SelectTrigger id="new-unit" className={!(newProductData.unit && productUnits.includes(newProductData.unit as any)) ? "w-[120px]" : "w-full"}>
+                    <SelectTrigger id="new-unit" className={!(newProductData.unit && productUnits.includes(newProductData.unit as typeof productUnits[number])) ? "w-[120px]" : "w-full"}>
                       <SelectValue placeholder={t('inventory.unit')} />
                     </SelectTrigger>
                     <SelectContent>
@@ -1425,7 +1607,7 @@ export const Inventory = () => {
                       <SelectItem value="Custom">Autre</SelectItem>
                     </SelectContent>
                   </Select>
-                  {!(newProductData.unit && productUnits.includes(newProductData.unit as any)) && (
+                  {!(newProductData.unit && productUnits.includes(newProductData.unit as typeof productUnits[number])) && (
                     <Input
                       placeholder={t('common.custom') || 'Unité custom'}
                       value={newProductData.unit || ''}

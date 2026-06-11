@@ -1571,24 +1571,31 @@ export const Purchases = () => {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="kpi-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <ShoppingCart className="w-5 h-5 text-primary" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1 — Purchase Orders (sky) */}
+        <div className="relative overflow-hidden rounded-xl border border-border/80 bg-card p-5 shadow-sm hover:shadow-md transition-all duration-200 hover:border-sky-200/70 dark:hover:border-sky-800/40 group">
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-sky-500 rounded-l-xl" />
+          <div className="absolute inset-0 bg-gradient-to-br from-sky-500/[0.04] to-transparent pointer-events-none" />
+          <div className="flex items-center gap-3 pl-2">
+            <div className="p-2.5 rounded-xl bg-sky-500/10 group-hover:bg-sky-500/[0.15] transition-colors shrink-0">
+              <ShoppingCart className="w-5 h-5 text-sky-600 dark:text-sky-400" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xl sm:text-2xl font-heading font-bold text-foreground break-words overflow-visible whitespace-normal leading-tight">{purchaseOrders.length}</p>
               <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground line-clamp-1" title={t('documents.purchaseOrder')}>{t('documents.purchaseOrder')}</p>
             </div>
           </div>
         </div>
-        <div className="kpi-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-warning/10">
-              <Package className="w-5 h-5 text-warning" />
+
+        {/* Card 2 — Pending Orders (amber) */}
+        <div className="relative overflow-hidden rounded-xl border border-border/80 bg-card p-5 shadow-sm hover:shadow-md transition-all duration-200 hover:border-amber-200/70 dark:hover:border-amber-800/40 group">
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-amber-500 rounded-l-xl" />
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.04] to-transparent pointer-events-none" />
+          <div className="flex items-center gap-3 pl-2">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 group-hover:bg-amber-500/[0.15] transition-colors shrink-0">
+              <Package className="w-5 h-5 text-amber-600 dark:text-amber-400" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xl sm:text-2xl font-heading font-bold text-foreground break-words overflow-visible whitespace-normal leading-tight">
                 {purchaseOrders.filter(o => o.status === 'pending').length}
               </p>
@@ -1596,12 +1603,16 @@ export const Purchases = () => {
             </div>
           </div>
         </div>
-        <div className="kpi-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-info/10">
-              <FileText className="w-5 h-5 text-info" />
+
+        {/* Card 3 — Delivery Notes (indigo) */}
+        <div className="relative overflow-hidden rounded-xl border border-border/80 bg-card p-5 shadow-sm hover:shadow-md transition-all duration-200 hover:border-indigo-200/70 dark:hover:border-indigo-800/40 group">
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-indigo-500 rounded-l-xl" />
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/[0.04] to-transparent pointer-events-none" />
+          <div className="flex items-center gap-3 pl-2">
+            <div className="p-2.5 rounded-xl bg-indigo-500/10 group-hover:bg-indigo-500/[0.15] transition-colors shrink-0">
+              <FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xl sm:text-2xl font-heading font-bold text-foreground break-words overflow-visible whitespace-normal leading-tight">
                 {deliveryNotes.length}
               </p>
@@ -1609,12 +1620,16 @@ export const Purchases = () => {
             </div>
           </div>
         </div>
-        <div className="kpi-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-success/10">
-              <ShoppingCart className="w-5 h-5 text-success" />
+
+        {/* Card 4 — Pending Value (emerald) */}
+        <div className="relative overflow-hidden rounded-xl border border-border/80 bg-card p-5 shadow-sm hover:shadow-md transition-all duration-200 hover:border-emerald-200/70 dark:hover:border-emerald-800/40 group">
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-500 rounded-l-xl" />
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.04] to-transparent pointer-events-none" />
+          <div className="flex items-center gap-3 pl-2">
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/[0.15] transition-colors shrink-0">
+              <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xl sm:text-2xl font-heading font-bold text-foreground break-words overflow-visible whitespace-normal leading-tight">{formatMAD(totalPending)}</p>
               <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground line-clamp-1" title={t('purchases.pendingValue')}>{t('purchases.pendingValue')}</p>
             </div>
@@ -1623,33 +1638,41 @@ export const Purchases = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="bg-section border border-border rounded-lg grid grid-cols-4 w-full p-1.5 gap-1.5">
+        <TabsList className="flex overflow-x-auto bg-muted/20 border border-border/60 rounded-2xl w-full p-1.5 gap-1 h-auto">
           <TabsTrigger
             value="purchase_order"
-            className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+            className="flex-1 min-w-[130px] gap-2 rounded-xl whitespace-nowrap py-2 text-sm font-medium
+                       text-muted-foreground hover:text-foreground transition-all
+                       data-[state=active]:bg-sky-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:font-semibold"
           >
-            <ShoppingCart className="w-4 h-4" />
+            <ShoppingCart className="w-4 h-4 shrink-0" />
             {t('documents.purchaseOrder')}
           </TabsTrigger>
           <TabsTrigger
             value="delivery_note"
-            className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+            className="flex-1 min-w-[130px] gap-2 rounded-xl whitespace-nowrap py-2 text-sm font-medium
+                       text-muted-foreground hover:text-foreground transition-all
+                       data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:font-semibold"
           >
-            <Package className="w-4 h-4" />
+            <Package className="w-4 h-4 shrink-0" />
             {t('documents.deliveryNote')}
           </TabsTrigger>
           <TabsTrigger
             value="invoice"
-            className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+            className="flex-1 min-w-[130px] gap-2 rounded-xl whitespace-nowrap py-2 text-sm font-medium
+                       text-muted-foreground hover:text-foreground transition-all
+                       data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:font-semibold"
           >
-            <Receipt className="w-4 h-4" />
+            <Receipt className="w-4 h-4 shrink-0" />
             {t('documents.purchaseInvoice')}
           </TabsTrigger>
           <TabsTrigger
             value="statement"
-            className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+            className="flex-1 min-w-[110px] gap-2 rounded-xl whitespace-nowrap py-2 text-sm font-medium
+                       text-muted-foreground hover:text-foreground transition-all
+                       data-[state=active]:bg-slate-700 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:font-semibold"
           >
-            <FileCheck className="w-4 h-4" />
+            <FileCheck className="w-4 h-4 shrink-0" />
             {t('documents.statement')}
           </TabsTrigger>
         </TabsList>
@@ -1930,8 +1953,8 @@ export const Purchases = () => {
                   <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
-                      <TableRow className="data-table-header hover:bg-section">
-                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center">
+                      <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
+                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center py-2">
                           <div className="flex items-center justify-center w-full">
                             <Checkbox
                               checked={filteredDocuments.length > 0 && selectedDocuments.size === filteredDocuments.length}
@@ -1940,13 +1963,13 @@ export const Purchases = () => {
                             />
                           </div>
                         </TableHead>
-                        <TableHead>{t('documents.orderNumber')}</TableHead>
-                        <TableHead>{t('documents.supplier')}</TableHead>
-                        <TableHead>{t('common.date')}</TableHead>
-                        <TableHead className="text-center">{t('documents.items')}</TableHead>
-                        <TableHead className="text-right">{t('documents.totalTTC')}</TableHead>
-                        <TableHead className="text-center">{t('common.status')}</TableHead>
-                        <TableHead className="text-center">{t('common.actions')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('documents.orderNumber')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('documents.supplier')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('common.date')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('documents.items')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">{t('documents.totalTTC')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.status')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1961,11 +1984,11 @@ export const Purchases = () => {
                           <TableRow
                             key={order.id}
                             className={cn(
-                              "hover:bg-section/50",
+                              "hover:bg-muted/20 transition-colors",
                               selectedDocuments.has(order.id) && "bg-primary/5"
                             )}
                           >
-                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center">
+                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center py-2.5">
                               <div className="flex items-center justify-center w-full">
                                 <Checkbox
                                   checked={selectedDocuments.has(order.id)}
@@ -1974,20 +1997,22 @@ export const Purchases = () => {
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono font-medium max-w-[120px] truncate" title={order.id}>{order.id}</TableCell>
-                            <TableCell className="max-w-[200px] truncate" title={order.supplier}>{order.supplier}</TableCell>
-                            <TableCell className="max-w-[120px] truncate" title={formatDate(order.date)}>{formatDate(order.date)}</TableCell>
-                            <TableCell className="text-center number-cell">{Array.isArray(order.items) ? order.items.length : 0}</TableCell>
-                            <TableCell className="text-right font-medium number-cell">{formatMAD(order.total)}</TableCell>
-                            <TableCell className="text-center">
+                            <TableCell className="max-w-[160px] py-2.5" title={order.id}>
+                              <span className="inline-block bg-muted/60 border border-border/50 rounded px-2 py-0.5 font-mono text-xs text-foreground/80 truncate">{order.id}</span>
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate py-2.5 font-medium text-sm" title={order.supplier}>{order.supplier}</TableCell>
+                            <TableCell className="max-w-[120px] truncate py-2.5 text-sm text-muted-foreground" title={formatDate(order.date)}>{formatDate(order.date)}</TableCell>
+                            <TableCell className="text-center number-cell py-2.5 text-sm">{Array.isArray(order.items) ? order.items.length : 0}</TableCell>
+                            <TableCell className="text-right font-semibold number-cell py-2.5">{formatMAD(order.total)}</TableCell>
+                            <TableCell className="text-center py-2.5">
                               {renderStatusSelect(order)}
                             </TableCell>
-                            <TableCell className="w-[180px]">
-                              <div className="flex items-center justify-center gap-1">
+                            <TableCell className="w-[180px] py-2.5">
+                              <div className="flex items-center justify-center gap-0.5">
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
                                   onClick={() => handleViewDocument(order)}
                                   title={t('common.view')}
                                 >
@@ -1996,7 +2021,7 @@ export const Purchases = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40"
                                   onClick={() => handleEditDocument(order)}
                                   title={t('common.edit')}
                                 >
@@ -2005,7 +2030,7 @@ export const Purchases = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handleDownloadPDF(order)}
                                   title={t('documents.downloadPDF')}
                                 >
@@ -2014,7 +2039,7 @@ export const Purchases = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handlePrintPDF(order)}
                                   title={t('common.print', { defaultValue: 'Print' })}
                                 >
@@ -2023,7 +2048,7 @@ export const Purchases = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
                                   onClick={() => handleDeleteDocument(order)}
                                   title={t('common.delete')}
                                 >
@@ -2457,8 +2482,8 @@ export const Purchases = () => {
                   <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
-                      <TableRow className="data-table-header hover:bg-section">
-                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center">
+                      <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
+                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center py-2">
                           <div className="flex items-center justify-center w-full">
                             <Checkbox
                               checked={filteredDocuments.length > 0 && selectedDocuments.size === filteredDocuments.length}
@@ -2467,14 +2492,14 @@ export const Purchases = () => {
                             />
                           </div>
                         </TableHead>
-                        <TableHead>{t('documents.noteNumber')}</TableHead>
-                        <TableHead>{t('documents.supplier')}</TableHead>
-                        <TableHead>{t('common.date')}</TableHead>
-                        <TableHead className="text-center">{t('documents.items')}</TableHead>
-                        <TableHead className="text-right">{t('documents.totalTTC')}</TableHead>
-                        <TableHead className="text-center">{t('common.status')}</TableHead>
-                        <TableHead className="text-center">Facturation</TableHead>
-                        <TableHead className="text-center">{t('common.actions')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('documents.noteNumber')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('documents.supplier')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('common.date')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('documents.items')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">{t('documents.totalTTC')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.status')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">Facturation</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -2491,11 +2516,11 @@ export const Purchases = () => {
                           <TableRow
                             key={doc.id}
                             className={cn(
-                              "hover:bg-section/50",
+                              "hover:bg-muted/20 transition-colors",
                               selectedDocuments.has(doc.id) && "bg-primary/5"
                             )}
                           >
-                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center">
+                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center py-2.5">
                               <div className="flex items-center justify-center w-full">
                                 <Checkbox
                                   checked={selectedDocuments.has(doc.id)}
@@ -2505,25 +2530,27 @@ export const Purchases = () => {
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono font-medium max-w-[120px] truncate" title={doc.id}>{doc.id}</TableCell>
-                            <TableCell className="max-w-[200px] truncate" title={doc.supplier}>{doc.supplier}</TableCell>
-                            <TableCell className="max-w-[120px] truncate" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
-                            <TableCell className="text-center number-cell">{Array.isArray(doc.items) ? doc.items.length : 0}</TableCell>
-                            <TableCell className="text-right font-medium number-cell">
+                            <TableCell className="max-w-[160px] py-2.5" title={doc.id}>
+                              <span className="inline-block bg-muted/60 border border-border/50 rounded px-2 py-0.5 font-mono text-xs text-foreground/80 truncate">{doc.id}</span>
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate py-2.5 font-medium text-sm" title={doc.supplier}>{doc.supplier}</TableCell>
+                            <TableCell className="max-w-[120px] truncate py-2.5 text-sm text-muted-foreground" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
+                            <TableCell className="text-center number-cell py-2.5 text-sm">{Array.isArray(doc.items) ? doc.items.length : 0}</TableCell>
+                            <TableCell className="text-right font-semibold number-cell py-2.5">
                               <CurrencyDisplay amount={doc.total} />
                             </TableCell>
-                            <TableCell className="text-center">
+                            <TableCell className="text-center py-2.5">
                               {renderStatusSelect(doc)}
                             </TableCell>
-                            <TableCell className="text-center">
+                            <TableCell className="text-center py-2.5">
                               {getBillingStatusBadge(doc)}
                             </TableCell>
-                            <TableCell className="w-[240px]">
-                              <div className="flex items-center justify-center gap-1">
+                            <TableCell className="w-[240px] py-2.5">
+                              <div className="flex items-center justify-center gap-0.5">
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
                                   onClick={() => handleViewDocument(doc)}
                                   title={t('common.view')}
                                 >
@@ -2532,7 +2559,7 @@ export const Purchases = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40"
                                   onClick={() => handleEditDocument(doc)}
                                   title={t('common.edit')}
                                 >
@@ -2541,7 +2568,7 @@ export const Purchases = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handleDownloadPDF(doc)}
                                   title={t('documents.downloadPDF')}
                                 >
@@ -2550,7 +2577,7 @@ export const Purchases = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handlePrintPDF(doc)}
                                   title={t('common.print', { defaultValue: 'Print' })}
                                 >
@@ -2574,7 +2601,7 @@ export const Purchases = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
                                   onClick={() => handleDeleteDocument(doc)}
                                   title={t('common.delete')}
                                 >
@@ -3195,8 +3222,8 @@ export const Purchases = () => {
                   <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
-                      <TableRow className="data-table-header hover:bg-section">
-                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center">
+                      <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
+                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center py-2">
                           <div className="flex items-center justify-center w-full">
                             <Checkbox
                               checked={filteredDocuments.length > 0 && selectedDocuments.size === filteredDocuments.length}
@@ -3205,14 +3232,14 @@ export const Purchases = () => {
                             />
                           </div>
                         </TableHead>
-                        <TableHead>{t('documents.invoiceNumber')}</TableHead>
-                        <TableHead>{t('documents.supplier')}</TableHead>
-                        <TableHead>{t('common.date')}</TableHead>
-                        <TableHead className="text-center">{t('documents.items')}</TableHead>
-                        <TableHead className="text-right">{t('documents.totalTTC')}</TableHead>
-                        <TableHead className="text-center">{t('documents.paymentMethod')}</TableHead>
-                        <TableHead className="text-center">{t('common.status')}</TableHead>
-                        <TableHead className="text-center">{t('common.actions')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('documents.invoiceNumber')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('documents.supplier')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('common.date')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('documents.items')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">{t('documents.totalTTC')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('documents.paymentMethod')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.status')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -3227,11 +3254,11 @@ export const Purchases = () => {
                           <TableRow
                             key={doc.id}
                             className={cn(
-                              "hover:bg-section/50",
+                              "hover:bg-muted/20 transition-colors",
                               selectedDocuments.has(doc.id) && "bg-primary/5"
                             )}
                           >
-                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center">
+                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center py-2.5">
                               <div className="flex items-center justify-center w-full">
                                 <Checkbox
                                   checked={selectedDocuments.has(doc.id)}
@@ -3240,23 +3267,25 @@ export const Purchases = () => {
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono font-medium max-w-[120px] truncate" title={doc.id}>{doc.id}</TableCell>
-                            <TableCell className="max-w-[200px] truncate" title={doc.supplier}>{doc.supplier}</TableCell>
-                            <TableCell className="max-w-[120px] truncate" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
-                            <TableCell className="text-center number-cell">{Array.isArray(doc.items) ? doc.items.length : 0}</TableCell>
-                            <TableCell className="text-right font-medium number-cell">{formatMAD(doc.total)}</TableCell>
-                            <TableCell className="text-center">
-                              <span className="text-sm font-medium">{formatPaymentMethod(doc.paymentMethod)}</span>
+                            <TableCell className="max-w-[160px] py-2.5" title={doc.id}>
+                              <span className="inline-block bg-muted/60 border border-border/50 rounded px-2 py-0.5 font-mono text-xs text-foreground/80 truncate">{doc.id}</span>
                             </TableCell>
-                            <TableCell className="text-center">
+                            <TableCell className="max-w-[200px] truncate py-2.5 font-medium text-sm" title={doc.supplier}>{doc.supplier}</TableCell>
+                            <TableCell className="max-w-[120px] truncate py-2.5 text-sm text-muted-foreground" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
+                            <TableCell className="text-center number-cell py-2.5 text-sm">{Array.isArray(doc.items) ? doc.items.length : 0}</TableCell>
+                            <TableCell className="text-right font-semibold number-cell py-2.5">{formatMAD(doc.total)}</TableCell>
+                            <TableCell className="text-center py-2.5">
+                              <span className="text-sm text-muted-foreground">{formatPaymentMethod(doc.paymentMethod)}</span>
+                            </TableCell>
+                            <TableCell className="text-center py-2.5">
                               {renderStatusSelect(doc)}
                             </TableCell>
-                            <TableCell className="w-[220px]">
-                              <div className="flex items-center justify-center gap-1">
+                            <TableCell className="w-[220px] py-2.5">
+                              <div className="flex items-center justify-center gap-0.5">
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
                                   onClick={() => handleViewDocument(doc)}
                                   title={t('common.view')}
                                 >
@@ -3265,7 +3294,7 @@ export const Purchases = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40"
                                   onClick={() => handleEditDocument(doc)}
                                   title={t('common.edit')}
                                 >
@@ -3274,7 +3303,7 @@ export const Purchases = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handleDownloadPDF(doc)}
                                   title={t('documents.downloadPDF')}
                                 >
@@ -3283,7 +3312,7 @@ export const Purchases = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handlePrintPDF(doc)}
                                   title={t('common.print', { defaultValue: 'Print' })}
                                 >
@@ -3292,7 +3321,7 @@ export const Purchases = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
                                   onClick={() => handleDeleteDocument(doc)}
                                   title={t('common.delete')}
                                 >

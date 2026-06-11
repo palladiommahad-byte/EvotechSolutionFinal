@@ -180,6 +180,7 @@ export const Sales = () => {
         total: Number(item.total) || 0,
       })));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formOriginalInvoice, invoices]);
 
   const [selectedStatementDocs, setSelectedStatementDocs] = useState<Set<string>>(new Set());
@@ -300,7 +301,7 @@ export const Sales = () => {
 
   /** Billing status badge — shown in BL list rows */
   const getBillingStatusBadge = (doc: SalesDocument) => {
-    const billingStatus = (doc as any).billing_status || (doc as any).billingStatus;
+    const billingStatus = doc.billing_status;
     if (billingStatus === 'invoiced') {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
@@ -712,7 +713,7 @@ export const Sales = () => {
 
       // Add amount_paid for invoices
       if (editingDocument.type === 'invoice' && editFormData.amount_paid !== undefined) {
-        (updateData as any).amount_paid = editFormData.amount_paid;
+        updateData.amount_paid = editFormData.amount_paid;
       }
 
       // Update in database (except statements which are mock)
@@ -727,7 +728,7 @@ export const Sales = () => {
           billing_status: 'not_invoiced',
         };
 
-        if (!updateData.amount_paid) (createData as any).amount_paid = 0;
+        if (!updateData.amount_paid) createData.amount_paid = 0;
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         delete (createData as any)._internalId;
@@ -794,12 +795,12 @@ export const Sales = () => {
     }
   };
 
-  const handleDownloadPDF = async (doc: SalesDocument & { items?: any }) => {
+  const handleDownloadPDF = async (doc: SalesDocument) => {
     try {
       const docType = doc.type || activeTab;
 
       // If clientData is missing, try to find it from CRM using client ID
-      let docWithClientData = { ...doc };
+      const docWithClientData = { ...doc };
       if (!docWithClientData.clientData && docWithClientData.client) {
         console.log('Looking up client:', docWithClientData.client);
         console.log('Available clients:', clients.length);
@@ -827,24 +828,26 @@ export const Sales = () => {
         clientField: docWithItems.client
       });
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d = docWithItems as any;
       switch (docType) {
         case 'invoice':
-          await generateInvoicePDF({ ...docWithItems as any, companyInfo, linkedBLs: (docWithItems as any).linked_bls });
+          await generateInvoicePDF({ ...d, companyInfo, linkedBLs: d.linked_bls });
           break;
         case 'estimate':
-          await generateEstimatePDF({ ...docWithItems as any, companyInfo });
+          await generateEstimatePDF({ ...d, companyInfo });
           break;
         case 'delivery_note':
-          await generateDeliveryNotePDF({ ...docWithItems as any, companyInfo });
+          await generateDeliveryNotePDF({ ...d, companyInfo });
           break;
         case 'divers':
-          await generateDeliveryNotePDF({ ...docWithItems as any, type: 'divers', companyInfo });
+          await generateDeliveryNotePDF({ ...d, type: 'divers', companyInfo });
           break;
         case 'prelevement':
-          await generatePrelevementPDF({ ...docWithItems as any, companyInfo });
+          await generatePrelevementPDF({ ...d, companyInfo });
           break;
         case 'credit_note':
-          await generateCreditNotePDF({ ...docWithItems as any, companyInfo, originalInvoice: (docWithItems as any).originalInvoice || (docWithItems as any).original_invoice });
+          await generateCreditNotePDF({ ...d, companyInfo, originalInvoice: d.originalInvoice || d.original_invoice });
           break;
         case 'statement':
           generateStatementPDF(doc);
@@ -856,11 +859,11 @@ export const Sales = () => {
     }
   };
 
-  const handlePrintPDF = async (doc: SalesDocument & { items?: any }) => {
+  const handlePrintPDF = async (doc: SalesDocument) => {
     try {
       const docType = doc.type || activeTab;
 
-      let docWithClientData = { ...doc };
+      const docWithClientData = { ...doc };
       if (!docWithClientData.clientData && docWithClientData.client) {
         const foundClient = clients.find(c => c.id === docWithClientData.client);
         if (foundClient) {
@@ -879,23 +882,25 @@ export const Sales = () => {
       // Use docType directly as 'divers' is explicitly supported
       const pdfType = docType;
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const dPrint = docWithClientData as any;
       const blob = await generatePDFBlobFromTemplate({
-        type: pdfType as any,
-        documentId: docWithClientData.id,
-        date: docWithClientData.date,
-        client: docWithClientData.client,
-        clientData: docWithClientData.clientData,
+        type: pdfType as Parameters<typeof generatePDFBlobFromTemplate>[0]['type'],
+        documentId: dPrint.id,
+        date: dPrint.date,
+        client: dPrint.client,
+        clientData: dPrint.clientData,
         items,
-        paymentMethod: docWithClientData.paymentMethod as 'cash' | 'check' | 'bank_transfer' | undefined,
-        dueDate: docWithClientData.dueDate,
-        note: docWithClientData.note,
-        taxEnabled: docWithClientData.taxEnabled,
-        clientPoNumber: docWithClientData.clientPoNumber,
-        linkedBLs: (docWithClientData as any).linked_bls,
-        companyInfo: companyInfo as any,
-        discountType: (docWithClientData as any).discountType,
-        discountValue: (docWithClientData as any).discountValue,
-        originalInvoice: (docWithClientData as any).originalInvoice || (docWithClientData as any).original_invoice,
+        paymentMethod: dPrint.paymentMethod,
+        dueDate: dPrint.dueDate,
+        note: dPrint.note,
+        taxEnabled: dPrint.taxEnabled,
+        clientPoNumber: dPrint.clientPoNumber,
+        linkedBLs: dPrint.linked_bls,
+        companyInfo: dPrint.companyInfo ?? companyInfo,
+        discountType: dPrint.discountType,
+        discountValue: dPrint.discountValue,
+        originalInvoice: dPrint.originalInvoice || dPrint.original_invoice,
       });
 
       const url = URL.createObjectURL(blob);
@@ -1000,7 +1005,7 @@ export const Sales = () => {
       .map(doc => ({
         id: doc.id,
         client: doc.client,
-        supplier: (doc as any).supplier,
+        supplier: (doc as SalesDocument & { supplier?: string }).supplier,
         date: doc.date,
         items: typeof doc.items === 'number' ? doc.items : (Array.isArray(doc.items) ? doc.items.length : 0),
         total: doc.total,
@@ -1035,8 +1040,8 @@ export const Sales = () => {
           number: doc.id,
           entity: getClientDisplayName(doc),
           total: doc.total,
-          paid: (doc as any).amount_paid || 0,
-          balance: doc.total - ((doc as any).amount_paid || 0),
+          paid: doc.amount_paid || 0,
+          balance: doc.total - (doc.amount_paid || 0),
           status: doc.status
         }))
       });
@@ -1143,7 +1148,7 @@ export const Sales = () => {
         <div className="flex justify-between items-center gap-2 overflow-visible">
           <div className="flex items-center gap-2 flex-1">
             <span className="text-muted-foreground text-sm font-medium">Remise:</span>
-            <Select value={formDiscountType} onValueChange={(val: any) => setFormDiscountType(val)}>
+            <Select value={formDiscountType} onValueChange={(val) => setFormDiscountType(val as 'percentage' | 'fixed')}>
               <SelectTrigger className="h-8 w-[80px] text-xs font-medium">
                 <SelectValue />
               </SelectTrigger>
@@ -1271,7 +1276,7 @@ export const Sales = () => {
     }
 
     try {
-      const newDocumentData: any = { // Use any to bypass strict type mismatch with Context types
+      const newDocumentData: Record<string, unknown> = {
         documentId: documentNumber,
         client: clientData.id,
         clientData: {
@@ -1284,7 +1289,7 @@ export const Sales = () => {
           city: clientData.city || '',
           address: clientData.address || '',
           ice: clientData.ice || '',
-          ifNumber: clientData.ifNumber || (clientData as any).if_number || '', // Handle both cases safely
+          ifNumber: clientData.ifNumber || '',
           rc: clientData.rc || '',
           status: clientData.status || 'active',
           totalTransactions: clientData.totalTransactions || 0,
@@ -1315,7 +1320,7 @@ export const Sales = () => {
       };
 
       // Create in database (except statements which are mock)
-      let createdDoc: any;
+      let createdDoc: SalesDocument | undefined;
       switch (documentType) {
         case 'delivery_note':
           createdDoc = await createDeliveryNote(newDocumentData);
@@ -1416,7 +1421,7 @@ export const Sales = () => {
       previewTotal = totals.subtotal; // No tax
     }
 
-    const previewDocument: SalesDocument & { items?: any } = {
+    const previewDocument: SalesDocument = {
       id: 'PREVIEW',
       documentId: 'PREVIEW',
       client: clientData?.company || clientData?.name || formClient,
@@ -1472,42 +1477,33 @@ export const Sales = () => {
 
   const getStatusBadge = (status: string) => {
     const formatStatus = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace('_', ' ');
+    const dot = (dotCls: string, bgCls: string, label: string) => (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${bgCls}`}>
+        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotCls}`} />
+        {label}
+      </span>
+    );
 
     switch (status) {
-      case 'paid':
-        return <StatusBadge status="success">{t('status.paid')}</StatusBadge>;
-      case 'delivered':
-        return <StatusBadge status="success">{t('status.delivered')}</StatusBadge>;
-      case 'approved':
-        return <StatusBadge status="success">{t('status.approved')}</StatusBadge>;
-      case 'received':
-        return <StatusBadge status="success">{t('status.received')}</StatusBadge>;
-      case 'current':
-        return <StatusBadge status="success">{t('status.current')}</StatusBadge>;
-      case 'accepted':
-        return <StatusBadge status="success">{t('status.accepted')}</StatusBadge>;
+      case 'paid':      return dot('bg-emerald-500', 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800', t('status.paid'));
+      case 'delivered': return dot('bg-emerald-500', 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800', t('status.delivered'));
+      case 'approved':  return dot('bg-emerald-500', 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800', t('status.approved'));
+      case 'received':  return dot('bg-emerald-500', 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800', t('status.received'));
+      case 'current':   return dot('bg-emerald-500', 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800', t('status.current'));
+      case 'accepted':  return dot('bg-emerald-500', 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800', t('status.accepted'));
 
-      case 'pending':
-        return <StatusBadge status="warning">{t('status.pending')}</StatusBadge>;
-      case 'draft':
-        return <StatusBadge status="warning">{t('status.draft')}</StatusBadge>;
+      case 'pending': return dot('bg-amber-500', 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800', t('status.pending'));
+      case 'draft':   return dot('bg-amber-500', 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800', t('status.draft'));
 
-      case 'in_transit':
-        return <StatusBadge status="info">{t('status.inTransit')}</StatusBadge>;
-      case 'sent':
-        return <StatusBadge status="info">{t('status.sent')}</StatusBadge>;
-      case 'shipped':
-        return <StatusBadge status="info">{t('status.shipped')}</StatusBadge>;
+      case 'in_transit': return dot('bg-sky-500', 'text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/50 border-sky-200 dark:border-sky-800', t('status.inTransit'));
+      case 'sent':       return dot('bg-sky-500', 'text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/50 border-sky-200 dark:border-sky-800', t('status.sent'));
+      case 'shipped':    return dot('bg-sky-500', 'text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/50 border-sky-200 dark:border-sky-800', t('status.shipped'));
 
-      case 'overdue':
-        return <StatusBadge status="danger">{t('status.overdue')}</StatusBadge>;
-      case 'cancelled':
-        return <StatusBadge status="danger">{t('status.cancelled')}</StatusBadge>;
-      case 'expired':
-        return <StatusBadge status="danger">{t('status.expired')}</StatusBadge>;
+      case 'overdue':   return dot('bg-red-500', 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/50 border-red-200 dark:border-red-800', t('status.overdue'));
+      case 'cancelled': return dot('bg-red-500', 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/50 border-red-200 dark:border-red-800', t('status.cancelled'));
+      case 'expired':   return dot('bg-red-500', 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/50 border-red-200 dark:border-red-800', t('status.expired'));
 
-      default:
-        return <StatusBadge status="default">{formatStatus(status)}</StatusBadge>;
+      default: return dot('bg-slate-400', 'text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700', formatStatus(status));
     }
   };
 
@@ -1650,8 +1646,8 @@ export const Sales = () => {
         number: inv.id,
         entity: inv.client,
         total: inv.total,
-        paid: inv.status === 'paid' ? inv.total : ((inv as any).amount_paid || 0),
-        balance: inv.status === 'paid' ? 0 : (inv.total - ((inv as any).amount_paid || 0)),
+        paid: inv.status === 'paid' ? inv.total : (inv.amount_paid || 0),
+        balance: inv.status === 'paid' ? 0 : (inv.total - (inv.amount_paid || 0)),
         status: inv.status
       }))
     });
@@ -1667,29 +1663,32 @@ export const Sales = () => {
         id: inv.id,
         date: inv.date,
         total: inv.total,
-        subtotal: (inv as any).subtotal,
-        amount_paid: inv.status === 'paid' ? inv.total : ((inv as any).amount_paid || 0),
+        subtotal: inv.subtotal,
+        amount_paid: inv.status === 'paid' ? inv.total : (inv.amount_paid || 0),
         status: inv.status,
         client: inv.client,
         clientData: inv.clientData,
       })),
       clientName,
       clientData,
-      companyInfo: companyInfo as any,
+      companyInfo: companyInfo ?? undefined,
     });
   };
 
   // ── Avoir-aware invoice dataset (used by relevé + stats) ─────────────────
   // Exclude invoices replaced by an avoir, then add the avoirs as paid entries
-  const invoicesWithoutAvoirs = invoices.filter(inv => !findLinkedCreditNote(inv));
-  const linkedAvoirs = creditNotes.filter(cn => cn.originalInvoice && cn.status !== 'cancelled');
-  const invoicesForStats = [
-    ...invoicesWithoutAvoirs,
-    ...linkedAvoirs.map(cn => {
-      const origInv = invoices.find(inv => inv.id === cn.originalInvoice || inv.documentId === cn.originalInvoice);
-      return { ...cn, type: 'invoice' as const, status: 'paid' as const, paymentMethod: origInv?.paymentMethod || 'cash' };
-    }),
-  ];
+  const invoicesForStats = useMemo(() => {
+    const invoicesWithoutAvoirs = invoices.filter(inv => !findLinkedCreditNote(inv));
+    const linkedAvoirs = creditNotes.filter(cn => cn.originalInvoice && cn.status !== 'cancelled');
+    return [
+      ...invoicesWithoutAvoirs,
+      ...linkedAvoirs.map(cn => {
+        const origInv = invoices.find(inv => inv.id === cn.originalInvoice || inv.documentId === cn.originalInvoice);
+        return { ...cn, type: 'invoice' as const, status: 'paid' as const, paymentMethod: origInv?.paymentMethod || 'cash' };
+      }),
+    ];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoices, creditNotes]);
 
   // ── Relevé filtered list ─────────────────────────────────────────────────
   const filteredStatementInvoices = useMemo(() => {
@@ -1698,7 +1697,7 @@ export const Sales = () => {
         if (stmtClientFilter !== 'all' && inv.client !== stmtClientFilter) return false;
         if (stmtDateFrom && inv.date < stmtDateFrom) return false;
         if (stmtDateTo && inv.date > stmtDateTo) return false;
-        const paid = (inv as any).amount_paid || 0;
+        const paid = inv.amount_paid || 0;
         if (stmtTypeFilter === 'debit') return (inv.total - paid) > 0;
         if (stmtTypeFilter === 'credit') return paid > 0;
         return true;
@@ -1714,14 +1713,14 @@ export const Sales = () => {
   }, [invoicesForStats]);
 
   const totalRevenue = [...invoicesForStats, ...deliveryNotes].reduce((sum, o) => {
-    const amount = typeof o.total === 'number' ? o.total : parseFloat(o.total as any) || 0;
+    const amount = typeof o.total === 'number' ? o.total : parseFloat(String(o.total)) || 0;
     return sum + amount;
   }, 0);
 
   const pendingRevenue = invoicesForStats
     .filter(o => o.status !== 'paid')
     .reduce((sum, o) => {
-      const amount = typeof o.total === 'number' ? o.total : parseFloat(o.total as any) || 0;
+      const amount = typeof o.total === 'number' ? o.total : parseFloat(String(o.total)) || 0;
       return sum + amount;
     }, 0);
 
@@ -1824,13 +1823,16 @@ export const Sales = () => {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="kpi-card relative group">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <TrendingUp className="w-5 h-5 text-primary" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1 — Monthly Revenue (emerald) */}
+        <div className="relative rounded-xl border border-border/80 bg-card p-5 shadow-sm hover:shadow-md transition-all duration-200 hover:border-emerald-200/70 dark:hover:border-emerald-800/40 group">
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-500 rounded-l-xl" />
+          <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-emerald-500/[0.04] to-transparent pointer-events-none" />
+          <div className="flex items-center gap-3 pl-2">
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/[0.15] transition-colors shrink-0">
+              <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xl sm:text-2xl font-heading font-bold text-foreground break-words overflow-visible whitespace-normal leading-tight">
                 {formatMAD(
                   [...invoices]
@@ -1840,7 +1842,7 @@ export const Sales = () => {
                       return invDate.getMonth() === now.getMonth() && invDate.getFullYear() === now.getFullYear();
                     })
                     .reduce((sum, o) => {
-                      const amount = typeof o.total === 'number' ? o.total : parseFloat(o.total as any) || 0;
+                      const amount = typeof o.total === 'number' ? o.total : parseFloat(String(o.total)) || 0;
                       return sum + amount;
                     }, 0)
                 )}
@@ -1880,34 +1882,46 @@ export const Sales = () => {
             </div>
           </div>
         </div>
-        <div className="kpi-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-success/10">
-              <FileText className="w-5 h-5 text-success" />
+
+        {/* Card 2 — Invoice Count (blue) */}
+        <div className="relative overflow-hidden rounded-xl border border-border/80 bg-card p-5 shadow-sm hover:shadow-md transition-all duration-200 hover:border-blue-200/70 dark:hover:border-blue-800/40 group">
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-blue-500 rounded-l-xl" />
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.04] to-transparent pointer-events-none" />
+          <div className="flex items-center gap-3 pl-2">
+            <div className="p-2.5 rounded-xl bg-blue-500/10 group-hover:bg-blue-500/[0.15] transition-colors shrink-0">
+              <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xl sm:text-2xl font-heading font-bold text-foreground break-words overflow-visible whitespace-normal leading-tight">{invoices.length}</p>
               <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground line-clamp-1" title={t('documents.invoice')}>{t('documents.invoice')}</p>
             </div>
           </div>
         </div>
-        <div className="kpi-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-warning/10">
-              <TrendingUp className="w-5 h-5 text-warning" />
+
+        {/* Card 3 — Pending Revenue (amber) */}
+        <div className="relative overflow-hidden rounded-xl border border-border/80 bg-card p-5 shadow-sm hover:shadow-md transition-all duration-200 hover:border-amber-200/70 dark:hover:border-amber-800/40 group">
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-amber-500 rounded-l-xl" />
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.04] to-transparent pointer-events-none" />
+          <div className="flex items-center gap-3 pl-2">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 group-hover:bg-amber-500/[0.15] transition-colors shrink-0">
+              <TrendingUp className="w-5 h-5 text-amber-600 dark:text-amber-400" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xl sm:text-2xl font-heading font-bold text-foreground break-words overflow-visible whitespace-normal leading-tight">{formatMAD(pendingRevenue)}</p>
               <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground line-clamp-1" title={t('sales.pendingRevenue')}>{t('sales.pendingRevenue')}</p>
             </div>
           </div>
         </div>
-        <div className="kpi-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-info/10">
-              <Users className="w-5 h-5 text-info" />
+
+        {/* Card 4 — Active Clients (violet) */}
+        <div className="relative overflow-hidden rounded-xl border border-border/80 bg-card p-5 shadow-sm hover:shadow-md transition-all duration-200 hover:border-violet-200/70 dark:hover:border-violet-800/40 group">
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-violet-500 rounded-l-xl" />
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-500/[0.04] to-transparent pointer-events-none" />
+          <div className="flex items-center gap-3 pl-2">
+            <div className="p-2.5 rounded-xl bg-violet-500/10 group-hover:bg-violet-500/[0.15] transition-colors shrink-0">
+              <Users className="w-5 h-5 text-violet-600 dark:text-violet-400" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xl sm:text-2xl font-heading font-bold text-foreground break-words overflow-visible whitespace-normal leading-tight">
                 {new Set([...invoices, ...deliveryNotes, ...estimates].map(o => o.client)).size}
               </p>
@@ -1918,54 +1932,68 @@ export const Sales = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="bg-section border border-border rounded-lg grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 w-full p-1.5 gap-1.5 h-auto">
+        <TabsList className="flex overflow-x-auto bg-muted/20 border border-border/60 rounded-2xl w-full p-1.5 gap-1 h-auto">
           <TabsTrigger
             value="delivery_note"
-            className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+            className="flex-1 min-w-[120px] gap-2 rounded-xl whitespace-nowrap py-2 text-sm font-medium
+                       text-muted-foreground hover:text-foreground transition-all
+                       data-[state=active]:bg-sky-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:font-semibold"
           >
-            <Package className="w-4 h-4" />
+            <Package className="w-4 h-4 shrink-0" />
             {t('documents.deliveryNote')}
           </TabsTrigger>
           <TabsTrigger
             value="divers"
-            className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+            className="flex-1 min-w-[100px] gap-2 rounded-xl whitespace-nowrap py-2 text-sm font-medium
+                       text-muted-foreground hover:text-foreground transition-all
+                       data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:font-semibold"
           >
-            <FileText className="w-4 h-4" />
+            <FileText className="w-4 h-4 shrink-0" />
             {t('documents.divers')}
           </TabsTrigger>
           <TabsTrigger
             value="prelevement"
-            className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+            className="flex-1 min-w-[120px] gap-2 rounded-xl whitespace-nowrap py-2 text-sm font-medium
+                       text-muted-foreground hover:text-foreground transition-all
+                       data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:font-semibold"
           >
-            <FileText className="w-4 h-4" />
+            <ArrowRightLeft className="w-4 h-4 shrink-0" />
             Prélèvement
           </TabsTrigger>
           <TabsTrigger
             value="invoice"
-            className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+            className="flex-1 min-w-[100px] gap-2 rounded-xl whitespace-nowrap py-2 text-sm font-medium
+                       text-muted-foreground hover:text-foreground transition-all
+                       data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:font-semibold"
           >
-            <Receipt className="w-4 h-4" />
+            <Receipt className="w-4 h-4 shrink-0" />
             {t('documents.invoice')}
           </TabsTrigger>
           <TabsTrigger
             value="estimate"
-            className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+            className="flex-1 min-w-[100px] gap-2 rounded-xl whitespace-nowrap py-2 text-sm font-medium
+                       text-muted-foreground hover:text-foreground transition-all
+                       data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:font-semibold"
           >
-            <FileText className="w-4 h-4" />
+            <Calculator className="w-4 h-4 shrink-0" />
             {t('documents.estimate')}
           </TabsTrigger>
           <TabsTrigger
             value="credit_note"
-            className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+            className="flex-1 min-w-[100px] gap-2 rounded-xl whitespace-nowrap py-2 text-sm font-medium
+                       text-muted-foreground hover:text-foreground transition-all
+                       data-[state=active]:bg-orange-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:font-semibold"
           >
-            <FileX className="w-4 h-4" />
+            <FileX className="w-4 h-4 shrink-0" />
             {t('documents.creditNote')}
           </TabsTrigger>
           <TabsTrigger
             value="statement"
-            className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+            className="flex-1 min-w-[100px] gap-2 rounded-xl whitespace-nowrap py-2 text-sm font-medium
+                       text-muted-foreground hover:text-foreground transition-all
+                       data-[state=active]:bg-slate-700 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:font-semibold"
           >
-            <FileCheck className="w-4 h-4" />
+            <FileCheck className="w-4 h-4 shrink-0" />
             {t('documents.statement')}
           </TabsTrigger>
         </TabsList>
@@ -2361,8 +2389,8 @@ export const Sales = () => {
                   <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
-                    <TableRow className="data-table-header hover:bg-section">
-                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center">
+                    <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
+                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center py-2">
                           <div className="flex items-center justify-center w-full">
                             <Checkbox
                               checked={filteredDocuments.length > 0 && selectedDocuments.size === filteredDocuments.length}
@@ -2371,16 +2399,16 @@ export const Sales = () => {
                             />
                           </div>
                         </TableHead>
-                        <TableHead>{t('documents.noteNumber')}</TableHead>
-                        <TableHead>{t('documents.client')}</TableHead>
-                        <TableHead>{t('common.date')}</TableHead>
-                        <TableHead className="text-center">{t('documents.items')}</TableHead>
-                        <TableHead className="text-right">{t('documents.totalTTC')}</TableHead>
-                        <TableHead className="text-center">{t('common.status')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('documents.noteNumber')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('documents.client')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('common.date')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('documents.items')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">{t('documents.totalTTC')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.status')}</TableHead>
                         {activeTab === 'delivery_note' && (
-                          <TableHead className="text-center">Facturation</TableHead>
+                          <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">Facturation</TableHead>
                         )}
-                        <TableHead className="text-center">{t('common.actions')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -2395,27 +2423,27 @@ export const Sales = () => {
                           <TableRow
                             key={doc.id}
                             className={cn(
-                              "hover:bg-section/50",
+                              "hover:bg-muted/20 transition-colors",
                               selectedDocuments.has(doc.id) && "bg-primary/5"
                             )}
                           >
-                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center">
+                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center py-2.5">
                               <div className="flex items-center justify-center w-full">
                                 <Checkbox
                                   checked={selectedDocuments.has(doc.id)}
                                   onCheckedChange={() => {
                                     // Disable selecting already-invoiced BLs on the BL tab
-                                    const isInvoiced = activeTab === 'delivery_note' && (doc as any).billing_status === 'invoiced';
+                                    const isInvoiced = activeTab === 'delivery_note' && doc.billing_status === 'invoiced';
                                     if (!isInvoiced) toggleDocumentSelection(doc.id);
                                   }}
-                                  disabled={activeTab === 'delivery_note' && (doc as any).billing_status === 'invoiced'}
+                                  disabled={activeTab === 'delivery_note' && doc.billing_status === 'invoiced'}
                                   aria-label={`Select ${doc.id}`}
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono font-medium max-w-[150px]" title={doc.id}>
+                            <TableCell className="max-w-[160px] py-2.5" title={doc.id}>
                               <div className="flex items-center gap-1.5">
-                                <span className="truncate">{doc.id}</span>
+                                <span className="inline-block bg-muted/60 border border-border/50 rounded px-2 py-0.5 font-mono text-xs text-foreground/80 truncate">{doc.id}</span>
                                 {activeTab === 'invoice' && findLinkedCreditNote(doc) && (
                                   <button
                                     onClick={() => handleSwitchToAvoir(doc)}
@@ -2427,29 +2455,29 @@ export const Sales = () => {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="max-w-[200px] truncate" title={doc.client}>{doc.client}</TableCell>
-                            <TableCell className="max-w-[120px] truncate" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
-                            <TableCell className="text-center number-cell">
+                            <TableCell className="max-w-[200px] truncate py-2.5 font-medium text-sm" title={doc.client}>{doc.client}</TableCell>
+                            <TableCell className="max-w-[120px] truncate py-2.5 text-sm text-muted-foreground" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
+                            <TableCell className="text-center number-cell py-2.5 text-sm">
                               {Array.isArray(doc.items) ? doc.items.length : doc.items}
                             </TableCell>
-                            <TableCell className="text-right font-medium number-cell">
+                            <TableCell className="text-right font-semibold number-cell py-2.5 text-sm">
                               <CurrencyDisplay amount={doc.total} />
                             </TableCell>
-                            <TableCell className="text-center">
+                            <TableCell className="text-center py-2.5">
                               {renderStatusSelect(doc)}
                             </TableCell>
                             {/* Billing status column — BL tab only */}
                             {activeTab === 'delivery_note' && (
-                              <TableCell className="text-center">
+                              <TableCell className="text-center py-2.5">
                                 {getBillingStatusBadge(doc)}
                               </TableCell>
                             )}
-                            <TableCell className="w-[220px]">
-                              <div className="flex items-center justify-center gap-1">
+                            <TableCell className="w-[220px] py-2.5">
+                              <div className="flex items-center justify-center gap-0.5">
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
                                   onClick={() => handleViewDocument(doc)}
                                   title="View"
                                 >
@@ -2458,7 +2486,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40"
                                   onClick={() => handleEditDocument(doc)}
                                   title="Edit"
                                 >
@@ -2467,7 +2495,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handleDownloadPDF(doc)}
                                   title="Download PDF"
                                 >
@@ -2476,14 +2504,14 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handlePrintPDF(doc)}
                                   title="Print"
                                 >
                                   <Printer className="w-4 h-4" />
                                 </Button>
                                 {/* Créer Facture — single BL shortcut */}
-                                {activeTab === 'delivery_note' && (doc as any).billing_status !== 'invoiced' && (
+                                {activeTab === 'delivery_note' && doc.billing_status !== 'invoiced' && (
                                   <Button
                                     variant="ghost"
                                     size="icon"
@@ -2500,7 +2528,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
                                   onClick={() => handleDeleteDocument(doc)}
                                   title={t('common.delete')}
                                 >
@@ -2952,8 +2980,8 @@ export const Sales = () => {
                   <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
-                      <TableRow className="data-table-header hover:bg-section">
-                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center">
+                      <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
+                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center py-2">
                           <div className="flex items-center justify-center w-full">
                             <Checkbox
                               checked={filteredDocuments.length > 0 && selectedDocuments.size === filteredDocuments.length}
@@ -2962,13 +2990,13 @@ export const Sales = () => {
                             />
                           </div>
                         </TableHead>
-                        <TableHead>{t('documents.documentNumber')}</TableHead>
-                        <TableHead>{t('documents.client')}</TableHead>
-                        <TableHead>{t('common.date')}</TableHead>
-                        <TableHead className="text-right">{t('documents.items')}</TableHead>
-                        <TableHead className="text-right">{t('documents.totalMAD')}</TableHead>
-                        <TableHead className="text-center">{t('common.status')}</TableHead>
-                        <TableHead className="text-center">{t('common.actions')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('documents.documentNumber')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('documents.client')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('common.date')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">{t('documents.items')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">{t('documents.totalMAD')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.status')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -2983,12 +3011,12 @@ export const Sales = () => {
                           <TableRow
                             key={doc.id}
                             className={cn(
-                              "hover:bg-section/50 transition-colors",
+                              "hover:bg-muted/20 transition-colors",
                               selectedDocuments.has(doc.id) && "bg-primary/5",
                               highlightedDocId === doc.id && "animate-highlight-glow"
                             )}
                           >
-                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center">
+                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center py-2.5">
                               <div className="flex items-center justify-center w-full">
                                 <Checkbox
                                   checked={selectedDocuments.has(doc.id)}
@@ -2997,31 +3025,33 @@ export const Sales = () => {
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono font-medium max-w-[120px] truncate" title={formatDocumentId(doc.id, doc.type)}>{formatDocumentId(doc.id, doc.type)}</TableCell>
-                            <TableCell className="max-w-[200px] truncate" title={getClientDisplayName(doc)}>{getClientDisplayName(doc)}</TableCell>
-                            <TableCell className="max-w-[120px] truncate" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
-                            <TableCell className="text-right number-cell">
+                            <TableCell className="max-w-[130px] py-2.5" title={formatDocumentId(doc.id, doc.type)}>
+                              <span className="inline-block bg-muted/60 border border-border/50 rounded px-2 py-0.5 font-mono text-xs text-foreground/80 truncate">{formatDocumentId(doc.id, doc.type)}</span>
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate py-2.5 font-medium text-sm" title={getClientDisplayName(doc)}>{getClientDisplayName(doc)}</TableCell>
+                            <TableCell className="max-w-[120px] truncate py-2.5 text-sm text-muted-foreground" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
+                            <TableCell className="text-right number-cell py-2.5 text-sm">
                               {Array.isArray(doc.items) ? doc.items.length : doc.items}
                             </TableCell>
-                            <TableCell className="text-right font-medium number-cell">
+                            <TableCell className="text-right font-semibold number-cell py-2.5 text-sm">
                               <CurrencyDisplay amount={doc.total} />
                             </TableCell>
-                            <TableCell className="text-center">
+                            <TableCell className="text-center py-2.5">
                               {doc.taxEnabled ? (
                                 <span className="text-xs font-medium text-success">Yes</span>
                               ) : (
                                 <span className="text-xs font-medium text-muted-foreground">No</span>
                               )}
                             </TableCell>
-                            <TableCell className="text-center">
+                            <TableCell className="text-center py-2.5">
                               {renderStatusSelect(doc)}
                             </TableCell>
-                            <TableCell className="w-[220px]">
-                              <div className="flex items-center justify-center gap-1">
+                            <TableCell className="w-[220px] py-2.5">
+                              <div className="flex items-center justify-center gap-0.5">
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
                                   onClick={() => handleViewDocument(doc)}
                                   title="View"
                                 >
@@ -3030,7 +3060,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40"
                                   onClick={() => handleEditDocument(doc)}
                                   title="Edit"
                                 >
@@ -3039,7 +3069,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handleDownloadPDF(doc)}
                                   title="Download PDF"
                                 >
@@ -3048,7 +3078,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handlePrintPDF(doc)}
                                   title="Print"
                                 >
@@ -3057,7 +3087,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
                                   onClick={() => handleDeleteDocument(doc)}
                                   title={t('common.delete')}
                                 >
@@ -3175,8 +3205,8 @@ export const Sales = () => {
                   <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
-                      <TableRow className="bg-muted/50">
-                        <TableHead className="w-[50px]">
+                      <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
+                        <TableHead className="w-[50px] py-2">
                           <Checkbox
                             checked={filteredDocuments.length > 0 && selectedDocuments.size === filteredDocuments.length}
                             onCheckedChange={(checked) => {
@@ -3188,12 +3218,12 @@ export const Sales = () => {
                             }}
                           />
                         </TableHead>
-                        <TableHead>Numéro</TableHead>
-                        <TableHead>Client</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Total</TableHead>
-                        <TableHead className="text-center">Statut</TableHead>
-                        <TableHead className="text-center">Actions</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Numéro</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">Statut</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -3205,35 +3235,30 @@ export const Sales = () => {
                         </TableRow>
                       ) : (
                         filteredDocuments.map((doc) => (
-                          <TableRow key={doc.id} className="group hover:bg-muted/50 transition-colors">
-                            <TableCell>
+                          <TableRow key={doc.id} className="hover:bg-muted/20 transition-colors">
+                            <TableCell className="py-2.5">
                               <Checkbox
                                 checked={selectedDocuments.has(doc.id)}
                                 onCheckedChange={() => toggleDocumentSelection(doc.id)}
                               />
                             </TableCell>
-                            <TableCell className="font-medium">
-                              <div className="flex items-center gap-2">
-                                <FileText className="w-4 h-4 text-primary" />
-                                {formatDocumentId(doc.id, doc.type)}
-                              </div>
+                            <TableCell className="max-w-[160px] py-2.5" title={doc.id}>
+                              <span className="inline-block bg-muted/60 border border-border/50 rounded px-2 py-0.5 font-mono text-xs text-foreground/80 truncate">{formatDocumentId(doc.id, doc.type)}</span>
                             </TableCell>
-                            <TableCell>{getClientDisplayName(doc)}</TableCell>
-                            <TableCell>{formatDate(doc.date)}</TableCell>
-                            <TableCell>
-                              <span className="font-medium text-primary">
-                                <CurrencyDisplay amount={doc.total} />
-                              </span>
+                            <TableCell className="max-w-[200px] truncate py-2.5 font-medium text-sm" title={getClientDisplayName(doc)}>{getClientDisplayName(doc)}</TableCell>
+                            <TableCell className="py-2.5 text-sm text-muted-foreground">{formatDate(doc.date)}</TableCell>
+                            <TableCell className="py-2.5 font-semibold">
+                              <CurrencyDisplay amount={doc.total} />
                             </TableCell>
-                            <TableCell className="text-center">
+                            <TableCell className="text-center py-2.5">
                               {renderStatusSelect(doc)}
                             </TableCell>
-                            <TableCell className="w-[220px]">
-                              <div className="flex items-center justify-center gap-1">
+                            <TableCell className="w-[220px] py-2.5">
+                              <div className="flex items-center justify-center gap-0.5">
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
                                   onClick={() => handleViewDocument(doc)}
                                   title="View Details"
                                 >
@@ -3242,7 +3267,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40"
                                   onClick={() => handleEditDocument(doc)}
                                   title="Edit"
                                 >
@@ -3251,7 +3276,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handleDownloadPDF(doc)}
                                   title="Download PDF"
                                 >
@@ -3260,7 +3285,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handlePrintPDF(doc)}
                                   title="Print"
                                 >
@@ -3269,7 +3294,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
                                   onClick={() => handleDeleteDocument(doc)}
                                   title="Delete"
                                 >
@@ -3622,8 +3647,8 @@ export const Sales = () => {
                   <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
-                      <TableRow className="data-table-header hover:bg-section">
-                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center">
+                      <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
+                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center py-2">
                           <div className="flex items-center justify-center w-full">
                             <Checkbox
                               checked={filteredDocuments.length > 0 && selectedDocuments.size === filteredDocuments.length}
@@ -3632,14 +3657,14 @@ export const Sales = () => {
                             />
                           </div>
                         </TableHead>
-                        <TableHead>{t('documents.invoiceNumber')}</TableHead>
-                        <TableHead>{t('documents.client')}</TableHead>
-                        <TableHead>{t('common.date')}</TableHead>
-                        <TableHead className="text-center">{t('documents.items')}</TableHead>
-                        <TableHead className="text-right">{t('documents.totalTTC')}</TableHead>
-                        <TableHead className="text-center">{t('documents.paymentMethod')}</TableHead>
-                        <TableHead className="text-center">{t('common.status')}</TableHead>
-                        <TableHead className="text-center">{t('common.actions')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('documents.invoiceNumber')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('documents.client')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('common.date')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('documents.items')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">{t('documents.totalTTC')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('documents.paymentMethod')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.status')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -3654,12 +3679,12 @@ export const Sales = () => {
                           <TableRow
                             key={doc.id}
                             className={cn(
-                              "hover:bg-section/50 transition-colors",
+                              "hover:bg-muted/20 transition-colors",
                               selectedDocuments.has(doc.id) && "bg-primary/5",
                               highlightedDocId === doc.id && "animate-highlight-glow"
                             )}
                           >
-                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center">
+                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center py-2.5">
                               <div className="flex items-center justify-center w-full">
                                 <Checkbox
                                   checked={selectedDocuments.has(doc.id)}
@@ -3668,9 +3693,9 @@ export const Sales = () => {
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono font-medium max-w-[150px]" title={doc.id}>
+                            <TableCell className="max-w-[160px] py-2.5" title={doc.id}>
                               <div className="flex items-center gap-1.5">
-                                <span className="truncate">{doc.id}</span>
+                                <span className="inline-block bg-muted/60 border border-border/50 rounded px-2 py-0.5 font-mono text-xs text-foreground/80 truncate">{doc.id}</span>
                                 {findLinkedCreditNote(doc) && (
                                   <button
                                     onClick={() => handleSwitchToAvoir(doc)}
@@ -3682,24 +3707,24 @@ export const Sales = () => {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="max-w-[200px] truncate" title={doc.client}>{doc.client}</TableCell>
-                            <TableCell className="max-w-[120px] truncate" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
-                            <TableCell className="text-center number-cell">
+                            <TableCell className="max-w-[200px] truncate py-2.5 font-medium text-sm" title={doc.client}>{doc.client}</TableCell>
+                            <TableCell className="max-w-[120px] truncate py-2.5 text-sm text-muted-foreground" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
+                            <TableCell className="text-center number-cell py-2.5 text-sm">
                               {Array.isArray(doc.items) ? doc.items.length : (doc.items ? 1 : 0)}
                             </TableCell>
-                            <TableCell className="text-right font-medium number-cell">{formatMAD(doc.total)}</TableCell>
-                            <TableCell className="text-center">
-                              <span className="text-sm font-medium">{formatPaymentMethod(doc.paymentMethod)}</span>
+                            <TableCell className="text-right font-semibold number-cell py-2.5">{formatMAD(doc.total)}</TableCell>
+                            <TableCell className="text-center py-2.5">
+                              <span className="text-sm text-muted-foreground">{formatPaymentMethod(doc.paymentMethod)}</span>
                             </TableCell>
-                            <TableCell className="text-center">
+                            <TableCell className="text-center py-2.5">
                               {renderStatusSelect(doc)}
                             </TableCell>
-                            <TableCell className="w-[220px]">
-                              <div className="flex items-center justify-center gap-1">
+                            <TableCell className="w-[220px] py-2.5">
+                              <div className="flex items-center justify-center gap-0.5">
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
                                   onClick={() => handleViewDocument(doc)}
                                   title="View"
                                 >
@@ -3708,7 +3733,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40"
                                   onClick={() => handleEditDocument(doc)}
                                   title="Edit"
                                 >
@@ -3717,7 +3742,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handleDownloadPDF(doc)}
                                   title="Download PDF"
                                 >
@@ -3726,7 +3751,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handlePrintPDF(doc)}
                                   title="Print"
                                 >
@@ -3735,7 +3760,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
                                   onClick={() => handleDeleteDocument(doc)}
                                   title={t('common.delete')}
                                 >
@@ -4062,8 +4087,8 @@ export const Sales = () => {
                   <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
-                      <TableRow className="data-table-header hover:bg-section">
-                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center">
+                      <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
+                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center py-2">
                           <div className="flex items-center justify-center w-full">
                             <Checkbox
                               checked={filteredDocuments.length > 0 && selectedDocuments.size === filteredDocuments.length}
@@ -4072,13 +4097,13 @@ export const Sales = () => {
                             />
                           </div>
                         </TableHead>
-                        <TableHead>{t('documents.estimateNumber')}</TableHead>
-                        <TableHead>{t('documents.client')}</TableHead>
-                        <TableHead>{t('common.date')}</TableHead>
-                        <TableHead className="text-center">{t('documents.items')}</TableHead>
-                        <TableHead className="text-right">{t('documents.totalTTC')}</TableHead>
-                        <TableHead className="text-center">{t('common.status')}</TableHead>
-                        <TableHead className="text-center">{t('common.actions')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('documents.estimateNumber')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('documents.client')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('common.date')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('documents.items')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">{t('documents.totalTTC')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.status')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -4093,11 +4118,11 @@ export const Sales = () => {
                           <TableRow
                             key={doc.id}
                             className={cn(
-                              "hover:bg-section/50",
+                              "hover:bg-muted/20 transition-colors",
                               selectedDocuments.has(doc.id) && "bg-primary/5"
                             )}
                           >
-                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center">
+                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center py-2.5">
                               <div className="flex items-center justify-center w-full">
                                 <Checkbox
                                   checked={selectedDocuments.has(doc.id)}
@@ -4106,24 +4131,26 @@ export const Sales = () => {
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono font-medium max-w-[120px] truncate" title={doc.id}>{doc.id}</TableCell>
-                            <TableCell className="max-w-[200px] truncate" title={doc.client}>{doc.client}</TableCell>
-                            <TableCell className="max-w-[120px] truncate" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
-                            <TableCell className="text-center number-cell">
+                            <TableCell className="max-w-[160px] py-2.5" title={doc.id}>
+                              <span className="inline-block bg-muted/60 border border-border/50 rounded px-2 py-0.5 font-mono text-xs text-foreground/80 truncate">{doc.id}</span>
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate py-2.5 font-medium text-sm" title={doc.client}>{doc.client}</TableCell>
+                            <TableCell className="max-w-[120px] truncate py-2.5 text-sm text-muted-foreground" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
+                            <TableCell className="text-center number-cell py-2.5 text-sm">
                               {Array.isArray(doc.items) ? doc.items.length : doc.items}
                             </TableCell>
-                            <TableCell className="text-right font-medium number-cell">
+                            <TableCell className="text-right font-semibold number-cell py-2.5">
                               <CurrencyDisplay amount={doc.total} />
                             </TableCell>
-                            <TableCell className="text-center">
+                            <TableCell className="text-center py-2.5">
                               {renderStatusSelect(doc)}
                             </TableCell>
-                            <TableCell className="w-[220px]">
-                              <div className="flex items-center justify-center gap-1">
+                            <TableCell className="w-[220px] py-2.5">
+                              <div className="flex items-center justify-center gap-0.5">
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
                                   onClick={() => handleViewDocument(doc)}
                                   title="View"
                                 >
@@ -4132,7 +4159,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40"
                                   onClick={() => handleEditDocument(doc)}
                                   title="Edit"
                                 >
@@ -4141,7 +4168,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handleDownloadPDF(doc)}
                                   title="Download PDF"
                                 >
@@ -4150,7 +4177,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handlePrintPDF(doc)}
                                   title="Print"
                                 >
@@ -4159,7 +4186,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
                                   onClick={() => handleDeleteDocument(doc)}
                                   title={t('common.delete')}
                                 >
@@ -4466,8 +4493,8 @@ export const Sales = () => {
                   <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
                   <Table className="min-w-[700px]">
                     <TableHeader>
-                      <TableRow className="data-table-header hover:bg-section">
-                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center">
+                      <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
+                        <TableHead className="w-[70px] min-w-[70px] px-3 text-center py-2">
                           <div className="flex items-center justify-center w-full">
                             <Checkbox
                               checked={filteredDocuments.length > 0 && selectedDocuments.size === filteredDocuments.length}
@@ -4476,12 +4503,12 @@ export const Sales = () => {
                             />
                           </div>
                         </TableHead>
-                        <TableHead>Credit Note #</TableHead>
-                        <TableHead>{t('documents.client')}</TableHead>
-                        <TableHead>{t('common.date')}</TableHead>
-                        <TableHead className="text-right">{t('documents.amountTTC')}</TableHead>
-                        <TableHead className="text-center">{t('common.status')}</TableHead>
-                        <TableHead className="text-center">{t('common.actions')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Credit Note #</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('documents.client')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('common.date')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">{t('documents.amountTTC')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.status')}</TableHead>
+                        <TableHead className="py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">{t('common.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -4496,12 +4523,12 @@ export const Sales = () => {
                           <TableRow
                             key={doc.id}
                             className={cn(
-                              "hover:bg-section/50",
+                              "hover:bg-muted/20 transition-colors",
                               selectedDocuments.has(doc.id) && "bg-primary/5",
                               highlightedDocId === doc.id && "animate-highlight-glow"
                             )}
                           >
-                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center">
+                            <TableCell className="w-[70px] min-w-[70px] px-3 text-center py-2.5">
                               <div className="flex items-center justify-center w-full">
                                 <Checkbox
                                   checked={selectedDocuments.has(doc.id)}
@@ -4510,30 +4537,30 @@ export const Sales = () => {
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono font-medium max-w-[150px]" title={doc.id}>
+                            <TableCell className="max-w-[160px] py-2.5" title={doc.id}>
                               <div className="flex flex-col gap-0.5">
-                                <span className="truncate">{doc.id}</span>
+                                <span className="inline-block bg-muted/60 border border-border/50 rounded px-2 py-0.5 font-mono text-xs text-foreground/80 truncate">{doc.id}</span>
                                 {doc.originalInvoice && (
-                                  <span className="text-[10px] text-muted-foreground truncate">
+                                  <span className="text-[10px] text-muted-foreground truncate pl-0.5">
                                     Réf: {doc.originalInvoice}
                                   </span>
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="max-w-[200px] truncate" title={doc.client}>{doc.client}</TableCell>
-                            <TableCell className="max-w-[120px] truncate" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
-                            <TableCell className="text-right font-medium number-cell">
+                            <TableCell className="max-w-[200px] truncate py-2.5 font-medium text-sm" title={doc.client}>{doc.client}</TableCell>
+                            <TableCell className="max-w-[120px] truncate py-2.5 text-sm text-muted-foreground" title={formatDate(doc.date)}>{formatDate(doc.date)}</TableCell>
+                            <TableCell className="text-right font-semibold number-cell py-2.5">
                               <CurrencyDisplay amount={doc.total} />
                             </TableCell>
-                            <TableCell className="text-center">
+                            <TableCell className="text-center py-2.5">
                               {renderStatusSelect(doc)}
                             </TableCell>
-                            <TableCell className="w-[240px]">
-                              <div className="flex items-center justify-center gap-1">
+                            <TableCell className="w-[240px] py-2.5">
+                              <div className="flex items-center justify-center gap-0.5">
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
                                   onClick={() => handleViewDocument(doc)}
                                   title="View"
                                 >
@@ -4542,7 +4569,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40"
                                   onClick={() => handleEditDocument(doc)}
                                   title="Edit"
                                 >
@@ -4551,7 +4578,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handleDownloadPDF(doc)}
                                   title="Download PDF"
                                 >
@@ -4560,7 +4587,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                                   onClick={() => handlePrintPDF(doc)}
                                   title="Print"
                                 >
@@ -4569,7 +4596,7 @@ export const Sales = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
                                   onClick={() => handleDeleteDocument(doc)}
                                   title={t('common.delete')}
                                 >
@@ -4786,7 +4813,7 @@ export const Sales = () => {
                         <TableRow key={inv.id} className="hover:bg-section/50">
                           <TableCell className="font-mono flex items-center gap-1.5">
                             {inv.id}
-                            {(inv as any).originalInvoice && (
+                            {inv.originalInvoice && (
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700">AV</span>
                             )}
                           </TableCell>
@@ -5025,7 +5052,7 @@ export const Sales = () => {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Type de mouvement</Label>
-                      <Select value={stmtTypeFilter} onValueChange={(v: any) => setStmtTypeFilter(v)}>
+                      <Select value={stmtTypeFilter} onValueChange={(v) => setStmtTypeFilter(v)}>
                         <SelectTrigger className="h-8 text-sm">
                           <SelectValue />
                         </SelectTrigger>
@@ -5066,7 +5093,7 @@ export const Sales = () => {
                       <CheckSquare className="w-4 h-4 text-success" />
                     </div>
                     <p className="text-2xl font-heading font-bold text-success">
-                      <CurrencyDisplay amount={filteredStatementInvoices.reduce((s, inv) => s + (inv.status === 'paid' ? inv.total : ((inv as any).amount_paid || 0)), 0)} />
+                      <CurrencyDisplay amount={filteredStatementInvoices.reduce((s, inv) => s + (inv.status === 'paid' ? inv.total : (inv.amount_paid || 0)), 0)} />
                     </p>
                   </div>
                   <div className="card-elevated p-6">
@@ -5075,7 +5102,7 @@ export const Sales = () => {
                       <FileX className="w-4 h-4 text-warning" />
                     </div>
                     <p className="text-2xl font-heading font-bold text-warning">
-                      <CurrencyDisplay amount={filteredStatementInvoices.reduce((s, inv) => s + (inv.status === 'paid' ? 0 : (inv.total - ((inv as any).amount_paid || 0))), 0)} />
+                      <CurrencyDisplay amount={filteredStatementInvoices.reduce((s, inv) => s + (inv.status === 'paid' ? 0 : (inv.total - (inv.amount_paid || 0))), 0)} />
                     </p>
                   </div>
                 </div>
@@ -5147,9 +5174,9 @@ export const Sales = () => {
                             // If status is fully paid, treat credit = total regardless of stored amount_paid
                             const amountPaid = inv.status === 'paid'
                               ? inv.total
-                              : ((inv as any).amount_paid || 0);
+                              : (inv.amount_paid || 0);
                             const balance = inv.total - amountPaid;
-                            const ht = (inv as any).subtotal != null ? Number((inv as any).subtotal) : inv.total / 1.2;
+                            const ht = inv.subtotal != null ? Number(inv.subtotal) : inv.total / 1.2;
                             const isSelected = selectedStatementDocs.has(inv.id);
                             return (
                               <TableRow key={inv.id} className={`hover:bg-section/50 ${isSelected ? 'bg-primary/5' : ''}`}>
@@ -5270,11 +5297,11 @@ export const Sales = () => {
                   </div>
                 )}
                 {/* Linked BLs section — shown when viewing an invoice */}
-                {viewingDocument.type === 'invoice' && (viewingDocument as any).linked_bls?.length > 0 && (
+                {viewingDocument.type === 'invoice' && (viewingDocument.linked_bls?.length ?? 0) > 0 && (
                   <div className="mt-6">
                     <Label className="text-muted-foreground mb-3 block flex items-center gap-1">
                       <Receipt className="w-3.5 h-3.5" />
-                      BLs liés ({(viewingDocument as any).linked_bls.length})
+                      BLs liés ({viewingDocument.linked_bls?.length})
                     </Label>
                     <div className="border border-border rounded-lg overflow-hidden">
                       <div className="overflow-x-auto">
@@ -5287,11 +5314,11 @@ export const Sales = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {(viewingDocument as any).linked_bls.map((bl: any) => (
+                          {(viewingDocument.linked_bls ?? []).map((bl) => (
                             <TableRow key={bl.id}>
                               <TableCell className="font-mono font-medium">{bl.document_id}</TableCell>
                               <TableCell>{formatDate(bl.date)}</TableCell>
-                              <TableCell className="text-right font-medium">{formatMAD(bl.subtotal)}</TableCell>
+                              <TableCell className="text-right font-medium">{formatMAD((bl as { subtotal?: number }).subtotal ?? 0)}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -5347,7 +5374,7 @@ export const Sales = () => {
                         setEditFormData({
                           ...editFormData,
                           client: val,
-                          clientData: found ? (found as any) : editFormData.clientData,
+                          clientData: found ?? editFormData.clientData,
                         });
                       }}
                     >
@@ -5404,7 +5431,7 @@ export const Sales = () => {
                         type="number"
                         step="0.01"
                         min="0"
-                        value={editFormData.amount_paid !== undefined ? editFormData.amount_paid : (editingDocument as any).amount_paid || 0}
+                        value={editFormData.amount_paid !== undefined ? editFormData.amount_paid : editingDocument.amount_paid || 0}
                         onChange={(e) => {
                           const amountPaid = parseFloat(e.target.value) || 0;
                           const total = editItemsSubtotal || editingDocument.total;
@@ -5422,7 +5449,7 @@ export const Sales = () => {
                         <CurrencyDisplay
                           amount={
                             (editItemsSubtotal || editingDocument.total) -
-                            (editFormData.amount_paid !== undefined ? editFormData.amount_paid : (editingDocument as any).amount_paid || 0)
+                            (editFormData.amount_paid !== undefined ? editFormData.amount_paid : editingDocument.amount_paid || 0)
                           }
                         />
                       </div>

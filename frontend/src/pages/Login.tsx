@@ -16,6 +16,7 @@ export const Login = () => {
   const location = useLocation();
   const { login, isAuthenticated } = useAuth();
   const { companyInfo } = useCompany();
+  const displayName = companyInfo.name.replace(/\s*\bSARL\b\s*/gi, '').trim();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -107,7 +108,7 @@ export const Login = () => {
               </div>
             )}
             <div>
-              <span className="text-2xl font-heading font-bold text-primary-foreground">{companyInfo.name}</span>
+              <span className="text-2xl font-heading font-bold text-primary-foreground">{displayName}</span>
             </div>
           </div>
         </div>
@@ -128,7 +129,7 @@ export const Login = () => {
 
         <div className="relative z-10">
           <p className="text-sm text-primary-foreground/60">
-            © {new Date().getFullYear()} {companyInfo.name}. {t('auth.allRightsReserved')}
+            © {new Date().getFullYear()} {displayName}. {t('auth.allRightsReserved')}
           </p>
         </div>
       </div>
@@ -152,7 +153,7 @@ export const Login = () => {
               </div>
             )}
             <div>
-              <span className="text-xl font-heading font-bold text-foreground">{companyInfo.name}</span>
+              <span className="text-xl font-heading font-bold text-foreground">{displayName}</span>
             </div>
           </div>
 
