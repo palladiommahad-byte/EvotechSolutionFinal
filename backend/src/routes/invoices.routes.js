@@ -697,7 +697,7 @@ router.post('/', asyncHandler(async (req, res) => {
  */
 router.put('/:id', asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { date, due_date, payment_method, check_number, bank_account_id, status, note, items, amount_paid, discount_type, discount_value } = req.body;
+    const { document_id, date, due_date, payment_method, check_number, bank_account_id, status, note, items, amount_paid, discount_type, discount_value } = req.body;
 
     const client = await getClient();
 
@@ -711,6 +711,23 @@ router.put('/:id', asyncHandler(async (req, res) => {
             return res.status(404).json({ error: 'Not Found', message: 'Invoice not found' });
         }
         const existingInvoice = existingInvoiceResult.rows[0];
+
+        // If the document number is being changed, ensure the new value is unique.
+        // FK relationships use the invoice UUID, so changing document_id is safe; only the
+        // UNIQUE constraint on invoices.document_id must be respected.
+        const newDocumentId = (document_id !== undefined && document_id !== null && String(document_id).trim() !== '')
+            ? String(document_id).trim()
+            : undefined;
+        if (newDocumentId && newDocumentId !== existingInvoice.document_id) {
+            const dupResult = await client.query(
+                'SELECT id FROM invoices WHERE document_id = $1 AND id <> $2',
+                [newDocumentId, id]
+            );
+            if (dupResult.rows.length > 0) {
+                await client.query('ROLLBACK');
+                return res.status(409).json({ error: 'Conflict', message: `Le numéro de document "${newDocumentId}" existe déjà.` });
+            }
+        }
 
         // Calculate new totals if items provided
         let subtotal, vatAmount, total;
@@ -775,6 +792,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
         const params = [];
         let paramIndex = 1;
 
+        if (newDocumentId && newDocumentId !== existingInvoice.document_id) { updates.push(`document_id = $${paramIndex++}`); params.push(newDocumentId); }
         if (date !== undefined) { updates.push(`date = $${paramIndex++}`); params.push(date); }
         if (due_date !== undefined) { updates.push(`due_date = $${paramIndex++}`); params.push(due_date); }
         if (payment_method !== undefined) { updates.push(`payment_method = $${paramIndex++}`); params.push(payment_method); }

@@ -131,6 +131,7 @@ export const invoicesService = {
    * Update an invoice with items
    */
   async update(id: string, invoice: {
+    document_id?: string;
     date?: string;
     due_date?: string;
     payment_method?: 'cash' | 'check' | 'bank_transfer';

@@ -527,7 +527,14 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
             ? data.checkNumber
             : invoice.checkNumber;
 
+      // Allow renaming the document number; only send it when it actually changed
+      // (backend validates uniqueness — FK links use the UUID so this is safe).
+      const newDocumentId = data.documentId && data.documentId !== invoice.documentId
+        ? data.documentId
+        : undefined;
+
       const updatedInvoice = await invoicesService.update(invoice._internalId, {
+        document_id: newDocumentId,
         date: data.date,
         status: data.status ? mapInvoiceStatus(data.status) : undefined,
         payment_method: paymentMethod,
@@ -588,6 +595,8 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
             check_number: checkNumberForTreasury,
             payment_date: updatedInvoice.date,
             status: paymentStatus,
+            // Keep the treasury reference in sync if the invoice number was changed
+            invoice_number: updatedInvoice.document_id,
             notes: `Auto-updated from invoice ${updatedInvoice.document_id} (Status: ${updatedInvoice.status})`,
           });
 

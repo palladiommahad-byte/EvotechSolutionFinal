@@ -5363,6 +5363,22 @@ export const Sales = () => {
 
               <div className="space-y-6 py-4">
 
+                {/* ── Editable document number (invoices only, not when duplicating) ── */}
+                {editingDocument.type === 'invoice' && !isDuplicating && (
+                  <div className="space-y-2">
+                    <Label className="font-medium">Numéro de document</Label>
+                    <Input
+                      value={editFormData.documentId ?? editingDocument.id}
+                      onChange={(e) => setEditFormData({ ...editFormData, documentId: e.target.value })}
+                      placeholder={editingDocument.id}
+                      className="font-mono"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Modifiez le numéro de la facture. Il doit rester unique.
+                    </p>
+                  </div>
+                )}
+
                 {/* ── Header Fields ─────────────────────────────────────── */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
