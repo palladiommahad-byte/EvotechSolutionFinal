@@ -161,7 +161,8 @@ router.get('/:id', asyncHandler(async (req, res) => {
  * Create a new delivery note
  */
 router.post('/', asyncHandler(async (req, res) => {
-    let { document_id, client_id, supplier_id, warehouse_id, date, document_type = 'delivery_note', note, client_po_number, items, discount_type = 'fixed', discount_value = 0 } = req.body;
+    let { document_id, client_id, supplier_id, warehouse_id, date, document_type = 'delivery_note', note, client_po_number, items, discount_type = 'fixed', discount_value = 0, tax_enabled } = req.body;
+    const taxEnabledValue = tax_enabled === true;
 
     if (!date || !items || items.length === 0) {
         return res.status(400).json({
@@ -195,10 +196,10 @@ router.post('/', asyncHandler(async (req, res) => {
         const subtotal = initialSubtotal - discountAmount;
 
         const noteResult = await client.query(
-            `INSERT INTO delivery_notes (document_id, client_id, supplier_id, warehouse_id, date, subtotal, status, note, document_type, client_po_number, discount_type, discount_value)
-       VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7, $8, $9, $10, $11)
+            `INSERT INTO delivery_notes (document_id, client_id, supplier_id, warehouse_id, date, subtotal, status, note, document_type, client_po_number, discount_type, discount_value, tax_enabled)
+       VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7, $8, $9, $10, $11, $12)
        RETURNING *`,
-            [document_id, client_id || null, supplier_id || null, warehouse_id || null, date, subtotal, note || null, document_type, client_po_number || null, discount_type, dv]
+            [document_id, client_id || null, supplier_id || null, warehouse_id || null, date, subtotal, note || null, document_type, client_po_number || null, discount_type, dv, taxEnabledValue]
         );
 
         const deliveryNote = noteResult.rows[0];
@@ -300,7 +301,7 @@ router.post('/', asyncHandler(async (req, res) => {
  */
 router.put('/:id', asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { date, status, note, client_po_number, items, discount_type, discount_value } = req.body;
+    const { date, status, note, client_po_number, items, discount_type, discount_value, tax_enabled } = req.body;
 
     const client = await getClient();
 
@@ -347,6 +348,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
         if (client_po_number !== undefined) { updates.push(`client_po_number = $${paramIndex++} `); params.push(client_po_number || null); }
         if (discount_type !== undefined) { updates.push(`discount_type = $${paramIndex++} `); params.push(discount_type); }
         if (discount_value !== undefined) { updates.push(`discount_value = $${paramIndex++} `); params.push(discount_value); }
+        if (tax_enabled !== undefined) { updates.push(`tax_enabled = $${paramIndex++} `); params.push(tax_enabled === true); }
         if (subtotal !== undefined) { updates.push(`subtotal = $${paramIndex++} `); params.push(subtotal); }
         updates.push(`updated_at = NOW()`);
         params.push(id);

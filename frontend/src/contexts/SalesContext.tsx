@@ -779,6 +779,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
         warehouse_id: data.warehouseId,
         discount_type: data.discountType,
         discount_value: data.discountValue,
+        tax_enabled: data.taxEnabled,
         items: data.items.map(item => ({
           product_id: item.productId && uuidRegex.test(item.productId) ? item.productId : null,
           description: item.description,
@@ -822,6 +823,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
         date: data.date,
         status: data.status ? mapDeliveryNoteStatus(data.status) : undefined,
         note: data.note,
+        tax_enabled: data.taxEnabled,
         items: data.items?.map(item => ({
           product_id: item.productId,
           description: item.description,
@@ -892,6 +894,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
         note: data.note,
         client_po_number: data.clientPoNumber,
         warehouse_id: data.warehouseId,
+        tax_enabled: data.taxEnabled,
         items: data.items.map(item => ({
           product_id: item.productId && uuidRegex.test(item.productId) ? item.productId : null,
           description: item.description,
@@ -934,6 +937,7 @@ export const SalesProvider = ({ children }: { children: ReactNode }) => {
         date: data.date,
         status: data.status ? mapDeliveryNoteStatus(data.status) : undefined,
         note: data.note,
+        tax_enabled: data.taxEnabled,
         items: data.items?.map(item => ({
           product_id: item.productId,
           description: item.description,

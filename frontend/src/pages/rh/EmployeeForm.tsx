@@ -43,6 +43,50 @@ const contractBadge: Record<string, string> = {
   Intérim: 'bg-orange-100 text-orange-700',
 };
 
+type SetHandler = (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+
+// NOTE: Field and SectionHeader are defined at module scope (not inside EmployeeForm).
+// Defining them inside the component would create a new function identity on every
+// render, causing React to remount the <Input> on each keystroke and lose focus.
+const Field = ({
+  label, name, type = 'text', icon: Icon, placeholder, extra, form, errors, set,
+}: {
+  label: string;
+  name: keyof FormData;
+  type?: string;
+  icon?: React.ElementType;
+  placeholder?: string;
+  extra?: React.InputHTMLAttributes<HTMLInputElement>;
+  form: FormData;
+  errors: Partial<Record<keyof FormData, string>>;
+  set: SetHandler;
+}) => (
+  <div className="space-y-1.5">
+    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</Label>
+    <div className="relative">
+      {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />}
+      <Input
+        type={type}
+        value={String(form[name] ?? '')}
+        onChange={set(name)}
+        placeholder={placeholder}
+        {...extra}
+        className={`${Icon ? 'pl-9' : ''} ${errors[name] ? 'border-red-400 focus-visible:ring-red-300' : ''}`}
+      />
+    </div>
+    {errors[name] && <p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{errors[name]}</p>}
+  </div>
+);
+
+const SectionHeader = ({ icon: Icon, title, color }: { icon: React.ElementType; title: string; color: string }) => (
+  <div className={`flex items-center gap-2 mb-4 pb-3 border-b`}>
+    <div className={`p-1.5 rounded-lg ${color}`}>
+      <Icon className="w-4 h-4" />
+    </div>
+    <span className="font-semibold text-sm">{title}</span>
+  </div>
+);
+
 export const EmployeeForm: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -117,42 +161,6 @@ export const EmployeeForm: React.FC = () => {
     }
   };
 
-  const Field = ({
-    label, name, type = 'text', icon: Icon, placeholder, extra,
-  }: {
-    label: string;
-    name: keyof FormData;
-    type?: string;
-    icon?: React.ElementType;
-    placeholder?: string;
-    extra?: React.InputHTMLAttributes<HTMLInputElement>;
-  }) => (
-    <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</Label>
-      <div className="relative">
-        {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />}
-        <Input
-          type={type}
-          value={String(form[name] ?? '')}
-          onChange={set(name)}
-          placeholder={placeholder}
-          {...extra}
-          className={`${Icon ? 'pl-9' : ''} ${errors[name] ? 'border-red-400 focus-visible:ring-red-300' : ''}`}
-        />
-      </div>
-      {errors[name] && <p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{errors[name]}</p>}
-    </div>
-  );
-
-  const SectionHeader = ({ icon: Icon, title, color }: { icon: React.ElementType; title: string; color: string }) => (
-    <div className={`flex items-center gap-2 mb-4 pb-3 border-b`}>
-      <div className={`p-1.5 rounded-lg ${color}`}>
-        <Icon className="w-4 h-4" />
-      </div>
-      <span className="font-semibold text-sm">{title}</span>
-    </div>
-  );
-
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       {/* Page Header */}
@@ -189,10 +197,10 @@ export const EmployeeForm: React.FC = () => {
           <CardContent className="pt-5">
             <SectionHeader icon={User} title="Informations personnelles" color="bg-blue-100 text-blue-600" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Nom complet *" name="full_name" icon={User} placeholder="Prénom Nom" />
-              <Field label="CIN *" name="cin" icon={CreditCard} placeholder="AB12345" />
-              <Field label="Téléphone" name="phone" type="tel" icon={Phone} placeholder="06 XX XX XX XX" />
-              <Field label="Email" name="email" type="email" icon={Mail} placeholder="nom@exemple.com" />
+              <Field label="Nom complet *" name="full_name" icon={User} placeholder="Prénom Nom" form={form} errors={errors} set={set} />
+              <Field label="CIN *" name="cin" icon={CreditCard} placeholder="AB12345" form={form} errors={errors} set={set} />
+              <Field label="Téléphone" name="phone" type="tel" icon={Phone} placeholder="06 XX XX XX XX" form={form} errors={errors} set={set} />
+              <Field label="Email" name="email" type="email" icon={Mail} placeholder="nom@exemple.com" form={form} errors={errors} set={set} />
               <div className="sm:col-span-2 space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Adresse</Label>
                 <div className="relative">
@@ -209,8 +217,8 @@ export const EmployeeForm: React.FC = () => {
           <CardContent className="pt-5">
             <SectionHeader icon={Briefcase} title="Informations contrat" color="bg-emerald-100 text-emerald-600" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Poste *" name="job_title" icon={Briefcase} placeholder="Développeur, Comptable..." />
-              <Field label="Département" name="department" icon={Building2} placeholder="IT, Finance, RH..." />
+              <Field label="Poste *" name="job_title" icon={Briefcase} placeholder="Développeur, Comptable..." form={form} errors={errors} set={set} />
+              <Field label="Département" name="department" icon={Building2} placeholder="IT, Finance, RH..." form={form} errors={errors} set={set} />
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Type de contrat *</Label>
@@ -279,7 +287,7 @@ export const EmployeeForm: React.FC = () => {
           <CardContent className="pt-5">
             <SectionHeader icon={Shield} title="Informations sociales" color="bg-violet-100 text-violet-600" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="N° CNSS *" name="cnss_number" icon={Hash} placeholder="123456789" />
+              <Field label="N° CNSS *" name="cnss_number" icon={Hash} placeholder="123456789" form={form} errors={errors} set={set} />
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Personnes à charge</Label>
                 <div className="relative">
