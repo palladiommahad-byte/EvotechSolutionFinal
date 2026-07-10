@@ -8,6 +8,9 @@
 .env.production
 .env.*.local
 
+# Local backups contain database data and secrets
+backups/
+
 # PM2 Logs
 logs/
 *.log
