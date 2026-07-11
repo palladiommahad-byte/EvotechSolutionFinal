@@ -7,6 +7,8 @@ set "DB_NAME=EvotechSolution"
 set "BACKUP_DIR=%~dp0backups"
 set "BACKUP_FILE=%~1"
 
+cd /d "%~dp0"
+
 echo ==========================================
 echo      EvoTech Solution - Database Restore
 echo ==========================================
@@ -31,10 +33,43 @@ if not exist "%BACKUP_FILE%" (
     exit /b 1
 )
 
-docker ps --format "{{.Names}}" | findstr /R /C:"^%CONTAINER%$" >nul
+docker info >nul 2>nul
 if errorlevel 1 (
-    echo ERROR: Docker container "%CONTAINER%" is not running.
-    echo Start only the database or the full app first with: docker compose up -d
+    echo ERROR: Docker is not running.
+    echo Please open Docker Desktop, wait until it is ready, then run this restore again.
+    echo.
+    pause
+    exit /b 1
+)
+
+docker inspect %CONTAINER% >nul 2>nul
+if errorlevel 1 (
+    echo PostgreSQL container was not found. Starting it now...
+    docker compose up -d postgres
+) else (
+    docker inspect -f "{{.State.Running}}" %CONTAINER% | findstr /I "true" >nul
+    if errorlevel 1 (
+        echo PostgreSQL container is stopped. Starting it now...
+        docker start %CONTAINER% >nul
+    )
+)
+
+echo Waiting for PostgreSQL to be ready...
+set "READY="
+for /L %%i in (1,1,30) do (
+    docker exec %CONTAINER% pg_isready -U %DB_USER% -d %DB_NAME% >nul 2>nul
+    if not errorlevel 1 (
+        set "READY=1"
+        goto db_ready
+    )
+    timeout /t 2 >nul
+)
+
+:db_ready
+if not defined READY (
+    echo.
+    echo ERROR: PostgreSQL did not become ready.
+    echo Try opening Docker Desktop and run: docker compose up -d
     echo.
     pause
     exit /b 1

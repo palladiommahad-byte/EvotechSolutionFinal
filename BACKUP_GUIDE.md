@@ -26,16 +26,22 @@ A `.sha256` file is created beside it so you can verify the backup file was not 
 
 ## Correct backup routine
 
-1. Start Docker and the application:
-
-```bat
-docker compose up -d
-```
+1. Open Docker Desktop and wait until it is ready.
 
 2. Run:
 
 ```bat
 backup-database.bat
+```
+
+The script will automatically start the PostgreSQL container if it is stopped.
+
+If Docker Desktop is closed, the script will ask you to open Docker first.
+
+You can still start the full app manually with:
+
+```bat
+docker compose up -d
 ```
 
 3. Copy the newest `.dump` file somewhere outside the computer, for example:
