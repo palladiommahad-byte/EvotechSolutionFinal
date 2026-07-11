@@ -264,6 +264,7 @@ CREATE TABLE IF NOT EXISTS delivery_note_items (
     product_id UUID REFERENCES products(id),
     description TEXT NOT NULL,
     quantity DECIMAL(12, 3) NOT NULL,
+    unit VARCHAR(50),
     unit_price DECIMAL(12, 2) NOT NULL,
     total DECIMAL(12, 2) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
