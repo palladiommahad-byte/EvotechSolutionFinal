@@ -106,11 +106,30 @@ export interface Notification {
   read_at?: string;
 }
 
+export interface DatabaseBackupStatus {
+  backupDirectory: string;
+  operation: 'backup' | 'restore' | null;
+  latestBackup: { name: string; createdAt: string } | null;
+}
+
 // ============================================
 // SETTINGS SERVICE
 // ============================================
 
 export const settingsService = {
+  // Database backup and restore (administrator only)
+  async getDatabaseBackupStatus(): Promise<DatabaseBackupStatus> {
+    return apiClient.get<DatabaseBackupStatus>('/settings/database-backup');
+  },
+
+  async createDatabaseBackup(): Promise<{ backup: { folderName: string; createdAt: string } }> {
+    return apiClient.post<{ backup: { folderName: string; createdAt: string } }>('/settings/database-backup');
+  },
+
+  async restoreLatestDatabaseBackup(): Promise<{ restoredBackup: { name: string; createdAt: string } }> {
+    return apiClient.post<{ restoredBackup: { name: string; createdAt: string } }>('/settings/database-restore/latest');
+  },
+
   // Company Settings
   async getCompanySettings(): Promise<CompanySettings | null> {
     try {

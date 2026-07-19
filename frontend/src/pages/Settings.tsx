@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, ChangeEvent } from 'react';
-import { Building2, Upload, Users, Shield, Save, Palette, Trash2, Warehouse, Plus, Edit, MapPin, Phone, Mail, User, Bell, CheckCheck, CheckCircle2, AlertTriangle, X, Info, Filter, XCircle, Circle, Eye, EyeOff, FileText, RotateCcw } from 'lucide-react';
+import { Building2, Upload, Users, Shield, Save, Palette, Trash2, Warehouse, Plus, Edit, MapPin, Phone, Mail, User, Bell, CheckCheck, CheckCircle2, AlertTriangle, X, Info, Filter, XCircle, Circle, Eye, EyeOff, FileText, RotateCcw, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +26,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
+import { DatabaseBackupStatus, settingsService } from '@/services/settings.service';
 import {
   Dialog,
   DialogContent,
@@ -117,6 +118,24 @@ export const Settings = () => {
 
   const isAdmin = currentUser?.role ? String(currentUser.role) === 'admin' : false;
   const isManager = currentUser?.role ? String(currentUser.role) === 'manager' : false;
+  const [backupStatus, setBackupStatus] = useState<DatabaseBackupStatus | null>(null);
+  const [isBackupRunning, setIsBackupRunning] = useState(false);
+  const [isRestoreRunning, setIsRestoreRunning] = useState(false);
+  const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
+
+  const refreshBackupStatus = async () => {
+    if (!isAdmin) return;
+    try {
+      setBackupStatus(await settingsService.getDatabaseBackupStatus());
+    } catch (error) {
+      console.error('Unable to load backup status:', error);
+    }
+  };
+
+  useEffect(() => {
+    refreshBackupStatus();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
 
   // Initialize formData with safe defaults to prevent object-to-primitive errors
   const [formData, setFormData] = useState(() => {
@@ -376,6 +395,33 @@ export const Settings = () => {
       description: "Company information saved successfully.",
       variant: "success",
     });
+  };
+
+  const handleCreateDatabaseBackup = async () => {
+    setIsBackupRunning(true);
+    try {
+      const result = await settingsService.createDatabaseBackup();
+      toast({ title: 'Backup completed', description: `Saved ${result.backup.folderName} in the system backup folder.`, variant: 'success' });
+      await refreshBackupStatus();
+    } catch (error) {
+      toast({ title: 'Backup failed', description: error instanceof Error ? error.message : 'The database could not be backed up.', variant: 'destructive' });
+    } finally {
+      setIsBackupRunning(false);
+    }
+  };
+
+  const handleRestoreLatestDatabaseBackup = async () => {
+    setIsRestoreRunning(true);
+    try {
+      const result = await settingsService.restoreLatestDatabaseBackup();
+      toast({ title: 'Database restored', description: `Restored ${result.restoredBackup.name}. A safety backup of the previous data was also created.`, variant: 'success' });
+      setIsRestoreDialogOpen(false);
+      await refreshBackupStatus();
+    } catch (error) {
+      toast({ title: 'Restore failed', description: error instanceof Error ? error.message : 'The latest database backup could not be restored.', variant: 'destructive' });
+    } finally {
+      setIsRestoreRunning(false);
+    }
   };
 
   const handleLogoUpload = (e: ChangeEvent<HTMLInputElement>) => {
@@ -933,6 +979,12 @@ export const Settings = () => {
             <Warehouse className="w-4 h-4" />
             {t('settings.warehouses')}
           </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="database" className="gap-2 rounded-md">
+              <Database className="w-4 h-4" />
+              Database
+            </TabsTrigger>
+          )}
           <TabsTrigger value="profile" className="gap-2 rounded-md">
             <User className="w-4 h-4" />
             Profile
@@ -1066,6 +1118,59 @@ export const Settings = () => {
             </div>
           </div>
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="database" className="animate-fade-in">
+            <div className="card-elevated p-6 max-w-3xl space-y-6">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Database className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-heading font-semibold text-foreground">Database backup and restore</h3>
+                  <p className="text-sm text-muted-foreground">Backups include the PostgreSQL database and the current Docker configuration. No command line is required.</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-section rounded-lg border border-border space-y-1">
+                <p className="text-sm font-medium text-foreground">Latest backup</p>
+                {backupStatus?.latestBackup ? (
+                  <p className="text-sm text-muted-foreground">{backupStatus.latestBackup.name} — {new Date(backupStatus.latestBackup.createdAt).toLocaleString()}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No backup has been created yet.</p>
+                )}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button className="gap-2 btn-primary-gradient" onClick={handleCreateDatabaseBackup} disabled={isBackupRunning || isRestoreRunning}>
+                  <Save className="w-4 h-4" />
+                  {isBackupRunning ? 'Creating backup…' : 'Backup database'}
+                </Button>
+                <Button variant="outline" className="gap-2" onClick={() => setIsRestoreDialogOpen(true)} disabled={!backupStatus?.latestBackup || isBackupRunning || isRestoreRunning}>
+                  <RotateCcw className="w-4 h-4" />
+                  Restore latest database
+                </Button>
+              </div>
+            </div>
+
+            <AlertDialog open={isRestoreDialogOpen} onOpenChange={setIsRestoreDialogOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Restore the latest database backup?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Current database data will be replaced with {backupStatus?.latestBackup?.name}. The system will automatically save the current database in a separate safety backup first.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={isRestoreRunning}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleRestoreLatestDatabaseBackup} disabled={isRestoreRunning} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    {isRestoreRunning ? 'Restoring…' : 'Restore now'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </TabsContent>
+        )}
 
         {/* PDF Design Studio */}
         <TabsContent value="pdf-design" className="animate-fade-in">

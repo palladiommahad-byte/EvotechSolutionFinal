@@ -2,6 +2,15 @@
 
 The application data is stored in PostgreSQL inside Docker, not in the frontend or backend source files.
 
+## Back up or restore from the application
+
+After the updated Docker stack is running, an administrator can use **Settings > Database**:
+
+- **Backup database** automatically creates a compressed PostgreSQL dump in `backups\database-<timestamp>`. It also saves the Docker Compose file, Dockerfiles, and Nginx configuration with that backup.
+- **Restore latest database** automatically verifies and restores the newest valid regular backup. Before replacing data, it saves the current database in a separate `pre-restore-<timestamp>` safety backup.
+
+No command-line command or backup-file selection is required. Only administrators can use these actions. The `backups` folder should still be copied to a separate disk or cloud location to protect against disk loss.
+
 ## Where backups are saved
 
 Run:
@@ -23,6 +32,10 @@ evotech_2026-07-11_16-30-00.dump
 ```
 
 A `.sha256` file is created beside it so you can verify the backup file was not changed or corrupted.
+
+## Legacy script routine
+
+The batch files below remain available for support or offline recovery, but the in-application Database page is the normal client workflow.
 
 ## Correct backup routine
 
@@ -55,7 +68,7 @@ Google Drive / OneDrive / Dropbox
 
 Do not keep the only backup inside Docker or only inside the project folder.
 
-## Restore a backup
+## Restore a backup manually (legacy)
 
 Run:
 

@@ -3,10 +3,34 @@ const bcrypt = require('bcrypt');
 const { query } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth.middleware');
 const { asyncHandler } = require('../middleware/error.middleware');
+const databaseBackup = require('../services/database-backup.service');
 
 const router = express.Router();
 
 router.use(verifyToken);
+
+// ============================================
+// DATABASE BACKUP AND RESTORE
+// ============================================
+// These commands execute inside the server container and are intentionally
+// restricted to administrators. The browser never receives database credentials.
+router.get('/database-backup', requireRole('admin'), asyncHandler(async (req, res) => {
+    res.json(await databaseBackup.getStatus());
+}));
+
+router.post('/database-backup', requireRole('admin'), asyncHandler(async (req, res) => {
+    const backup = await databaseBackup.createRegularBackup();
+    res.status(201).json({ message: 'Database backup completed.', backup });
+}));
+
+router.post('/database-restore/latest', requireRole('admin'), asyncHandler(async (req, res) => {
+    const result = await databaseBackup.restoreLatestBackup();
+    res.json({
+        message: 'The latest database backup was restored.',
+        restoredBackup: { name: result.restored.name, createdAt: result.restored.createdAt },
+        safetyBackup: result.safetyBackup.folderName,
+    });
+}));
 
 // ============================================
 // COMPANY SETTINGS

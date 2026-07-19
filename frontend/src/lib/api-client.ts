@@ -69,7 +69,31 @@ async function request<T>(
             return undefined as T;
         }
 
-        const data = await response.json();
+        // A reverse proxy can return an HTML error page (for example, while a
+        // database restore is still running). Read the body first so that this
+        // situation produces a useful application error instead of a JSON
+        // parser exception such as "Unexpected token '<'".
+        const responseText = await response.text();
+        const contentType = response.headers.get('content-type') || '';
+        let data: any = undefined;
+
+        if (responseText.trim()) {
+            const looksLikeJson = contentType.includes('application/json')
+                || /^[{\[]/.test(responseText.trim());
+
+            if (looksLikeJson) {
+                try {
+                    data = JSON.parse(responseText);
+                } catch {
+                    if (response.ok) {
+                        throw new ApiError(
+                            'The server returned an invalid response. Please try again.',
+                            response.status
+                        );
+                    }
+                }
+            }
+        }
 
         if (!response.ok) {
             // Handle 401 Unauthorized - clear token and redirect
@@ -80,14 +104,25 @@ async function request<T>(
                 }
             }
 
+            const timeoutMessage = response.status === 504
+                ? 'The operation is taking longer than expected. It may still be finishing; wait a moment and refresh the page.'
+                : 'The server returned an unexpected response. Please try again.';
+
             throw new ApiError(
-                data.message || 'An error occurred',
+                data?.message || data?.error || timeoutMessage,
                 response.status,
                 data
             );
         }
 
-        return data;
+        if (data === undefined) {
+            throw new ApiError(
+                'The server returned an unexpected response. Please try again.',
+                response.status
+            );
+        }
+
+        return data as T;
     } catch (error) {
         if (error instanceof ApiError) {
             throw error;
