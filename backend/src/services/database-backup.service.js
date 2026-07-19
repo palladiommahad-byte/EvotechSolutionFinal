@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const fs = require('fs/promises');
 const path = require('path');
 const { spawn } = require('child_process');
+const googleDriveBackup = require('./google-drive-backup.service');
 
 const BACKUP_ROOT = path.resolve(process.env.BACKUP_DIR || '/app/backups');
 const CONFIG_ROOT = path.resolve(process.env.BACKUP_CONFIG_DIR || '/app/backup-config');
@@ -81,7 +82,12 @@ async function createBackup(kind = 'regular') {
             includes: ['PostgreSQL database dump', 'docker-compose.yml', 'Dockerfiles', 'nginx.conf'],
         };
         await fs.writeFile(path.join(backupPath, 'metadata.json'), `${JSON.stringify(metadata, null, 2)}\n`, 'utf8');
-        return { folderName, ...metadata };
+        // Cloud-upload errors never invalidate a completed local backup. They are
+        // returned and recorded separately so the local recovery copy is always safe.
+        const googleDrive = kind === 'regular'
+            ? await googleDriveBackup.uploadBackup(backupPath, folderName)
+            : { configured: false, uploaded: false };
+        return { folderName, ...metadata, googleDrive };
     } catch (error) {
         await fs.rm(backupPath, { recursive: true, force: true });
         throw error;

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, ChangeEvent } from 'react';
-import { Building2, Upload, Users, Shield, Save, Palette, Trash2, Warehouse, Plus, Edit, MapPin, Phone, Mail, User, Bell, CheckCheck, CheckCircle2, AlertTriangle, X, Info, Filter, XCircle, Circle, Eye, EyeOff, FileText, RotateCcw, Database } from 'lucide-react';
+import { Building2, Upload, Users, Shield, Save, Palette, Trash2, Warehouse, Plus, Edit, MapPin, Phone, Mail, User, Bell, CheckCheck, CheckCircle2, AlertTriangle, X, Info, Filter, XCircle, Circle, Eye, EyeOff, FileText, RotateCcw, Database, Cloud } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,7 +26,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
-import { DatabaseBackupStatus, settingsService } from '@/services/settings.service';
+import { DatabaseBackupStatus, GoogleDriveBackupStatus, settingsService } from '@/services/settings.service';
 import {
   Dialog,
   DialogContent,
@@ -119,8 +119,13 @@ export const Settings = () => {
   const isAdmin = currentUser?.role ? String(currentUser.role) === 'admin' : false;
   const isManager = currentUser?.role ? String(currentUser.role) === 'manager' : false;
   const [backupStatus, setBackupStatus] = useState<DatabaseBackupStatus | null>(null);
+  const [googleDriveStatus, setGoogleDriveStatus] = useState<GoogleDriveBackupStatus | null>(null);
+  const [googleDriveSetup, setGoogleDriveSetup] = useState({ clientId: '', clientSecret: '', redirectUri: 'http://localhost:3000/api/settings/google-drive/callback', frontendUrl: 'http://localhost:8080' });
   const [isBackupRunning, setIsBackupRunning] = useState(false);
   const [isRestoreRunning, setIsRestoreRunning] = useState(false);
+  const [isGoogleDriveConnecting, setIsGoogleDriveConnecting] = useState(false);
+  const [isGoogleDriveDisconnecting, setIsGoogleDriveDisconnecting] = useState(false);
+  const [isGoogleDriveSetupSaving, setIsGoogleDriveSetupSaving] = useState(false);
   const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
 
   const refreshBackupStatus = async () => {
@@ -132,8 +137,28 @@ export const Settings = () => {
     }
   };
 
+  const refreshGoogleDriveStatus = async () => {
+    if (!isAdmin) return;
+    try {
+      const status = await settingsService.getGoogleDriveBackupStatus();
+      setGoogleDriveStatus(status);
+      setGoogleDriveSetup((current) => ({
+        clientId: status.setup.clientId || current.clientId,
+        clientSecret: '',
+        redirectUri: status.setup.redirectUri || current.redirectUri,
+        frontendUrl: status.setup.frontendUrl || current.frontendUrl,
+      }));
+    } catch (error) {
+      console.error('Unable to load Google Drive backup status:', error);
+    }
+  };
+
   useEffect(() => {
     refreshBackupStatus();
+    refreshGoogleDriveStatus();
+    const result = new URLSearchParams(window.location.search).get('googleDrive');
+    if (result === 'connected') toast({ title: 'Google Drive connected', description: 'Future database backups will also be uploaded to Google Drive.', variant: 'success' });
+    if (result === 'error') toast({ title: 'Google Drive was not connected', description: 'Please try again or verify the Google Drive configuration.', variant: 'destructive' });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
 
@@ -401,12 +426,56 @@ export const Settings = () => {
     setIsBackupRunning(true);
     try {
       const result = await settingsService.createDatabaseBackup();
-      toast({ title: 'Backup completed', description: `Saved ${result.backup.folderName} in the system backup folder.`, variant: 'success' });
+      const driveMessage = result.backup.googleDrive?.uploaded
+        ? ' It was also uploaded to Google Drive.'
+        : result.backup.googleDrive?.configured
+          ? ' The local backup is safe, but its Google Drive upload failed.'
+          : '';
+      toast({ title: 'Backup completed', description: `Saved ${result.backup.folderName} in the system backup folder.${driveMessage}`, variant: 'success' });
       await refreshBackupStatus();
+      await refreshGoogleDriveStatus();
     } catch (error) {
       toast({ title: 'Backup failed', description: error instanceof Error ? error.message : 'The database could not be backed up.', variant: 'destructive' });
     } finally {
       setIsBackupRunning(false);
+    }
+  };
+
+  const handleConnectGoogleDrive = async () => {
+    setIsGoogleDriveConnecting(true);
+    try {
+      const { authorizationUrl } = await settingsService.connectGoogleDrive();
+      window.location.assign(authorizationUrl);
+    } catch (error) {
+      toast({ title: 'Unable to connect Google Drive', description: error instanceof Error ? error.message : 'Check the Google Drive server configuration.', variant: 'destructive' });
+      setIsGoogleDriveConnecting(false);
+    }
+  };
+
+  const handleSaveGoogleDriveSetup = async () => {
+    setIsGoogleDriveSetupSaving(true);
+    try {
+      const status = await settingsService.saveGoogleDriveConfiguration(googleDriveSetup);
+      setGoogleDriveStatus(status);
+      setGoogleDriveSetup((current) => ({ ...current, clientSecret: '' }));
+      toast({ title: 'Google Drive setup saved', description: 'You can now connect the Google account that will receive backups.', variant: 'success' });
+    } catch (error) {
+      toast({ title: 'Unable to save Google Drive setup', description: error instanceof Error ? error.message : 'Check the values and try again.', variant: 'destructive' });
+    } finally {
+      setIsGoogleDriveSetupSaving(false);
+    }
+  };
+
+  const handleDisconnectGoogleDrive = async () => {
+    setIsGoogleDriveDisconnecting(true);
+    try {
+      await settingsService.disconnectGoogleDrive();
+      await refreshGoogleDriveStatus();
+      toast({ title: 'Google Drive disconnected', description: 'Future backups will remain on this computer only.', variant: 'success' });
+    } catch (error) {
+      toast({ title: 'Unable to disconnect Google Drive', description: error instanceof Error ? error.message : 'Please try again.', variant: 'destructive' });
+    } finally {
+      setIsGoogleDriveDisconnecting(false);
     }
   };
 
@@ -1150,6 +1219,62 @@ export const Settings = () => {
                   <RotateCcw className="w-4 h-4" />
                   Restore latest database
                 </Button>
+              </div>
+
+              <div className="p-4 rounded-lg border border-border bg-section space-y-3">
+                <div className="flex items-start gap-3">
+                  <Cloud className="w-5 h-5 text-primary mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">Google Drive safety copy</p>
+                    {googleDriveStatus?.connected ? (
+                      <p className="text-sm text-muted-foreground">
+                        Connected to <span className="font-medium">{googleDriveStatus.folderName}</span>. Every new database backup is uploaded there automatically.
+                        {googleDriveStatus.lastUploadedAt ? ` Last upload: ${new Date(googleDriveStatus.lastUploadedAt).toLocaleString()}.` : ''}
+                      </p>
+                    ) : googleDriveStatus?.configured ? (
+                      <p className="text-sm text-muted-foreground">Connect a Google account to keep a cloud copy of every database backup.</p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Paste the OAuth details from your Google Cloud project below, then connect the Google account that will receive backups.</p>
+                    )}
+                    {googleDriveStatus?.lastUploadError && (
+                      <p className="text-sm text-destructive">Last cloud upload failed. Your local backup is still available.</p>
+                    )}
+                  </div>
+                </div>
+                {!googleDriveStatus?.connected && (
+                  <div className="grid gap-3 pt-1">
+                    <p className="text-xs text-muted-foreground">Create a <strong>Web application</strong> OAuth client in Google Cloud, enable the Drive API, and add the exact redirect URL shown below as an authorized redirect URI.</p>
+                    <div className="grid gap-2">
+                      <Label htmlFor="google-drive-client-id">Google OAuth client ID</Label>
+                      <Input id="google-drive-client-id" value={googleDriveSetup.clientId} onChange={(e) => setGoogleDriveSetup((current) => ({ ...current, clientId: e.target.value }))} placeholder="…apps.googleusercontent.com" autoComplete="off" />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="google-drive-client-secret">Google OAuth client secret</Label>
+                      <Input id="google-drive-client-secret" type="password" value={googleDriveSetup.clientSecret} onChange={(e) => setGoogleDriveSetup((current) => ({ ...current, clientSecret: e.target.value }))} placeholder={googleDriveStatus?.setup.savedInSettings ? 'Enter a new secret only when changing setup' : 'Google OAuth client secret'} autoComplete="new-password" />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="google-drive-redirect-uri">Authorized redirect URI</Label>
+                      <Input id="google-drive-redirect-uri" value={googleDriveSetup.redirectUri} onChange={(e) => setGoogleDriveSetup((current) => ({ ...current, redirectUri: e.target.value }))} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="google-drive-frontend-url">Application URL after connection</Label>
+                      <Input id="google-drive-frontend-url" value={googleDriveSetup.frontendUrl} onChange={(e) => setGoogleDriveSetup((current) => ({ ...current, frontendUrl: e.target.value }))} />
+                    </div>
+                    <Button variant="outline" onClick={handleSaveGoogleDriveSetup} disabled={isGoogleDriveSetupSaving || !googleDriveSetup.clientId || !googleDriveSetup.clientSecret}>
+                      {isGoogleDriveSetupSaving ? 'Saving Google Drive setup…' : 'Save Google Drive setup'}
+                    </Button>
+                  </div>
+                )}
+                {googleDriveStatus?.connected ? (
+                  <Button variant="outline" onClick={handleDisconnectGoogleDrive} disabled={isGoogleDriveDisconnecting || isBackupRunning || isRestoreRunning}>
+                    {isGoogleDriveDisconnecting ? 'Disconnecting…' : 'Disconnect Google Drive'}
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={handleConnectGoogleDrive} disabled={!googleDriveStatus?.configured || isGoogleDriveConnecting || isBackupRunning || isRestoreRunning}>
+                    <Cloud className="w-4 h-4 mr-2" />
+                    {isGoogleDriveConnecting ? 'Opening Google…' : 'Connect Google Drive'}
+                  </Button>
+                )}
               </div>
             </div>
 

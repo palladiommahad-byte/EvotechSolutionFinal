@@ -1,5 +1,11 @@
 const cron = require('node-cron');
 const { query } = require('../config/database');
+const databaseBackup = require('./database-backup.service');
+
+// Run at 02:00 local time by default, when the application is least likely to
+// be in use. Both values can be changed without rebuilding the application.
+const DAILY_BACKUP_CRON = process.env.DAILY_BACKUP_CRON || '0 2 * * *';
+const BACKUP_TIMEZONE = process.env.BACKUP_TIMEZONE || process.env.TZ || 'Africa/Casablanca';
 
 /**
  * Clean up old notifications
@@ -121,6 +127,20 @@ async function checkLowStock() {
 }
 
 /**
+ * Create a regular database backup without requiring an administrator to use
+ * the manual Backup database button. The backup service's operation lock also
+ * prevents this task from overlapping a manual backup or a restore.
+ */
+async function createDailyDatabaseBackup() {
+    try {
+        const backup = await databaseBackup.createRegularBackup();
+        console.log(`Automatic daily database backup completed: ${backup.folderName}`);
+    } catch (error) {
+        console.error('Automatic daily database backup failed:', error.message);
+    }
+}
+
+/**
  * Initialize all cron jobs
  */
 function initCronJobs() {
@@ -135,6 +155,13 @@ function initCronJobs() {
         await cleanupOldNotifications();
     });
 
+    if (!cron.validate(DAILY_BACKUP_CRON)) {
+        console.error(`Automatic daily database backup was not scheduled: DAILY_BACKUP_CRON "${DAILY_BACKUP_CRON}" is invalid.`);
+    } else {
+        cron.schedule(DAILY_BACKUP_CRON, createDailyDatabaseBackup, { timezone: BACKUP_TIMEZONE });
+        console.log(`Automatic daily database backup scheduled for "${DAILY_BACKUP_CRON}" (${BACKUP_TIMEZONE}).`);
+    }
+
     // Run immediately on startup for testing (optional, maybe remove for production)
     // setTimeout(async () => {
     //   console.log('Running startup checks...');
@@ -146,5 +173,6 @@ function initCronJobs() {
 module.exports = {
     initCronJobs,
     checkLowStock, // Exported to be called manually if needed (e.g., after stock update)
-    checkOverdueInvoices // Exported for manual trigger testing
+    checkOverdueInvoices, // Exported for manual trigger testing
+    createDailyDatabaseBackup,
 };

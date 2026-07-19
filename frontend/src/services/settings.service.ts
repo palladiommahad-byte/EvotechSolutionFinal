@@ -112,6 +112,21 @@ export interface DatabaseBackupStatus {
   latestBackup: { name: string; createdAt: string } | null;
 }
 
+export interface GoogleDriveBackupStatus {
+  configured: boolean;
+  connected: boolean;
+  folderName: string | null;
+  connectedAt: string | null;
+  lastUploadedAt: string | null;
+  lastUploadError: string | null;
+  setup: {
+    clientId: string;
+    redirectUri: string;
+    frontendUrl: string;
+    savedInSettings: boolean;
+  };
+}
+
 // ============================================
 // SETTINGS SERVICE
 // ============================================
@@ -122,12 +137,28 @@ export const settingsService = {
     return apiClient.get<DatabaseBackupStatus>('/settings/database-backup');
   },
 
-  async createDatabaseBackup(): Promise<{ backup: { folderName: string; createdAt: string } }> {
-    return apiClient.post<{ backup: { folderName: string; createdAt: string } }>('/settings/database-backup');
+  async createDatabaseBackup(): Promise<{ backup: { folderName: string; createdAt: string; googleDrive?: { configured: boolean; uploaded: boolean; error?: string } } }> {
+    return apiClient.post<{ backup: { folderName: string; createdAt: string; googleDrive?: { configured: boolean; uploaded: boolean; error?: string } } }>('/settings/database-backup');
   },
 
   async restoreLatestDatabaseBackup(): Promise<{ restoredBackup: { name: string; createdAt: string } }> {
     return apiClient.post<{ restoredBackup: { name: string; createdAt: string } }>('/settings/database-restore/latest');
+  },
+
+  async getGoogleDriveBackupStatus(): Promise<GoogleDriveBackupStatus> {
+    return apiClient.get<GoogleDriveBackupStatus>('/settings/google-drive');
+  },
+
+  async connectGoogleDrive(): Promise<{ authorizationUrl: string }> {
+    return apiClient.post<{ authorizationUrl: string }>('/settings/google-drive/connect');
+  },
+
+  async saveGoogleDriveConfiguration(configuration: { clientId: string; clientSecret: string; redirectUri: string; frontendUrl: string }): Promise<GoogleDriveBackupStatus> {
+    return apiClient.put<GoogleDriveBackupStatus>('/settings/google-drive/configuration', configuration);
+  },
+
+  async disconnectGoogleDrive(): Promise<void> {
+    await apiClient.delete('/settings/google-drive');
   },
 
   // Company Settings

@@ -9,6 +9,27 @@ After the updated Docker stack is running, an administrator can use **Settings >
 - **Backup database** automatically creates a compressed PostgreSQL dump in `backups\database-<timestamp>`. It also saves the Docker Compose file, Dockerfiles, and Nginx configuration with that backup.
 - **Restore latest database** automatically verifies and restores the newest valid regular backup. Before replacing data, it saves the current database in a separate `pre-restore-<timestamp>` safety backup.
 
+## Automatic daily safety backup
+
+While the Docker application is running, the backend creates a database backup automatically every day at **02:00 Africa/Casablanca time**. This does not depend on anyone clicking the **Backup database** button; that button remains useful for an extra backup before a major change.
+
+To use another time or time zone, add these values to the deployment `.env` file and restart the stack:
+
+```env
+BACKUP_TIMEZONE=Africa/Casablanca
+DAILY_BACKUP_CRON=0 2 * * *
+```
+
+The automatic backup needs Docker Desktop and the application to be running at its scheduled time. Keep the `backups` folder on a separate drive or cloud location as well, since a backup on the same computer cannot protect against disk loss.
+
+## Google Drive cloud copy
+
+An administrator can connect a Google account from **Settings > Database > Connect Google Drive**. Once connected, every new regular database backup is stored locally first and then uploaded to that account's `EvoTech Backups` folder. A cloud upload failure never deletes or invalidates the local backup.
+
+Before the first connection, create a **Web application** OAuth client in Google Cloud, enable the Google Drive API, and add the callback URL shown in **Settings > Database** as an authorized redirect URI. Paste the client ID, client secret, callback URL, and application URL directly into that page, then click **Save Google Drive setup** and **Connect Google Drive**.
+
+For a deployed domain, use that domain instead of localhost for both URLs and register the exact callback URL in Google Cloud. The app requests only the `drive.file` scope and encrypts both the saved client secret and Google refresh token before writing them to the database.
+
 No command-line command or backup-file selection is required. Only administrators can use these actions. The `backups` folder should still be copied to a separate disk or cloud location to protect against disk loss.
 
 ## Where backups are saved
@@ -97,7 +118,7 @@ docker compose up -d
 
 ## Recommended schedule
 
-Create at least one backup every day.
+The application now creates one backup every day automatically. Create an additional manual backup before:
 
 Also create a backup before:
 

@@ -30,9 +30,6 @@ const { runAutoMigrations } = require('./scripts/auto-migrate');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialize Cron Jobs
-initCronJobs();
-
 // Middleware
 app.use(cors({
     origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
@@ -109,6 +106,10 @@ async function startServer() {
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
         }
     }
+
+    // Start scheduled work only after the database startup check has completed.
+    // This includes the automatic daily database backup.
+    initCronJobs();
 
     app.listen(PORT, () => {
         console.log('');

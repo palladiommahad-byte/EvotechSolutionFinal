@@ -4,8 +4,25 @@ const { query } = require('../config/database');
 const { verifyToken, requireRole } = require('../middleware/auth.middleware');
 const { asyncHandler } = require('../middleware/error.middleware');
 const databaseBackup = require('../services/database-backup.service');
+const googleDriveBackup = require('../services/google-drive-backup.service');
 
 const router = express.Router();
+
+// Google redirects back to this endpoint without the application's Authorization
+// header. The signed, short-lived OAuth state is verified by the service instead.
+router.get('/google-drive/callback', asyncHandler(async (req, res) => {
+    const redirectUrl = new URL('/settings', await googleDriveBackup.getClientOrigin());
+    try {
+        if (req.query.error) throw new Error(`Google Drive connection was cancelled: ${req.query.error}`);
+        if (!req.query.code || !req.query.state) throw new Error('Google did not return an authorization code.');
+        await googleDriveBackup.completeAuthorization(req.query.code, req.query.state);
+        redirectUrl.searchParams.set('googleDrive', 'connected');
+    } catch (error) {
+        console.error('Google Drive connection failed:', error.message);
+        redirectUrl.searchParams.set('googleDrive', 'error');
+    }
+    res.redirect(redirectUrl.toString());
+}));
 
 router.use(verifyToken);
 
@@ -30,6 +47,27 @@ router.post('/database-restore/latest', requireRole('admin'), asyncHandler(async
         restoredBackup: { name: result.restored.name, createdAt: result.restored.createdAt },
         safetyBackup: result.safetyBackup.folderName,
     });
+}));
+
+// ============================================
+// GOOGLE DRIVE BACKUP (administrator only)
+// ============================================
+router.get('/google-drive', requireRole('admin'), asyncHandler(async (req, res) => {
+    res.json(await googleDriveBackup.getStatus());
+}));
+
+router.post('/google-drive/connect', requireRole('admin'), asyncHandler(async (req, res) => {
+    res.json({ authorizationUrl: await googleDriveBackup.createAuthorizationUrl() });
+}));
+
+router.put('/google-drive/configuration', requireRole('admin'), asyncHandler(async (req, res) => {
+    await googleDriveBackup.saveConfiguration(req.body || {});
+    res.json(await googleDriveBackup.getStatus());
+}));
+
+router.delete('/google-drive', requireRole('admin'), asyncHandler(async (req, res) => {
+    await googleDriveBackup.disconnect();
+    res.status(204).send();
 }));
 
 // ============================================
