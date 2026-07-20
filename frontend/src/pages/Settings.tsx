@@ -118,6 +118,7 @@ export const Settings = () => {
 
   const isAdmin = currentUser?.role ? String(currentUser.role) === 'admin' : false;
   const isManager = currentUser?.role ? String(currentUser.role) === 'manager' : false;
+  const canManageDatabase = isAdmin || isManager;
   const [backupStatus, setBackupStatus] = useState<DatabaseBackupStatus | null>(null);
   const [googleDriveStatus, setGoogleDriveStatus] = useState<GoogleDriveBackupStatus | null>(null);
   const [googleDriveSetup, setGoogleDriveSetup] = useState({ clientId: '', clientSecret: '', redirectUri: 'http://localhost:3000/api/settings/google-drive/callback', frontendUrl: 'http://localhost:8080' });
@@ -129,7 +130,7 @@ export const Settings = () => {
   const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
 
   const refreshBackupStatus = async () => {
-    if (!isAdmin) return;
+    if (!canManageDatabase) return;
     try {
       setBackupStatus(await settingsService.getDatabaseBackupStatus());
     } catch (error) {
@@ -138,7 +139,7 @@ export const Settings = () => {
   };
 
   const refreshGoogleDriveStatus = async () => {
-    if (!isAdmin) return;
+    if (!canManageDatabase) return;
     try {
       const status = await settingsService.getGoogleDriveBackupStatus();
       setGoogleDriveStatus(status);
@@ -160,7 +161,7 @@ export const Settings = () => {
     if (result === 'connected') toast({ title: 'Google Drive connected', description: 'Future database backups will also be uploaded to Google Drive.', variant: 'success' });
     if (result === 'error') toast({ title: 'Google Drive was not connected', description: 'Please try again or verify the Google Drive configuration.', variant: 'destructive' });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin]);
+  }, [canManageDatabase]);
 
   // Initialize formData with safe defaults to prevent object-to-primitive errors
   const [formData, setFormData] = useState(() => {
@@ -1048,7 +1049,7 @@ export const Settings = () => {
             <Warehouse className="w-4 h-4" />
             {t('settings.warehouses')}
           </TabsTrigger>
-          {isAdmin && (
+          {canManageDatabase && (
             <TabsTrigger value="database" className="gap-2 rounded-md">
               <Database className="w-4 h-4" />
               Database
@@ -1188,7 +1189,7 @@ export const Settings = () => {
           </div>
         </TabsContent>
 
-        {isAdmin && (
+        {canManageDatabase && (
           <TabsContent value="database" className="animate-fade-in">
             <div className="card-elevated p-6 max-w-3xl space-y-6">
               <div className="flex items-start gap-3">

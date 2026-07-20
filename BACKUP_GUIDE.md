@@ -4,7 +4,7 @@ The application data is stored in PostgreSQL inside Docker, not in the frontend 
 
 ## Back up or restore from the application
 
-After the updated Docker stack is running, an administrator can use **Settings > Database**:
+After the updated Docker stack is running, an administrator or manager can use **Settings > Database**:
 
 - **Backup database** automatically creates a compressed PostgreSQL dump in `backups\database-<timestamp>`. It also saves the Docker Compose file, Dockerfiles, and Nginx configuration with that backup.
 - **Restore latest database** automatically verifies and restores the newest valid regular backup. Before replacing data, it saves the current database in a separate `pre-restore-<timestamp>` safety backup.
@@ -24,13 +24,13 @@ The automatic backup needs Docker Desktop and the application to be running at i
 
 ## Google Drive cloud copy
 
-An administrator can connect a Google account from **Settings > Database > Connect Google Drive**. Once connected, every new regular database backup is stored locally first and then uploaded to that account's `EvoTech Backups` folder. A cloud upload failure never deletes or invalidates the local backup.
+An administrator or manager can connect a Google account from **Settings > Database > Connect Google Drive**. Once connected, every new regular database backup is stored locally first and then uploaded to that account's `EvoTech Backups` folder. A cloud upload failure never deletes or invalidates the local backup.
 
 Before the first connection, create a **Web application** OAuth client in Google Cloud, enable the Google Drive API, and add the callback URL shown in **Settings > Database** as an authorized redirect URI. Paste the client ID, client secret, callback URL, and application URL directly into that page, then click **Save Google Drive setup** and **Connect Google Drive**.
 
 For a deployed domain, use that domain instead of localhost for both URLs and register the exact callback URL in Google Cloud. The app requests only the `drive.file` scope and encrypts both the saved client secret and Google refresh token before writing them to the database.
 
-No command-line command or backup-file selection is required. Only administrators can use these actions. The `backups` folder should still be copied to a separate disk or cloud location to protect against disk loss.
+No command-line command or backup-file selection is required. Only administrators and managers can use these actions. The `backups` folder should still be copied to a separate disk or cloud location to protect against disk loss.
 
 ## Where backups are saved
 

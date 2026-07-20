@@ -30,17 +30,17 @@ router.use(verifyToken);
 // DATABASE BACKUP AND RESTORE
 // ============================================
 // These commands execute inside the server container and are intentionally
-// restricted to administrators. The browser never receives database credentials.
-router.get('/database-backup', requireRole('admin'), asyncHandler(async (req, res) => {
+// restricted to administrators and managers. The browser never receives database credentials.
+router.get('/database-backup', requireRole('admin', 'manager'), asyncHandler(async (req, res) => {
     res.json(await databaseBackup.getStatus());
 }));
 
-router.post('/database-backup', requireRole('admin'), asyncHandler(async (req, res) => {
+router.post('/database-backup', requireRole('admin', 'manager'), asyncHandler(async (req, res) => {
     const backup = await databaseBackup.createRegularBackup();
     res.status(201).json({ message: 'Database backup completed.', backup });
 }));
 
-router.post('/database-restore/latest', requireRole('admin'), asyncHandler(async (req, res) => {
+router.post('/database-restore/latest', requireRole('admin', 'manager'), asyncHandler(async (req, res) => {
     const result = await databaseBackup.restoreLatestBackup();
     res.json({
         message: 'The latest database backup was restored.',
@@ -50,22 +50,22 @@ router.post('/database-restore/latest', requireRole('admin'), asyncHandler(async
 }));
 
 // ============================================
-// GOOGLE DRIVE BACKUP (administrator only)
+// GOOGLE DRIVE BACKUP (administrators and managers only)
 // ============================================
-router.get('/google-drive', requireRole('admin'), asyncHandler(async (req, res) => {
+router.get('/google-drive', requireRole('admin', 'manager'), asyncHandler(async (req, res) => {
     res.json(await googleDriveBackup.getStatus());
 }));
 
-router.post('/google-drive/connect', requireRole('admin'), asyncHandler(async (req, res) => {
+router.post('/google-drive/connect', requireRole('admin', 'manager'), asyncHandler(async (req, res) => {
     res.json({ authorizationUrl: await googleDriveBackup.createAuthorizationUrl() });
 }));
 
-router.put('/google-drive/configuration', requireRole('admin'), asyncHandler(async (req, res) => {
+router.put('/google-drive/configuration', requireRole('admin', 'manager'), asyncHandler(async (req, res) => {
     await googleDriveBackup.saveConfiguration(req.body || {});
     res.json(await googleDriveBackup.getStatus());
 }));
 
-router.delete('/google-drive', requireRole('admin'), asyncHandler(async (req, res) => {
+router.delete('/google-drive', requireRole('admin', 'manager'), asyncHandler(async (req, res) => {
     await googleDriveBackup.disconnect();
     res.status(204).send();
 }));
